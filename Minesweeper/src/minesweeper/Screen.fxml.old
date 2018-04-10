@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.net.*?>
+<?import java.util.*?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.scene.text.*?>
+<?scenebuilder-stylesheet Screen.css?>
+
+<AnchorPane id="AnchorPane" fx:id="window" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="424.0" prefWidth="591.0" xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/2.2" fx:controller="minesweeper.ScreenController">
+  <children>
+    <Pane fx:id="myPane" minWidth="-1.0" onMousePressed="#mouseDown" onMouseReleased="#mouseUp" pickOnBounds="true" prefHeight="261.0" prefWidth="455.0" style="&#10;" AnchorPane.bottomAnchor="35.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="70.0" />
+    <MenuBar prefWidth="455.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+      <menus>
+        <Menu mnemonicParsing="false" text="Game">
+          <items>
+            <RadioMenuItem id="easyMode" mnemonicParsing="false" onAction="#handleDifficulty" text="Easy (9x9x10)" fx:id="easyMode">
+              <toggleGroup>
+                <ToggleGroup fx:id="Difficulty" />
+              </toggleGroup>
+            </RadioMenuItem>
+            <RadioMenuItem mnemonicParsing="false" onAction="#handleDifficulty" text="Medium (16x16x40)" toggleGroup="$Difficulty" fx:id="mediumMode" />
+            <RadioMenuItem mnemonicParsing="false" onAction="#handleDifficulty" selected="true" text="Hard (30x16x99)" toggleGroup="$Difficulty" fx:id="hardMode" />
+            <RadioMenuItem mnemonicParsing="false" onAction="#handleDifficulty" text="MinesweeperX" toggleGroup="$Difficulty" fx:id="msxMode" />
+            <RadioMenuItem mnemonicParsing="false" onAction="#handleDifficulty" text="Custom..." toggleGroup="$Difficulty" fx:id="customMode" />
+            <SeparatorMenuItem mnemonicParsing="false" />
+            <MenuItem mnemonicParsing="false" text="Exit game" />
+          </items>
+        </Menu>
+        <Menu mnemonicParsing="false" text="Coach">
+          <items>
+            <CheckMenuItem mnemonicParsing="false" selected="true" text="Show move" fx:id="showMove" />
+            <CheckMenuItem mnemonicParsing="false" selected="false" text="Accept guesses" fx:id="acceptGuess" />
+            <CheckMenuItem mnemonicParsing="false" onAction="#showMinesToggled" text="Show mines" fx:id="showMines" />
+            <CheckMenuItem mnemonicParsing="false" onAction="#flagFreeToggled" text="Flag free" fx:id="flagFree" />
+            <CheckMenuItem mnemonicParsing="false" onAction="#probHeatMapToggled" text="Probability heat map" fx:id="probHeatMap" />
+          </items>
+        </Menu>
+      </menus>
+    </MenuBar>
+    <Label fx:id="scoreLabel" alignment="TOP_CENTER" layoutY="28.0" minHeight="24.0" prefHeight="37.0" prefWidth="56.0" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.leftAnchor="10.0"/>
+    <Label fx:id="timeLabel" alignment="TOP_CENTER" contentDisplay="LEFT" layoutY="28.0" prefHeight="37.0" prefWidth="56.0" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.rightAnchor="10.0" />
+    <Button fx:id="button" alignment="TOP_CENTER" onAction="#handleNewGameButton" text="New Game" textAlignment="CENTER" AnchorPane.bottomAnchor="5.0" AnchorPane.rightAnchor="10.0" />
+    <Button id="button" alignment="TOP_CENTER" onAction="#handleAutomateButton" text="Automate" textAlignment="CENTER" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="10.0" />
+    <Circle fx:id="highlight" centerX="50.0" centerY="50.0" fill="#fff500" layoutX="281.0" layoutY="-11.0" mouseTransparent="true" opacity="0.49" radius="26.25" stroke="BLACK" strokeType="INSIDE" strokeWidth="4.0" />
+  </children>
+  <stylesheets>
+    <URL value="@Screen.css" />
+  </stylesheets>
+</AnchorPane>

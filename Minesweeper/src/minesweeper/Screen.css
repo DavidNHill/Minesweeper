@@ -1,0 +1,47 @@
+/* 
+    Document   : Screen
+    Created on : 29-Nov-2013, 15:48:32
+    Author     : David
+    Description:
+        Purpose of the stylesheet follows.
+*/
+
+.root { 
+
+    -fx-background-color: linear-gradient(GREEN, DARKGREEN);
+
+    -fx-background-color: linear-gradient(#61a2b1, #2A5058);
+}
+
+.menu-bar {
+
+    -fx-background-color: linear-gradient(#61a2b1, #2A5058); 
+
+}
+
+
+#myPane {
+
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-border-style: solid outside;   
+
+}
+
+#scoreLabel {
+
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-border-style: solid outside;   
+    -fx-border-radius: 15;
+
+}
+
+#timeLabel {
+
+    -fx-border-color: black;
+    -fx-border-width: 1;
+    -fx-border-style: solid outside;   
+    -fx-border-radius: 15;
+
+}

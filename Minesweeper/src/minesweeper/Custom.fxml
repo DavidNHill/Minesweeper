@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.effect.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane fx:id="window" prefHeight="169.0" prefWidth="240.0" stylesheets="@Screen.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.CustomController">
+   <children>
+      <TextField fx:id="heightText" alignment="CENTER_RIGHT" layoutX="68.0" layoutY="29.0" prefHeight="25.0" prefWidth="49.0">
+         <effect>
+            <DropShadow />
+         </effect>
+      </TextField>
+      <Label layoutX="15.0" layoutY="65.0" text="Width" />
+      <Label layoutX="13.0" layoutY="33.0" text="Height" />
+      <Label layoutX="15.0" layoutY="98.0" text="Mines" />
+      <TextField fx:id="widthText" alignment="CENTER_RIGHT" layoutX="68.0" layoutY="61.0" prefHeight="25.0" prefWidth="49.0">
+         <effect>
+            <DropShadow />
+         </effect>
+      </TextField>
+      <TextField fx:id="minesText" alignment="CENTER_RIGHT" layoutX="68.0" layoutY="94.0" prefHeight="25.0" prefWidth="49.0">
+         <effect>
+            <DropShadow />
+         </effect>
+      </TextField>
+      <Label layoutX="13.0" layoutY="6.0" prefHeight="17.0" prefWidth="137.0" text="Choose custom settings" />
+      <Button layoutX="135.0" layoutY="29.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="78.0" text="Okay" textAlignment="CENTER">
+         <effect>
+            <InnerShadow />
+         </effect>
+      </Button>
+      <Button layoutX="135.0" layoutY="61.0" mnemonicParsing="false" onAction="#handleCancelButton" prefHeight="25.0" prefWidth="78.0" text="Cancel">
+         <effect>
+            <InnerShadow />
+         </effect>
+      </Button>
+      <Label layoutX="11.0" layoutY="132.0" text="Game #" />
+      <TextField fx:id="gameCodeText" layoutX="68.0" layoutY="128.0">
+         <effect>
+            <DropShadow />
+         </effect>
+      </TextField>
+   </children>
+</AnchorPane>
