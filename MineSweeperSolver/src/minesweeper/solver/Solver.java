@@ -135,10 +135,6 @@ public class Solver implements Asynchronous<Action[]> {
     final static boolean USE_OFF_EDGE_HOOKS = false;
     final static boolean PRUNE_BF_ANALYSIS = true;
     
-    // playing chords will make the solver run slower, but should result in less moves
-    // it is suggested to play chords if playing an external boarding using mouse controller and you wish to look impressive
-    protected final static boolean PLAY_CHORDS = true;
-    
     // won't play the book opening on start if false
     protected final static boolean PLAY_OPENING = true;
     
@@ -157,11 +153,8 @@ public class Solver implements Asynchronous<Action[]> {
     
     protected final Preferences preferences;
     
-    //private Location[] BOOK_OPEN; 
-    //private int[] BOOK_NEIGHBOURS;
-    //private int bookMove = 0;
-    
-    private final List<OpeningLocation> book = new ArrayList<>();
+ 
+    //private final List<OpeningLocation> book = new ArrayList<>();
     
     // the class that knows the real board layout, which squares have been revealed and where the flags are
     private final GameStateModel myGame;
@@ -200,6 +193,10 @@ public class Solver implements Asynchronous<Action[]> {
     // this is considered expert tactics because it reduces the number of mouse actions.
     private boolean flagFree = false;
     
+    // playing chords will make the solver run slower, but should result in less moves
+    // it is suggested to play chords if playing an external boarding using mouse controller and you wish to look impressive
+    private boolean playChords = false;
+    
     
     /**
      * Start the solver without a coach display
@@ -226,7 +223,7 @@ public class Solver implements Asynchronous<Action[]> {
         this.boardState = new BoardState(this);
         
         // create book moves
-        createBook(myGame.getx(), myGame.gety());
+        //createBook(myGame.getx(), myGame.gety());
         
         display("Running with " + CORES + " Cores");
         display("Solving game " + myGame.showGameKey());
@@ -236,6 +233,7 @@ public class Solver implements Asynchronous<Action[]> {
     }
 
    
+    /*
     public void overrideBookOpenings(OpeningLocation...locations) {
 
     	display("Book openings cleared and replaced with");
@@ -247,28 +245,11 @@ public class Solver implements Asynchronous<Action[]> {
     	
    	
     }
+    */
     
+    /*
     private void createBook(int x, int y) {
 
-    	/*
-        Location[] bookStart = {new Location(0,0), new Location(x-1,0), new Location(x-1, y-1), new Location(0, y-1),
-                                new Location(2,0), new Location(0,2), new Location(x-3,0), new Location(x-1,2),
-                                new Location(x-3,y-1), new Location(x-1, y-3), new Location(2, y-1), new Location(0, y-3)};
-    	*/
-    	/*
-        Location[] book = {new Location(0,0), new Location(x-1,0), new Location(x-1, y-1), new Location(0, y-1),
-                new Location(3,0), new Location(0,3), new Location(x-4,0), new Location(x-1,3),
-                new Location(x-4,y-1), new Location(x-1, y-4), new Location(3, y-1), new Location(0, y-4)};
-        */
-        //Location[] book = {new Location(0,0), new Location(x-1,0), new Location(x-1, y-1), new Location(0, y-1)};
-        
-        //overrideBookOpenings(bookStart);
- 
-        //book.add(new OpeningLocation(0,0).addChild(new OpeningLocation(2,0,2)).addChild(new OpeningLocation(0,2,2)));
-        //book.add(new OpeningLocation(x-1,0).addChild(new OpeningLocation(x-3,0,2)).addChild(new OpeningLocation(x-1,2,2)));
-        //book.add(new OpeningLocation(x-1,y-1).addChild(new OpeningLocation(x-3,y-1,2)).addChild(new OpeningLocation(x-1,y-3,2)));
-        //book.add(new OpeningLocation(0,y-1).addChild(new OpeningLocation(2,y-1,2)).addChild(new OpeningLocation(0,y-3,2)));
-        
         book.add(new OpeningLocation(0,0));
         book.add(new OpeningLocation(x-1,0));
         book.add(new OpeningLocation(x-1,y-1));
@@ -284,7 +265,7 @@ public class Solver implements Asynchronous<Action[]> {
 
         
     }
-    
+    */
    
     // Start of Asynchronous methods 
     @Override
@@ -333,6 +314,19 @@ public class Solver implements Asynchronous<Action[]> {
     public boolean isFlagFree() {
     	return this.flagFree;
     }
+    
+    /**
+     * True indicates the solver should play chords
+     * @param playChords
+     */
+    public void setPlayChords(boolean playChords) {
+    	this.playChords = playChords;
+    }
+    
+    public boolean isPlayChords() {
+    	return this.playChords;
+    }
+    
     
     private FinalMoves process() {
         

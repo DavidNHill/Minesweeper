@@ -137,6 +137,9 @@ public class CustomController {
 
 		custom.stage.setScene(custom.scene);
 		custom.stage.setTitle("Custom board");
+		
+		custom.stage.getIcons().add(Graphics.getMine());
+		
 		custom.stage.setResizable(false);
 
 		custom.stage.initOwner(owner);

@@ -95,8 +95,8 @@ public class MinesweeperBulk {
 		for (int i=0; i < MAX; i++) {
 
 			//GameStateModel gs = new GameStateHard(30, 16, 99, seeder.nextLong()); // first move can be a mine
-			GameStateModel gs = new GameStateEasy(16, 16, 40, seeder.nextLong());  // first move is a zero
-			//GameStateModel gs = new GameStateStandard(30, 16, 99, seeder.nextLong());
+			//GameStateModel gs = new GameStateEasy(24, 30, 203, seeder.nextLong());  // first move is a zero
+			GameStateModel gs = new GameStateStandard(30, 24, 203, seeder.nextLong());
 			//GameStateModel gs = new GameStateStandard(9, 9, 10, seeder.nextLong());
 			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.TINY_BRUTE_FORCE, false);

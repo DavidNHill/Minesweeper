@@ -897,7 +897,7 @@ public class BoardState {
 	 */
 	protected boolean setChordLocation(Location loc) {
 		
-		if (!Solver.PLAY_CHORDS) {
+		if (!solver.isPlayChords()) {
 			return false;
 		}
 		

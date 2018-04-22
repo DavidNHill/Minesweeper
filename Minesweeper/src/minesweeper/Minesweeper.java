@@ -28,6 +28,8 @@ import minesweeper.gamestate.msx.ScreenScanner;
  */
 public class Minesweeper extends Application {
     
+	public static final String TITLE = "Minesweeper coach";
+	
     private static GameStateModelViewer myGame;
     
     private static Stage myStage = null;
@@ -41,7 +43,7 @@ public class Minesweeper extends Application {
         myStage = stage;
 
         // this creates a hard game on start-up
-        createNewGame(ScreenController.DIFFICULTY_HARD, ScreenController.GAMETYPE_NORMAL);
+        createNewGame(ScreenController.DIFFICULTY_HARD, ScreenController.GAMETYPE_NORMAL, null);
 
         System.out.println("creating root");
         
@@ -58,7 +60,9 @@ public class Minesweeper extends Application {
         Scene scene = new Scene(root);
         
         stage.setScene(scene);
-        stage.setTitle("Minesweeper coach");
+        stage.setTitle(TITLE);
+
+        stage.getIcons().add(Graphics.getMine());
         
         stage.setX(50);
         stage.setY(50);
@@ -89,12 +93,12 @@ public class Minesweeper extends Application {
     // use the difficulty set in the menu system
     static public GameStateModel newGame() {
  
-        return createNewGame(myController.getDifficulty(), myController.getGameType());
+        return createNewGame(myController.getDifficulty(), myController.getGameType(), null);
         
     }
     
     // force a difficulty setting
-    static public GameStateModel createNewGame(int difficulty, int gameType) {
+    static public GameStateModel createNewGame(int difficulty, int gameType, File fileSelected) {
         
     	int width = 30;
     	int height = 16;
@@ -126,6 +130,9 @@ public class Minesweeper extends Application {
     		myGame = new GameStateX(scanner);
     		System.out.println("X = " + myGame.getx() + " Y =" + myGame.gety());
     		break;
+    	case ScreenController.DIFFICULTY_FILE:
+    		myGame = GameStateReader.load(fileSelected);
+    		break;
     	case ScreenController.DIFFICULTY_CUSTOM:
     		CustomController custom = CustomController.getCustomController();
     		width = custom.getWidth();
@@ -142,7 +149,7 @@ public class Minesweeper extends Application {
     	}
 
     	// if we are shadowing minesweeperX then we don't need to do any more
-    	if (difficulty == ScreenController.DEFER_TO_MINESWEEPERX) {
+    	if (difficulty == ScreenController.DEFER_TO_MINESWEEPERX || difficulty == ScreenController.DIFFICULTY_FILE) {
     		return myGame;
     	}
     	
@@ -155,7 +162,6 @@ public class Minesweeper extends Application {
     		} else {
     			myGame = new GameStateEasy(width, height, mines, gameCode);
     		}
-    		myGame = GameStateReader.load(new File("C:\\PGMS\\board6.mine"));
     		break;
     	case ScreenController.GAMETYPE_NORMAL: 
     		if (gameCode == 0) {

@@ -4,8 +4,8 @@
  */
 package minesweeper;
 
+import java.io.File;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 
 import Monitor.AsynchMonitor;
 import javafx.application.Platform;
@@ -14,13 +14,10 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
-import javafx.scene.control.PopupControl;
 import javafx.scene.control.RadioMenuItem;
-import javafx.scene.control.Tooltip;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
@@ -33,6 +30,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
 import javafx.stage.Popup;
 import minesweeper.coach.HelperController;
 import minesweeper.gamestate.Action;
@@ -50,8 +48,8 @@ public class ScreenController {
     @FXML
     private Pane myPane;
     
-    @FXML
-    private Button button;
+    @FXML private Button newGameButton;
+    @FXML private Button automateButton;
     
     @FXML
     private AnchorPane window;
@@ -67,6 +65,7 @@ public class ScreenController {
     @FXML private RadioMenuItem hardMode;
     @FXML private RadioMenuItem customMode;    
     @FXML private RadioMenuItem msxMode;
+    @FXML private RadioMenuItem fromFile;
 
     @FXML private RadioMenuItem gameTypeEasy;
     @FXML private RadioMenuItem gameTypeNormal;
@@ -74,11 +73,11 @@ public class ScreenController {
     
     
     
-    @FXML
-    private CheckMenuItem showMove;
+    @FXML private CheckMenuItem showMove;
     @FXML private CheckMenuItem acceptGuess;
     @FXML private CheckMenuItem showMines;
     @FXML private CheckMenuItem flagFree;
+    @FXML private CheckMenuItem useChords;
     @FXML private CheckMenuItem probHeatMap;
     
     @FXML
@@ -91,7 +90,9 @@ public class ScreenController {
     public static final int DIFFICULTY_EASY = 1;
     public static final int DIFFICULTY_MEDIUM = 2;
     public static final int DIFFICULTY_HARD = 3;
+    public static final int DIFFICULTY_FILE = 98;
     public static final int DEFER_TO_MINESWEEPERX = 99;
+    
     public static final int DIFFICULTY_CUSTOM = 100;
     
     public static final int GAMETYPE_EASY = 1;
@@ -126,6 +127,7 @@ public class ScreenController {
     private double combProb = 1;
     
     private int difficulty = DIFFICULTY_HARD;
+    private File fileSelected = null;
     
     private int gameType = GAMETYPE_NORMAL;
     
@@ -184,23 +186,40 @@ public class ScreenController {
             difficulty = DEFER_TO_MINESWEEPERX;
         } else if (customMode.isSelected()) {
             difficulty = DIFFICULTY_CUSTOM;
+        } else if (fromFile.isSelected()) {
+            difficulty = DIFFICULTY_FILE;
+            
+        	FileChooser fileChooser = new FileChooser();
+        	
+        	fileChooser.setTitle("Open game to analyse");
+        	fileSelected = fileChooser.showOpenDialog(Minesweeper.getStage());
+        	
+        	if (fileSelected == null) {
+        		difficulty = prevDiff;
+        	}
+        	
         }
 
+        System.out.println("Menu difficulty option " + difficulty + " picked");
+        
         if (difficulty == DIFFICULTY_CUSTOM) {
         	System.out.println("At custom Menu");
         	CustomController custom = CustomController.launch(window.getScene().getWindow(), Minesweeper.getGame());
         	
             custom.getStage().showAndWait();
             
+            System.out.println("At custom menu finish");
+            
             if (custom.wasCancelled()) {
             	difficulty = prevDiff;
-            }
+            } else {
+            	newGame();
+            } 
             
-            System.out.println("At custom menu finish");
         }
         
         
-        System.out.println("Menu difficulty option " + difficulty + " picked");
+        
         
     }
     
@@ -223,9 +242,10 @@ public class ScreenController {
         //System.out.println("You clicked me!");
         
         // rotate the button
-        new Rotator((Node) event.getSource()).start();
-        
-       
+        //new Rotator((Node) event.getSource()).start();
+    	
+
+    	
         newGame();
         
     }
@@ -236,9 +256,17 @@ public class ScreenController {
         //System.out.println("You clicked me!");
         
         // rotate the button
-        new Rotator((Node) event.getSource()).start();
+        //new Rotator((Node) event.getSource()).start();
         
+    	Button button = (Button) event.getSource();
+    	
         automate = !automate;
+        
+        if (automate) {
+        	automateButton.setText("Stop");
+        } else {
+        	automateButton.setText("Automate");
+        }
         
     }    
     
@@ -336,6 +364,15 @@ public class ScreenController {
     }   
     
     @FXML
+    private void useChordsToggled(ActionEvent event) {
+        
+    	if (solver != null) {
+    		solver.setPlayChords(useChords.isSelected());
+    	}
+    	
+    }   
+    
+    @FXML
     private void probHeatMapToggled(ActionEvent event) {
         
     	
@@ -344,7 +381,7 @@ public class ScreenController {
     
     @FXML
     void initialize() {
-        assert button != null : "fx:id=\"button\" was not injected: check your FXML file 'Screen.fxml'.";
+        //assert button != null : "fx:id=\"button\" was not injected: check your FXML file 'Screen.fxml'.";
         assert myPane != null : "fx:id=\"myPane\" was not injected: check your FXML file 'Screen.fxml'.";
         
         // get some details about the game
@@ -437,12 +474,14 @@ public class ScreenController {
             // if the solver can't find any moves then stop automating
             if (move.length == 0) {
                 automate = false;
+            	automateButton.setText("Automate");
                 return;
             }
 
             // if we aren't accepting guesses then stop the automated processing when we come to one
             if (!acceptGuess.isSelected() && !move[nextMove].isCertainty()) {
                 automate = false;
+            	automateButton.setText("Automate");
                 highlightMove(nextMove);
                 return;
             }
@@ -755,7 +794,7 @@ public class ScreenController {
     protected void newGame(int difficulty) {
         
         // create a new game state
-        GameStateModel gs = Minesweeper.createNewGame(difficulty, gameType);
+        GameStateModel gs = Minesweeper.createNewGame(difficulty, gameType, fileSelected);
 
         // create a memory of the last screen - set to full refresh
         lastScreen = new int[gs.getx()][gs.gety()];
@@ -777,6 +816,11 @@ public class ScreenController {
         
         updateScreen();
         
+        Double offsetX = (IMAGE_SIZE * gs.getx() - newGameButton.getWidth())/ 2d;
+         
+        newGameButton.setLayoutX(offsetX);
+        
+        
         // create a new solver
         solver = new Solver(gs, preferences, HelperController.launch(), true);
         solver.setFlagFree(flagFree.isSelected());
@@ -786,9 +830,10 @@ public class ScreenController {
         move = new Action[0];
         nextMove = 0;
         
+        Minesweeper.getStage().setTitle(Minesweeper.TITLE + " - Game " + gs.showGameKey());
         
         // garbage collection
-        System.gc();
+        //System.gc();
         
     }
     
