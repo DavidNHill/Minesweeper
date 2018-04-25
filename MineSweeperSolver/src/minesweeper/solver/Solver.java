@@ -197,6 +197,8 @@ public class Solver implements Asynchronous<Action[]> {
     // it is suggested to play chords if playing an external boarding using mouse controller and you wish to look impressive
     private boolean playChords = false;
     
+    // Shows the best tree in sysout from Brute Force Deep analysis
+    private boolean showProbabilityTree = false;
     
     /**
      * Start the solver without a coach display
@@ -325,6 +327,19 @@ public class Solver implements Asynchronous<Action[]> {
     
     public boolean isPlayChords() {
     	return this.playChords;
+    }
+    
+    
+    /**
+     * True indicates the solver should play chords
+     * @param playChords
+     */
+    public void setShowProbabilityTree(boolean showTree) {
+    	this.showProbabilityTree = showTree;
+    }
+    
+    public boolean isShowProbabilityTree() {
+    	return this.showProbabilityTree;
     }
     
     
@@ -2466,17 +2481,17 @@ public class Solver implements Asynchronous<Action[]> {
     	} else {
     		return null;
     	}
-    	
+ 
     }
  
-    private void topLine(final String s) {
+    protected void topLine(final String s) {
         
     	coachDisplay.clearScreen();
     	coachDisplay.writeLine(s);
     	
     }
     
-    private void newLine(final String s) {
+    protected void newLine(final String s) {
 
     	coachDisplay.writeLine(s);
         

@@ -91,8 +91,14 @@ public class ScreenScanner {
 		//System.out.println("Locate");
 		locate();
 		
+		// if we can't find the minesweeperX game then return
+		if (!location.found) {
+			return;
+		}
+		
 		//System.out.println("Start MSX " + columns + " by " + rows);
-		startMinesweeperX();
+		startMinesweeperX();  // get focus
+		startMinesweeperX();  // start
 		
 		try {
 			Thread.sleep(50);
@@ -140,6 +146,11 @@ public class ScreenScanner {
 			
 			rows = height/16;
 			columns = width/16;
+			
+			if (rows < 1 || columns < 1) {
+				location.found = false;
+				return;
+			}
 			
 
 	    } catch (GetWindowRect.WindowNotFoundException e){

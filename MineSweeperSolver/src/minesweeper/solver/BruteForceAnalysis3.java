@@ -490,7 +490,11 @@ public class BruteForceAnalysis3 extends BruteForceAnalysisModel{
 		
 		if (processCount < solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_NODES) {
 			this.completed = true;
-			//showTree(0, 0, top);
+			if (solver.isShowProbabilityTree()) {
+				solver.newLine("--------- Probability Tree dump start ---------");
+				showTree(0, 0, top);
+				solver.newLine("---------- Probability Tree dump end ----------");
+			}
 		}
 		
 		long end = System.currentTimeMillis();
@@ -704,7 +708,9 @@ public class BruteForceAnalysis3 extends BruteForceAnalysisModel{
 		}
 		
 		if (node.bestLiving == null) {
-			System.out.println(INDENT.substring(0, depth*3) + condition + " Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%");
+			String line = INDENT.substring(0, depth*3) + condition + " Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
+			System.out.println(line);
+			solver.newLine(line);
 			return;
 		}
 		
@@ -713,8 +719,10 @@ public class BruteForceAnalysis3 extends BruteForceAnalysisModel{
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(node.bestLiving.mines).divide(BigDecimal.valueOf(node.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 		
 		
+		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
 		
-		System.out.println(INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%");
+		System.out.println(line);
+		solver.newLine(line);
 		
 		//for (Node nextNode: node.bestLiving.children) {
 		for (int val=0; val < node.bestLiving.children.length; val++) {

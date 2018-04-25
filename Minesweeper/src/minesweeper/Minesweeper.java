@@ -5,12 +5,16 @@
 package minesweeper;
 
 import java.io.File;
+import java.util.Optional;
 
 import javafx.application.Application;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import minesweeper.gamestate.GameStateStandard;
@@ -125,7 +129,14 @@ public class Minesweeper extends Application {
     	case ScreenController.DEFER_TO_MINESWEEPERX:
     		ScreenScanner scanner = new ScreenScanner("Minesweeper X");
     		if (!scanner.isValid()) {
+    			
     			System.out.println("MinsweeperX not found");
+    			Alert alert = new Alert(AlertType.ERROR, "MinesweeperX can't be found: ensure it is maximised and unobstructed");
+    			Optional<ButtonType> result = alert.showAndWait();
+    			if (result.isPresent() && result.get() == ButtonType.OK) {
+    			     return myGame;   // old game
+    			}
+    			
     		}
     		myGame = new GameStateX(scanner);
     		System.out.println("X = " + myGame.getx() + " Y =" + myGame.gety());

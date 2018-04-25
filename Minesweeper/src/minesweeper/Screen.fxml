@@ -13,7 +13,7 @@
 <AnchorPane id="AnchorPane" fx:id="window" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="424.0" prefWidth="591.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.ScreenController">
   <children>
     <Pane fx:id="myPane" minWidth="-1.0" onMousePressed="#mouseDown" onMouseReleased="#mouseUp" pickOnBounds="true" prefHeight="261.0" prefWidth="455.0" style="&#10;" AnchorPane.bottomAnchor="35.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="70.0" />
-    <MenuBar prefWidth="455.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+    <MenuBar prefWidth="455.0" stylesheets="@Screen.css" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <menus>
         <Menu mnemonicParsing="false" text="Game">
           <items>
@@ -40,7 +40,7 @@
                     </items>
                   </Menu>
                   <SeparatorMenuItem mnemonicParsing="false" />
-            <MenuItem mnemonicParsing="false" text="Exit game" />
+            <MenuItem mnemonicParsing="false" onAction="#exitGameHandle" text="Exit game" />
           </items>
         </Menu>
         <Menu mnemonicParsing="false" text="Coach">
@@ -50,6 +50,7 @@
             <CheckMenuItem fx:id="showMines" mnemonicParsing="false" onAction="#showMinesToggled" text="Show mines" />
             <CheckMenuItem fx:id="flagFree" mnemonicParsing="false" onAction="#flagFreeToggled" text="Flag free" />
                   <CheckMenuItem fx:id="useChords" mnemonicParsing="false" onAction="#useChordsToggled" text="Use chords" />
+                  <CheckMenuItem fx:id="dumpTree" mnemonicParsing="false" onAction="#dumpTreeToggled" text="Dump probability tree" />
             <CheckMenuItem fx:id="probHeatMap" disable="true" mnemonicParsing="false" onAction="#probHeatMapToggled" text="Probability heat map" />
           </items>
         </Menu>

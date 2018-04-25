@@ -26,7 +26,9 @@ abstract public class Preferences {
 
 		@Override
 		public void setVariables() {
-		   	
+			
+			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
 	    	BRUTE_FORCE_MAX = new BigInteger("0");  
 	    	ZONE_MAX = new BigInteger("2500"); 
 	    	USE_MIN_MAX = true;
@@ -126,6 +128,7 @@ abstract public class Preferences {
      * Looks for very large independent zones which have to be guessed.
      * Very large brute force at the end of the game and uses guesses which minimise the solution space.
      */
+    /*
     final static public Preferences VERY_LARGE_BRUTE_FORCE = new Preferences() {
 
 		@Override
@@ -136,5 +139,5 @@ abstract public class Preferences {
 		}
     	
     };
-	
+	*/
 }

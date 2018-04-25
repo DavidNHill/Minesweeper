@@ -25,6 +25,7 @@ public class AsynchMonitor {
             
             this.index = index;
             this.item = item;
+            this.setDaemon(true);
             
         }
         

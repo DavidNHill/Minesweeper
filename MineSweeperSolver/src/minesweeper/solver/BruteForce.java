@@ -434,6 +434,16 @@ public class BruteForce {
 		
 		Location l = new Location(x,y);
 		
+		if (crunchResult == null) {   // this can happen if there are no mines left to find, so everything is a clear
+			for (Location loc: web.getSquares()) {   // if the mouse is hovering over one of the brute forced squares
+				if (loc.equals(l)) {
+					return BigDecimal.ONE;
+				}
+			}
+			return BigDecimal.ZERO;
+		}
+
+		
 		for (int i=0; i < crunchResult.getSquare().size(); i++) {
 			if (crunchResult.getSquare().get(i).equals(l)) {
 				BigDecimal prob = new BigDecimal(crunchResult.bigTally[i]).divide(new BigDecimal(crunchResult.bigGoodCandidates), Solver.DP, RoundingMode.HALF_UP);

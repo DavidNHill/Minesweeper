@@ -14,6 +14,7 @@ import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
@@ -25,6 +26,8 @@ import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -45,6 +48,9 @@ import minesweeper.solver.Solver;
  */
 public class ScreenController {
     
+	private static final Background BG_GREEN = new Background(new BackgroundFill(Color.GREEN, null, null));
+	private static final Background BG_GREY = new Background(new BackgroundFill(Color.GREY, null, null));
+	
     @FXML
     private Pane myPane;
     
@@ -78,6 +84,7 @@ public class ScreenController {
     @FXML private CheckMenuItem showMines;
     @FXML private CheckMenuItem flagFree;
     @FXML private CheckMenuItem useChords;
+    @FXML private CheckMenuItem dumpTree;
     @FXML private CheckMenuItem probHeatMap;
     
     @FXML
@@ -224,6 +231,13 @@ public class ScreenController {
     }
     
     @FXML
+    private void exitGameHandle(ActionEvent event) {
+        
+    	Platform.exit();
+
+    }    
+    
+    @FXML
     private void handleGameType(ActionEvent event) {
         
         if (gameTypeEasy.isSelected()) {
@@ -299,10 +313,14 @@ public class ScreenController {
         //   display.setRotate(5);
         //}
         
+        window.setCursor(Cursor.WAIT);
+        
         move = getMoves();
 
         highlightMove(0);
 
+        window.setCursor(Cursor.DEFAULT);
+        
         nextMove = 0;
         //update((int) p.getX(), (int) p.getY());
         
@@ -373,6 +391,15 @@ public class ScreenController {
     }   
     
     @FXML
+    private void dumpTreeToggled(ActionEvent event) {
+        
+    	if (solver != null) {
+    		solver.setShowProbabilityTree(dumpTree.isSelected());
+    	}
+    	
+    }   
+    
+    @FXML
     private void probHeatMapToggled(ActionEvent event) {
         
     	
@@ -383,6 +410,8 @@ public class ScreenController {
     void initialize() {
         //assert button != null : "fx:id=\"button\" was not injected: check your FXML file 'Screen.fxml'.";
         assert myPane != null : "fx:id=\"myPane\" was not injected: check your FXML file 'Screen.fxml'.";
+        
+        window.setBackground(BG_GREY);
         
         // get some details about the game
         GameStateModel gs = Minesweeper.getGame();
@@ -434,9 +463,7 @@ public class ScreenController {
         }
         
         Action[] result = solver.getResult();
-        
-
-        
+ 
         return result;
 
     }
@@ -455,9 +482,14 @@ public class ScreenController {
     
     protected void moveCheck() {
         
+
+    	
         if (!automate) {
+        	window.setCursor(Cursor.DEFAULT);
             return;
         }
+        
+        window.setCursor(Cursor.WAIT);
         
         // play the moves until one is successful
         // this is done because some moves become obsolete once previous ones
@@ -475,6 +507,7 @@ public class ScreenController {
             if (move.length == 0) {
                 automate = false;
             	automateButton.setText("Automate");
+            	window.setCursor(Cursor.DEFAULT);
                 return;
             }
 
@@ -482,6 +515,7 @@ public class ScreenController {
             if (!acceptGuess.isSelected() && !move[nextMove].isCertainty()) {
                 automate = false;
             	automateButton.setText("Automate");
+            	window.setCursor(Cursor.WAIT);
                 highlightMove(nextMove);
                 return;
             }
@@ -824,6 +858,9 @@ public class ScreenController {
         // create a new solver
         solver = new Solver(gs, preferences, HelperController.launch(), true);
         solver.setFlagFree(flagFree.isSelected());
+        solver.setPlayChords(useChords.isSelected());
+        solver.setShowProbabilityTree(dumpTree.isSelected());
+        
         combProb = 1;
  
         // forget any moves we have stored up

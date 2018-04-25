@@ -75,7 +75,6 @@ public class GameStateX extends GameStateModelViewer {
 
 	@Override
 	protected void startHandle(Location m) {
-
 		
 	}
 
@@ -148,6 +147,12 @@ public class GameStateX extends GameStateModelViewer {
 		}
         
         return true;
+	}
+
+
+	@Override
+	public String showGameKey() {
+		return "Minesweeper X";
 	}
 	
 	
