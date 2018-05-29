@@ -5,6 +5,10 @@ My Minesweeper implementation with automated Solver
 
 For expert has a 40% win rate using traditional rules (30x16x99 safe but not always zero start) and 53% for modern rules (30x16x99 zero start)
 
+You can download the pre-built solver from 1-drive https://1drv.ms/f/s!Ausk2xnPbeGKmlJef67spVWYB9SI it requires Java 8. 
+
+If you are interested in what it does read on ...
+
 The solver uses various strategies to try and solve the puzzle, each being more expensive in processing time.
 
 1) Trivial search
