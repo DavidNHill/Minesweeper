@@ -25,6 +25,8 @@ public class GameStateReader extends GameStateModelViewer {
     
     private long seed;
     
+    private File file;
+    
     private GameStateReader(int x, int y, int mines) {
         this(x, y, mines, new Random().nextLong());
     }
@@ -50,7 +52,10 @@ public class GameStateReader extends GameStateModelViewer {
     	int y;
     	int mines;
     	
+
+    	
     	GameStateReader result;
+
     	
 		try (InputStreamReader isr = new InputStreamReader(new FileInputStream(file));
 				BufferedReader reader  = new BufferedReader(isr)
@@ -107,6 +112,8 @@ public class GameStateReader extends GameStateModelViewer {
 			return null;
 		}	
     	
+    	result.file = file;
+		
 		return result;
 		
     }
@@ -169,7 +176,7 @@ public class GameStateReader extends GameStateModelViewer {
     @Override
     public String showGameKey() {
     	
-    	return "Seed = " + seed;
+    	return "file = " + file.getAbsolutePath();
     	
     }
     

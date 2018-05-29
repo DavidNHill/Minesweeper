@@ -686,6 +686,14 @@ public class ProbabilityEngine {
 		return this.offEdgeBest;
 	}
 	
+	/**
+	 * true if a 100% certain move has been found
+	 * @return
+	 */
+	protected boolean foundCertainty() {
+		return (bestProbability.compareTo(BigDecimal.ONE) == 0);
+	}
+	
 	protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold) {
 		
 		List<CandidateLocation> best = new ArrayList<>();

@@ -136,7 +136,7 @@ public class BoardState {
 
 	private int[][] adjFlagsConfirmed;
 	private int[][] adjFlagsOnBoard;
-	private int[][] adjRevealed;
+	//private int[][] adjRevealed;
 	private int[][] adjUnrevealed;
 
 	// this holds the actions made against each location and a list of actions generated this turn

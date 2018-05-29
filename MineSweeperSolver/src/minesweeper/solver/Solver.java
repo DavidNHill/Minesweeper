@@ -136,7 +136,7 @@ public class Solver implements Asynchronous<Action[]> {
     final static boolean PRUNE_BF_ANALYSIS = true;
     
     // won't play the book opening on start if false
-    protected final static boolean PLAY_OPENING = true;
+    //protected final static boolean PLAY_OPENING = true;
     
     /**
      * If the number of iterations is less than this then process sequential else go parallel
@@ -199,6 +199,12 @@ public class Solver implements Asynchronous<Action[]> {
     
     // Shows the best tree in sysout from Brute Force Deep analysis
     private boolean showProbabilityTree = false;
+    
+    // won't play the book opening on start if false
+    private boolean playOpening = true;
+    
+    // a flag to turn bits on and off if we want to do a comparison run
+    private boolean testMode = false;
     
     /**
      * Start the solver without a coach display
@@ -318,6 +324,14 @@ public class Solver implements Asynchronous<Action[]> {
     }
     
     /**
+     * True indicates the solver should play the opening move at the start
+     * @param flagFree
+     */
+    public void setPlayOpening(boolean playOpening) {
+    	this.playOpening = playOpening;
+    }
+    
+    /**
      * True indicates the solver should play chords
      * @param playChords
      */
@@ -342,6 +356,9 @@ public class Solver implements Asynchronous<Action[]> {
     	return this.showProbabilityTree;
     }
     
+    public void setTestMode() {
+    	this.testMode = true;
+    }
     
     private FinalMoves process() {
         
@@ -380,7 +397,7 @@ public class Solver implements Asynchronous<Action[]> {
         //}
         
          // being asked to start the game
-        if (myGame.getGameState() == GameStateModel.NOT_STARTED &&  PLAY_OPENING) {
+        if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
         	
         	offContourBigProb = BigDecimal.ONE;   // this assumes the first guess is not a mine, not always the case
         	
@@ -479,7 +496,18 @@ public class Solver implements Asynchronous<Action[]> {
         display("There are " + goodHooksOnEdge.size() + " hooks on the edge");
         display("There are " + goodHooksOffEdge.size() + " hooks off the edge");
         
-       
+
+        FinalMoves findFifty = null; 
+        /*
+        if (obvious + lessObvious == 0 && !fm.moveFound) {
+        	findFifty = findFiftyFifty();
+        	if (findFifty.moveFound) {
+        		fm = findFifty;
+        		display("***** Fifty Fifty " + myGame.showGameKey() +  ": " + fm.result[0].asString() );
+        	}
+        }
+		*/
+        
         // look for small, self contained areas and try to solve these first
         if (obvious + lessObvious == 0 && !fm.moveFound) {
         	
@@ -517,37 +545,47 @@ public class Solver implements Asynchronous<Action[]> {
             
             WitnessWeb wholeBoard = new WitnessWeb(boardState, allWitnesses, boardState.getAllUnrevealedSquares());
             bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.BRUTE_FORCE_MAX);
+            
             bf.process();
+            
             if (bf.hasRun()) {
             	newLine("Found  " + bf.getSolutionCount() + " candidate solutions from " + bf.getIterations() + " iterations");
-            }
+                
+            	if (!bf.hasCertainClear() && findFifty == null) {   // if no certain move found then look for unavoidable 50-50s
+                	findFifty = findFiftyFifty();
+                }
 
-			// Interpret the brute force data if we have some
-            this.bruteForceAnalysis = bf.getBruteForceAnalysis();
-            if (!bf.hasCertainClear() && bruteForceAnalysis != null) {  // f we haven't found some 100% clears and we can do a deeper analysis
-            	bruteForceAnalysis.process();
-            	// if after trying to process the data we can't complete then abandon it
-            	if (!bruteForceAnalysis.isComplete()) {
-            		displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis");
-            		bruteForceAnalysis = null;
-            		
-            	} else { // otherwise try and get the best long term move
-            		if (bruteForceAnalysis.isShallow()) {
-            			newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
-            		}
-            		newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
-                	Action move = bruteForceAnalysis.getNextMove(boardState);
-                	if (move != null) {
-                		display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
-                		fm = new FinalMoves(move);
-                	}            		
-            	}
+                if (findFifty != null && findFifty.moveFound) {
+                	fm = findFifty;
+                } else {
+        			// Interpret the brute force data if we have some
+                    this.bruteForceAnalysis = bf.getBruteForceAnalysis();
+                    if (!bf.hasCertainClear() && bruteForceAnalysis != null) {  // if we haven't found some 100% clears and we can do a deeper analysis
+                    	bruteForceAnalysis.process();
+                    	// if after trying to process the data we can't complete then abandon it
+                    	if (!bruteForceAnalysis.isComplete()) {
+                    		displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis");
+                    		bruteForceAnalysis = null;
+                    		
+                    	} else { // otherwise try and get the best long term move
+                    		if (bruteForceAnalysis.isShallow()) {
+                    			newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
+                    		}
+                    		newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
+                        	Action move = bruteForceAnalysis.getNextMove(boardState);
+                        	if (move != null) {
+                        		display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
+                        		fm = new FinalMoves(move);
+                        	}            		
+                    	}
+                    }            	
+                }
             }
-
+ 
             display("----- Brute Force finished -----");
 
         
-            // if we can't do the Brute Force Analysis then find the best move using alternative methods
+            // if Brute Force Analysis has not come up with a good solution then use the probability engine
             if (!fm.moveFound) {
             	
                 List<CandidateLocation> best = bf.getBestSolutions(PROB_ENGINE_TOLERENCE);
@@ -582,10 +620,12 @@ public class Solver implements Asynchronous<Action[]> {
             	
             	
             	display("--- Starting probability engine ---");
-            	//ProbabilityEngineOriginal pe = new ProbabilityEngineOriginal(this, wholeEdge, unrevealed, minesLeft);
+
             	pe = new ProbabilityEngine(boardState, wholeEdge, unrevealed, minesLeft);
             	pe.process();
+            	
             	offContourBigProb = pe.getOutsideProb();
+            	
             	if (offContourBigProb.compareTo(BigDecimal.ONE) > 0) {
             		displayAlways("Probability off contour is " + offContourBigProb + " (BigDecimal)");
             	} else {
@@ -601,7 +641,21 @@ public class Solver implements Asynchronous<Action[]> {
                 	best = pe.getBestCandidates(PROB_ENGINE_TOLERENCE);
                 }
 
-            	fm = refineBestGuess(PROBABILITY_ENGINE_BEST_GUESS, PROBABILITY_ENGINE, best, pe.getSolutionCount(), ft);
+                // if the probability engine has not found an 100% move then look for fifty-fifties
+                if (!pe.foundCertainty()) {
+                	if (findFifty == null) {   // but don't repeat the processing if we did it earlier
+                		findFifty = findFiftyFifty();
+                	}
+                } else {
+                	findFifty = null;
+                }
+                
+                if (findFifty != null && findFifty.moveFound) {
+                	fm = findFifty;
+                } else {
+                	fm = refineBestGuess(PROBABILITY_ENGINE_BEST_GUESS, PROBABILITY_ENGINE, best, pe.getSolutionCount(), ft);
+                }
+            	
             	
             	// if the best guess is off the edge and we have hooks and a guess on the edge has only a slightly worse probability
             	// compare them against the 
@@ -628,7 +682,16 @@ public class Solver implements Asynchronous<Action[]> {
 
         }
 
-        
+        /*
+        // if we don't have a certain move then look for a compulsory fifty fifty
+        if (!fm.moveFound || !fm.result[0].isCertainty()) {
+        	FinalMoves fifty = findFiftyFifty();
+        	if (fifty.moveFound) {
+        		fm = fifty;
+        		displayAlways("***** Fifty Fifty " + myGame.showGameKey() +  ": " + fm.result[0].asString() );
+        	}
+        }
+        */
         
         // if we have't found a move yet then look for Hooks Off the Edge 
         if (!fm.moveFound) {
@@ -931,6 +994,100 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
+    
+    // this logic looks for positions where 2 squares will always reduce to either a 50-50% or 100% safe. In these instances we
+    // may as well guess now. This has benefits for speed and also to reduce the solution space to a point where brute force methods
+    // can be used
+    private FinalMoves findFiftyFifty() {
+    	
+    	//TODO remove this after testing
+    	if (!testMode) {
+    		return new FinalMoves();
+    	}
+
+    	FinalMoves fm;
+    	
+		for (int i=0; i < myGame.getx() - 1; i++) {
+			for (int j=0; j < myGame.gety(); j++) {
+
+				// need 2 unrevealed squares
+				if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i + 1, j)) != GameStateModel.HIDDEN) {
+					continue;
+				}
+				
+				if (isPotentialInfo(i-1, j-1) || isPotentialInfo(i-1, j) || isPotentialInfo(i-1, j+1)
+					|| isPotentialInfo(i+2, j-1) || isPotentialInfo(i+2, j) || isPotentialInfo(i+2, j+1)) {
+					continue;  // this skips the rest of the logic below this in the for-loop 
+				}
+				
+				
+				if (isOnlyOne(i, j-1) || isOnlyOne(i + 1, j-1) || isOnlyOne(i, j+1) || isOnlyOne(i + 1, j + 1)) {
+					Action a = new Action(new Location(i, j), Action.CLEAR, 1, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					fm = new FinalMoves(a);
+					return fm;
+				} 
+			}
+		}                        
+    	
+		for (int i=0; i < myGame.getx(); i++) {
+			for (int j=0; j < myGame.gety() - 1; j++) {
+				
+				// need 2 unrevealed squares
+				if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i, j + 1)) != GameStateModel.HIDDEN) {
+					continue;
+				}
+				
+				if (isPotentialInfo(i - 1, j - 1) || isPotentialInfo(i, j - 1) || isPotentialInfo(i + 1, j - 1)
+					|| isPotentialInfo(i - 1, j + 2) || isPotentialInfo(i, j + 2) || isPotentialInfo(i + 1, j + 2)) {
+					continue;  // this skips the rest of the logic below this in the for-loop 
+				}
+				
+				
+				if (isOnlyOne(i - 1, j) || isOnlyOne(i + 1, j) || isOnlyOne(i - 1, j + 1) || isOnlyOne(i + 1, j + 1)) {
+					Action a = new Action(new Location(i, j), Action.CLEAR, 1, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					fm = new FinalMoves(a);
+					return fm;
+				} 
+			}
+		}                        
+    	
+    	return new FinalMoves();
+    	
+    }
+    
+    
+    // returns whether there information to be had at this location; i.e. on the board and either unrevealed or revealed
+    private boolean isPotentialInfo(int x, int y) {
+    	
+    	if (x<0 || x >= myGame.getx() || y<0 || y >= myGame.gety()) {
+    		return false;
+    	}
+    	
+    	if (boardState.isConfirmedFlag(x, y)) {
+    		return false;
+    	} else {
+    		return true;
+    	}
+    	
+    }
+    
+    // returns whether the witness at this location implies there is at most 1 mine adjacent to it
+    private boolean isOnlyOne(int x, int y) {
+    	
+    	if (x<0 || x >= myGame.getx() || y<0 || y >= myGame.gety()) {
+    		return false;
+    	}
+    	
+    	Location l = new Location(x,y);
+    	if (myGame.query(l) - boardState.countAdjacentConfirmedFlags(l) == 1) {
+    		return true;
+    	} else {
+    		return false;
+    	}
+    	
+    }
+    
+    
     // look for small-ish zones which can be processed
     private FinalMoves zonalAnalysis(List<Zone> targetZones) {
         
@@ -1019,6 +1176,7 @@ public class Solver implements Asynchronous<Action[]> {
     // If it transpires that the zone always has the same number of mines in all its valid candidates, then we
     // may as well solve it now, even if that means guessing - since we know we will
     // have to do this at some point.
+    /*
     private CrunchResult zonalAnalysis(int index, Zone z) {
         
         List<Location> squares = z.getInterior();
@@ -1090,6 +1248,7 @@ public class Solver implements Asynchronous<Action[]> {
         
         
     }
+    */
     
     private BruteForce zonalAnalysis1(int index, Zone z) {
         
@@ -1106,7 +1265,7 @@ public class Solver implements Asynchronous<Action[]> {
     	for (int n=web.getMinesPlaced(); n <= squares.size(); n++) {
     		iterations = iterations.add(web.getIterations(n));
     	}
-    	if (iterations.compareTo(preferences.ZONE_MAX) > 0) {
+    	if (iterations.compareTo(preferences.BRUTE_FORCE_MAX) > 0) {
     		display("Zone " + (index + 1) + " is too large, iterations = " + iterations);
     		return null;
     	} 
@@ -1118,7 +1277,7 @@ public class Solver implements Asynchronous<Action[]> {
         for (int n=web.getMinesPlaced(); n <= squares.size(); n++) {
         	
         	
-        	BruteForce bf = new BruteForce(this, boardState, web, n, preferences.ZONE_MAX);
+        	BruteForce bf = new BruteForce(this, boardState, web, n, preferences.BRUTE_FORCE_MAX);
         	
         	bf.process();
         	
@@ -1154,6 +1313,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     
     // break a witness web search into a number of non-overlapping iterators
+    /*
     private WitnessWebIterator[] buildParallelIterators(WitnessWeb web, int mines, BigInteger totalIterations) {
         
     	display("Building parallel iterators");
@@ -1193,9 +1353,10 @@ public class Solver implements Asynchronous<Action[]> {
         return result;
         
     }
-    
+    */
  
     // process the iterators in parallel
+    /*
     private CrunchResult crunchParallel(List<Square> square, List<? extends Location> witness, boolean calculateDistribution, WitnessWebIterator... iterator) {
         
         display("At parallel crunch");
@@ -1227,7 +1388,7 @@ public class Solver implements Asynchronous<Action[]> {
         //return crunchers[0].getResult();
         
     }
-    
+    */
     
     protected CrunchResult crunch(final List<Location> square, final List<? extends Location> witness, List<HookLocation> possibleHooks, Iterator iterator, boolean calculateDistribution, BruteForceAnalysisModel bfa) {
         
@@ -1487,293 +1648,6 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
-    
-    protected CrunchResult crunch1(final List<Location> square, final List<? extends Location> witness, List<HookLocation> possibleHooks, Iterator iterator, boolean calculateDistribution, BruteForceAnalysis bfa) {
-        
-        //display("crunching " + iterator.numberBalls + " Mines in " + square.length + " Squares with " + witness.length + " witnesses");
-
-        // the distribution is the number of times a square reveals as the number 0-8
-        BigInteger[][] bigDistribution = null;
-        if (calculateDistribution) {
-            bigDistribution = new BigInteger[square.size()][9];
-            for (int i=0; i < square.size(); i++) {
-                for (int j=0; j < 9; j++) {
-                    bigDistribution[i][j] = BigInteger.ZERO;
-                }
-            }
-        }
-
-        if (possibleHooks == null) {
-            possibleHooks = new ArrayList<>();
-        }
-        
-       
-        BigInteger bign = BigInteger.ZERO;
-        
-        //BigInteger[] bigTally = new BigInteger[square.size()];
-        //for (int i = 0; i < bigTally.length; i++) {
-        //    bigTally[i] = BigInteger.ZERO;
-        //}
-        
-        // determine the witness type
-        //int[] witnessGood1 = generateWitnessType(witness, square);
-        
-        CrunchResult output = new CrunchResult();
-        output.witness = witness.toArray(new Location[0]);
-        //output.witnessGood = witnessGood1;
-        output.witnessRestClear = new boolean[witness.size()];
-        output.witnessRestFlags = new boolean[witness.size()];
-        output.setSquare(square);
-        output.bigDistribution = bigDistribution;
-        output.originalNumMines = iterator.getBalls();
-        
-        output.alwaysSatisfied = new boolean[witness.size()];
-        output.currentFlags = new int[witness.size()];
-        output.witnessGood = new int[witness.size()];
-        
-        for (int i=0; i < witness.size(); i++) {
-        	
-        	 output.alwaysSatisfied[i] = iterator.witnessAlwaysSatisfied(witness.get(i));
-        	 output.currentFlags[i] = boardState.countAdjacentConfirmedFlags(witness.get(i));
-        	
-            for (Location l: boardState.getAdjacentUnrevealedSquares(witness.get(i))) {
-                boolean found = false;
-            	for (Location squ: square) {
-            		if (l.equals(squ)) {
-                        found = true;
-                        break;            			
-            		}
-            	}
-                if (!found) {
-                	output.witnessGood[i]++; 
-                }            	
-            }
-
-        }
-        
-        /*
-        // encapsulate the witness data
-        final WitnessData[] witnessData = new WitnessData[witness.size()];
-        for (int i=0; i < witness.size(); i++) {
-            WitnessData d = new WitnessData();
-            //d.location = witness.get(i);
-            //d.witnessGood = witnessGood1[i];
-            //d.witnessRestClear = true;
-            //d.witnessRestFlag = true;
-            d.currentFlags = boardState.countAdjacentConfirmedFlags(witness.get(i));
-            d.alwaysSatisfied = iterator.witnessAlwaysSatisfied(witness.get(i));
-            //display("Witness " + i + " location " + d.location.display() + " current flags = " + d.currentFlags + " good witness = " + d.witnessGood + " Satisified = " + d.alwaysSatisfied);
-            //d.alwaysSatisfied = false;
-            witnessData[i] = d;
-        }
- 		*/
-        
-        /*
-        for (int i=0; i < square.length; i++) {
-            display("Square " + i + " is " + square[i].display());
-        }
-        */
-        
-        int[] sample = iterator.getSample();
-
-        int[] tally = new int[square.size()];
-        int candidates = 0;
-        
-        while (sample != null) {
-           
-            if (checkSample1(sample, possibleHooks, output, bfa)) {
-                for (int i=0; i < sample.length; i++) {
-                	tally[sample[i]]++;
-                    //bigTally[sample[i]] = bigTally[sample[i]].add(BigInteger.ONE);
-                }   
-                candidates++;
-                //bign = bign.add(BigInteger.ONE);
-            }
-            
-            sample = iterator.getSample();
-            
-        }
-        
-        output.bigTally = new BigInteger[square.size()];
-        for (int i = 0; i < output.bigTally.length; i++) {
-        	output.bigTally[i] = BigInteger.valueOf(tally[i]);
-            
-        }
-        
-        //bign = BigInteger.valueOf(candidates);
-        
-        // store all the information we have gathered into this object for
-        // later analysis
-       //CrunchResult output = new CrunchResult();
-        
-        if (output.bigDistribution != null) {
-             output.calculateMinMax();
-        }
-
-        //output.witness = witness;
-        
-        //output.hookMines = null;
-
-        output.bigGoodCandidates = BigInteger.valueOf(candidates);;
-        
-        // return data on the witnesses
-        //output.witness = new Location[witnessData.length];
-        //output.witnessGood = new int[witnessData.length];
-        //output.witnessRestClear = new boolean[witnessData.length];
-        //output.witnessRestFlags = new boolean[witnessData.length];
-        
-        //for (int i=0; i < witnessData.length; i++) {
-        //    output.witness[i] = witnessData[i].location;
-        //    output.witnessGood[i] = witnessData[i].witnessGood;
-        //    output.witnessRestClear[i] = witnessData[i].witnessRestClear;
-        //    output.witnessRestFlags[i] = witnessData[i].witnessRestFlag;
-       //}
-        
-        return output;
-        
-    } 
-    
-    // this checks whether the positions of the mines are a valid candidate solution
-    protected boolean checkSample1(final int[] sample, List<HookLocation> hooks, final CrunchResult result, BruteForceAnalysis bfa) {
-        
-        /*
-        String s= "";
-        for (int i = 0; i < sample.length; i++) {
-            s = s + " " + sample[i];
-        }
-        display(s);
-        */
-
-        boolean[] workRestNotFlags = new boolean[result.witness.length];
-        boolean[] workRestNotClear = new boolean[result.witness.length];
-        
-        // get the location of the mines
-        Location[] mine = new Location[sample.length];
-        for (int i=0; i < sample.length; i++) {
-            mine[i] = result.square.get(sample[i]);
-        }
-        
-        for (int i=0; i < result.witness.length; i++) {
-            
-            if (!result.alwaysSatisfied[i]) {
-                int flags1 = result.currentFlags[i];
-                int flags2 = 0;
-
-                // count how many candidate mines are next to this witness
-                for (int j = 0; j < mine.length; j++) {
-                    if (mine[j].isAdjacent(result.witness[i])) {
-                        flags2++;
-                    }
-                }
-
-                int flags3 = boardState.getWitnessValue(result.witness[i]);
-                //int flags3 = board[witnessData[i].location.x][witnessData[i].location.y];
-
-                // if the candidate solution puts more flags around the witness
-                // than it says it has then the solution is invalid
-                if (flags3 < flags1 + flags2) {
-                    //WitnessData d = witnessData[0];
-                    //witnessData[0] = witnessData[i];
-                    //witnessData[i] = d;
-                    return false;
-                }
-
-                // if this is a 'good' witness and the number of flags around it
-                // does not match with it exactly then the solution is invalid
-                if (result.witnessGood[i] == 0 && flags3 != flags1 + flags2) {
-                    //WitnessData d = witnessData[0];
-                    //witnessData[0] = witnessData[i];
-                    //witnessData[i] = d;
-                    return false;
-                }
-
-                if (flags3 != flags1 + flags2) {
-                    workRestNotClear[i] = true;
-                }
-                if (flags3 != flags1 + flags2 + result.witnessGood[i]) {
-                    workRestNotFlags[i] = true;
-                }
-            } else {
-                // always satisfied means flag3 = flag1 + flag2, so the checks above can be simplified to
-                if (result.witnessGood[i] != 0) {
-                    workRestNotFlags[i] = true;
-                }                
-            }
-             
-        }
-        
-        // if we have got this far then the solution is valid
-        
-        // if it is a good candidate then check the potential hooks to see if they
-        // are still potential hooks - every solution must have the same number of mines around the hook.
-        /*
-        for (HookLocation hook: hooks) {
-        	if (hook.getState() != HookLocation.REJECTED) {
-                int count = 0;
-                for (Location m: mine) {
-                    if (m.isAdjacent(hook)) {
-                        count++;
-                    }
-                }        		
-                if (hook.getState() == HookLocation.NO_DECISION) {
-                    hook.setValue(count);
-                    hook.setState(HookLocation.OKAY);
-                } else if (hook.getExtraValue() != count) {
-                    hook.setState(HookLocation.REJECTED);
-                }                               
-        		
-        	}
-        }
-        */
-        
-        // if it is a good candidate solution then the witness information is valid
-        for (int i=0; i < result.witness.length; i++) {
-            if (workRestNotClear[i]) {
-                result.witnessRestClear[i] = false;
-            }
-            if (workRestNotFlags[i]) {
-                result.witnessRestFlags[i] = false;
-            }
-        }
-
-        //if it is a good solution then calculate the distribution if required
-        if (result.bigDistribution != null) {
-        	byte[] solution = new byte[result.square.size()];
-        	
-            for (int i=0; i < result.square.size(); i++) {
-                
-                boolean isMine = false;
-                for (int j=0; j < sample.length; j++) {
-                    if (i == sample[j]) {
-                        isMine = true;
-                        break;
-                    }
-                }
-                
-                // if we are a mine then it doesn't matter how many mines surround us
-                if (!isMine) {
-                    byte flags2 = (byte) boardState.countAdjacentConfirmedFlags(result.square.get(i));
-                    // count how many candidate mines are next to this square
-                    for (Location mine1 : mine) {
-                        if (mine1.isAdjacent(result.square.get(i))) {
-                            flags2++;
-                        }
-                    }            
-                    solution[i] = flags2;
-                    result.bigDistribution[i][flags2] = result.bigDistribution[i][flags2].add(BigInteger.ONE);
-                } else {
-                	solution[i] = GameStateModel.MINE;
-                }
-
-            }
-            if (bfa != null && !bfa.tooMany()) {
-            	bfa.addSolution(solution);
-            }
-        }
-
-        return true;
-        
-    }
     
     // a witness is a 'good' witness if all its adjacent free squares are also
     // contained in the set of squares being analysed. A 'good' witness must
@@ -2180,7 +2054,7 @@ public class Solver implements Asynchronous<Action[]> {
     	Action action = null;
         
     	// get the starting move if we are at the start of the game
-    	if (myGame.getGameState() == GameStateModel.NOT_STARTED && PLAY_OPENING) {
+    	if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
     		action = new Action(myGame.getStartLocation(), Action.CLEAR, Solver.OPENING_BOOK, METHOD[Solver.OPENING_BOOK], offContourBigProb);
     	}
     	

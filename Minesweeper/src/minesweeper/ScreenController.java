@@ -861,6 +861,9 @@ public class ScreenController {
         solver.setPlayChords(useChords.isSelected());
         solver.setShowProbabilityTree(dumpTree.isSelected());
         
+        // don't play the opening move if the game is loaded from a file
+        solver.setPlayOpening(difficulty != DIFFICULTY_FILE);
+        
         combProb = 1;
  
         // forget any moves we have stored up

@@ -29,7 +29,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 100000;
+	private final static int MAX = 50000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;
@@ -53,7 +53,7 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 1652664258;
+		seed = 1301985346;
 
 		//Seed -1502353305 played 50000 games Wins=26816 (53.632%) after 119688(56389,63299) guesses(winning, losing), fairness ratio=-0.00035, duration = 484985 milliseconds
 		//Number of Never Guessed wins is 8036 (16.072%) modified win rate = 44.753%
@@ -66,6 +66,9 @@ public class MinesweeperBulk {
 		
 		//Seed 1301985346 played [400 + 75000] 50000 games Wins=20158 (40.316%) after 162067(68509,93558) guesses(winning, losing), fairness ratio=-0.00134, duration = 471477 milliseconds
 		//Number of Never Guessed wins is 2592 (5.184%) modified win rate = 37.053%
+		//Seed 1301985346 played [400 + 75000] 50000 games Wins=20160 (40.320%) after 162288(68609,93679) guesses(winning, losing), fairness ratio=-0.00191, duration = 340840 milliseconds
+		//		Number of Never Guessed wins is 2592 (5.184%) modified win rate = 37.057%
+		
 		
 		//Seed 1301985346 played [100 + 5000] 50000 games Wins=20118 (40.236%) after 162327(68421,93906) guesses(winning, losing), fairness ratio=-0.00337, duration = 336992 milliseconds
 		//Number of Never Guessed wins is 2592 (5.184%) mo dified win rate = 36.968%
@@ -96,9 +99,10 @@ public class MinesweeperBulk {
 
 			//GameStateModel gs = new GameStateHard(30, 16, 99, seeder.nextLong()); // first move can be a mine
 			//GameStateModel gs = new GameStateEasy(24, 30, 203, seeder.nextLong());  // first move is a zero
-			GameStateModel gs = new GameStateStandard(30, 24, 203, seeder.nextLong());
+			GameStateModel gs = new GameStateStandard(30, 16, 99, seeder.nextLong());
 			//GameStateModel gs = new GameStateStandard(9, 9, 10, seeder.nextLong());
 			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
+			solver.setTestMode();
 			//Solver solver = new Solver(gs, Preferences.TINY_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 

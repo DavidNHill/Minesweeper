@@ -7,7 +7,7 @@ abstract public class Preferences {
 	protected int BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
 	protected int BRUTE_FORCE_ANALYSIS_MAX_NODES = 50000;
     protected BigInteger BRUTE_FORCE_MAX = new BigInteger("50000000");  // 50 million
-    protected BigInteger ZONE_MAX = new BigInteger("10000000");  // 10 million
+    //protected BigInteger ZONE_MAX = new BigInteger("10000000");  // 10 million
     protected boolean USE_MIN_MAX = true;
 	
     public Preferences() {
@@ -30,7 +30,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
 	    	BRUTE_FORCE_MAX = new BigInteger("0");  
-	    	ZONE_MAX = new BigInteger("2500"); 
+	    	//ZONE_MAX = new BigInteger("2500"); 
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -50,7 +50,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 100;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 5000;
 	    	BRUTE_FORCE_MAX = new BigInteger("250000");  // 250 thousand
-	    	ZONE_MAX = new BigInteger("25000"); 
+	    	//ZONE_MAX = new BigInteger("25000"); 
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -71,7 +71,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 75000;
 	    	BRUTE_FORCE_MAX = new BigInteger("500000"); // 500 thousand
-	    	ZONE_MAX = new BigInteger("50000"); // 50 thousand
+	    	//ZONE_MAX = new BigInteger("50000"); // 50 thousand
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -95,7 +95,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 1000;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 500000;
 	    	BRUTE_FORCE_MAX = new BigInteger("2500000"); // 2.5 million
-	    	ZONE_MAX = new BigInteger("100000"); // 100 thousand
+	    	//ZONE_MAX = new BigInteger("100000"); // 100 thousand
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -116,7 +116,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 4000;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 20000000;
 			BRUTE_FORCE_MAX = new BigInteger("10000000");  // 10 million
-		    ZONE_MAX = new BigInteger("1000000");  // 1 million
+		    //ZONE_MAX = new BigInteger("1000000");  // 1 million
 		    USE_MIN_MAX = true;
 		}
     	
