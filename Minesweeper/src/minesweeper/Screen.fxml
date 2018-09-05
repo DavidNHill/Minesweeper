@@ -10,10 +10,10 @@
 <?import javafx.scene.text.*?>
 <?scenebuilder-stylesheet Screen.css?>
 
-<AnchorPane id="AnchorPane" fx:id="window" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="424.0" prefWidth="591.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.ScreenController">
+<AnchorPane id="AnchorPane" fx:id="window" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="424.0" prefWidth="591.0" style="-fx-background-color: green;" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.ScreenController">
   <children>
     <Pane fx:id="myPane" minWidth="-1.0" onMousePressed="#mouseDown" onMouseReleased="#mouseUp" pickOnBounds="true" prefHeight="261.0" prefWidth="455.0" style="&#10;" AnchorPane.bottomAnchor="35.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="70.0" />
-    <MenuBar prefWidth="455.0" stylesheets="@Screen.css" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+    <MenuBar prefWidth="455.0" style="-fx-background-color: DARKGREEN;" stylesheets="@Screen.css" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <menus>
         <Menu mnemonicParsing="false" text="Game">
           <items>
@@ -45,7 +45,8 @@
         </Menu>
         <Menu mnemonicParsing="false" text="Coach">
           <items>
-            <CheckMenuItem fx:id="showMove" mnemonicParsing="false" selected="true" text="Show move" />
+            <CheckMenuItem fx:id="showMove" mnemonicParsing="false" selected="true" text="Show best move" />
+                  <CheckMenuItem fx:id="showTooltips" mnemonicParsing="false" selected="true" text="Show tooltips" />
             <CheckMenuItem fx:id="acceptGuess" mnemonicParsing="false" selected="false" text="Accept guesses" />
             <CheckMenuItem fx:id="showMines" mnemonicParsing="false" onAction="#showMinesToggled" text="Show mines" />
             <CheckMenuItem fx:id="flagFree" mnemonicParsing="false" onAction="#flagFreeToggled" text="Flag free" />
@@ -54,14 +55,29 @@
             <CheckMenuItem fx:id="probHeatMap" disable="true" mnemonicParsing="false" onAction="#probHeatMapToggled" text="Probability heat map" />
           </items>
         </Menu>
+            <Menu mnemonicParsing="false" text="Options">
+              <items>
+                  <MenuItem mnemonicParsing="false" onAction="#handleCopyToClipboard" text="Copy seed to clipboard" />
+                  <Menu mnemonicParsing="false" text="Random numbers">
+                    <items>
+                        <RadioMenuItem fx:id="rngJava" mnemonicParsing="false" selected="true" text="Java random numbers">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="RNG" />
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="rngKiss64" mnemonicParsing="false" text="KISS64 random numbers" toggleGroup="$RNG" />
+                    </items>
+                  </Menu>
+              </items>
+            </Menu>
       </menus>
     </MenuBar>
-    <Label fx:id="scoreLabel" alignment="TOP_CENTER" layoutY="28.0" minHeight="24.0" prefHeight="37.0" prefWidth="56.0" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.leftAnchor="10.0">
+    <Label fx:id="scoreLabel" alignment="TOP_CENTER" layoutY="28.0" minHeight="24.0" prefHeight="37.0" prefWidth="56.0" style="-fx-border-color: Black; -fx-border-radius: 15; -fx-border-style: solid outside;" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.leftAnchor="10.0">
       <font>
         <Font name="System Bold" size="24.0" fx:id="x1" />
       </font>
     </Label>
-    <Label fx:id="timeLabel" alignment="TOP_CENTER" contentDisplay="LEFT" font="$x1" layoutY="28.0" prefHeight="37.0" prefWidth="56.0" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.rightAnchor="10.0" />
+    <Label fx:id="timeLabel" alignment="TOP_CENTER" contentDisplay="LEFT" font="$x1" layoutY="28.0" prefHeight="37.0" prefWidth="56.0" style="-fx-border-color: Black; -fx-border-style: solid outside; -fx-border-radius: 15;" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.rightAnchor="10.0" />
     <Button id="button" fx:id="automateButton" alignment="TOP_CENTER" minWidth="-Infinity" onAction="#handleAutomateButton" prefWidth="100.0" text="Automate" textAlignment="CENTER" AnchorPane.bottomAnchor="5.0" AnchorPane.leftAnchor="10.0" />
     <Circle fx:id="highlight" centerX="50.0" centerY="50.0" fill="#fff500" layoutX="281.0" layoutY="-11.0" mouseTransparent="true" opacity="0.49" radius="26.25" stroke="BLACK" strokeType="INSIDE" strokeWidth="4.0" />
       <HBox alignment="CENTER" layoutX="10.0" layoutY="28.0" minHeight="-Infinity" prefHeight="37.0" prefWidth="571.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="28.0">

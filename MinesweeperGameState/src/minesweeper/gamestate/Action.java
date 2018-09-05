@@ -34,23 +34,24 @@ public class Action extends Location {
     
     private final boolean certainty;
     
-    private int type = 0;
+    //private int type = 0;
+    private final MoveMethod moveMethod;
     
     String comment;
     
     // used by the human player
     public Action(Location l, int a) {
-        this(l, a, 1, "", MINUS_ONE);
+        this(l, a, MoveMethod.HUMAN, "", MINUS_ONE);
     }
     
     // used by the computer coach
-    public Action(Location l, int a, int type, String comment, BigDecimal bigProb) {
-    	this(l, a, type, comment, bigProb, globalUID++);
+    public Action(Location l, int a, MoveMethod moveMethod, String comment, BigDecimal bigProb) {
+    	this(l, a, moveMethod, comment, bigProb, globalUID++);
         
     }    
     
     // used by the computer coach to force a move to be earlier in the list - e.g. when we need to remove a flag placed by the human player before we can clear the square
-    public Action(Location l, int a, int type, String comment, BigDecimal bigProb, long uid) {
+    public Action(Location l, int a, MoveMethod moveMethod, String comment, BigDecimal bigProb, long uid) {
         super(l.x, l.y);
         
         //this.l = l;
@@ -58,7 +59,8 @@ public class Action extends Location {
         this.comment = comment;
         this.bigProb = bigProb;
         this.prob = this.bigProb.doubleValue();
-        this.type = type;
+        this.moveMethod = moveMethod;
+        //this.type = type;
         
         this.myUID = uid;
         if (bigProb.compareTo(BigDecimal.ONE) == 0) {
@@ -96,13 +98,17 @@ public class Action extends Location {
         return bigProb;
     }
     
-    public int getType() {
-    	return this.type;
+    //public int getType() {
+    //	return this.type;
+    //}
+    
+    public MoveMethod getMoveMethod() {
+    	return this.moveMethod;
     }
     
     public String asString() {
         
-        String result = Action.ACTION[this.action] + " at " + super.display() + ": " + comment; 
+        String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description + " " + comment; 
         
         if (prob > 0 && prob < 1) {
             result = result + " with a probability of " + FORMAT_2DP.format(prob * 100) + "%";

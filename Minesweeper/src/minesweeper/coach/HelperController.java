@@ -22,6 +22,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import minesweeper.Graphics;
 import minesweeper.Minesweeper;
+import minesweeper.solver.Solver;
 import minesweeper.solver.coach.CoachModel;
 
 /**
@@ -88,7 +89,7 @@ public class HelperController implements CoachModel, Initializable {
             coach.stage = new Stage();
 
             coach.stage.setScene(coach.scene);
-            coach.stage.setTitle("Minesweeper Coach");
+            coach.stage.setTitle(Minesweeper.TITLE + " solver " + Solver.VERSION);
             coach.stage.getIcons().add(Graphics.getFlag());
 
             coach.writeLine("Minesweeper coach dedicated to Annie");

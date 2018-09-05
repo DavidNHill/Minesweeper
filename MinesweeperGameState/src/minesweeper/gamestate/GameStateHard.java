@@ -9,6 +9,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNG;
+
 /**
  * A Version of Minesweeper where the first click can be a mine
  * @author David
@@ -17,27 +20,19 @@ public class GameStateHard extends GameStateModelViewer {
     
     private final int[][] board;
     
-    private Random rng;
-    
-    private long seed;
+    private RNG rng;
     
     public GameStateHard(int x, int y, int mines) {
-        this(x,y,mines, new Random().nextLong());
+        this(x, y, mines, new Random().nextLong());
     }
     
+
     public GameStateHard(int x, int y, int mines, long seed) {
-        this(x,y,mines, new Random(seed));
-        
-        this.seed = seed;
-       
-    }
-    
-    private GameStateHard(int x, int y, int mines, Random rng) {
-        super(x,y,mines);
+        super(x ,y, mines, seed);
         
         this.board = new int[x][y];
         
-        this.rng = rng; 
+        this.rng = DefaultRNG.getRNG(seed); 
     }
     
     // in this gamestate we are building the board ourselves
@@ -47,8 +42,8 @@ public class GameStateHard extends GameStateModelViewer {
     	int i=0;
 
     	while (i < mines) {
-    		int x1 = (int) Math.floor(rng.nextDouble()*this.x);
-    		int y1 = (int) Math.floor(rng.nextDouble()*this.y);
+    		int y1 = (int) rng.random(this.y);
+    		int x1 = (int) rng.random(this.x);
     		Location l1 = new Location(x1, y1);
 
     		if (board[x1][y1] != GameStateModel.MINE) {
@@ -122,7 +117,7 @@ public class GameStateHard extends GameStateModelViewer {
     @Override
     public String showGameKey() {
     	
-    	return "Seed = " + seed;
+    	return "Seed = " + seed + " (" + rng.shortname() + ")";
     	
     }
     

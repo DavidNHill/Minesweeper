@@ -13,6 +13,7 @@ import java.util.Map;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
 
 public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
@@ -295,6 +296,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					}
 				}
 				if (count > 1) {
+				//if (count > 2 || count == 2 && values[0] == false) {
 					Living alive = new Living(i);
 					alive.mines = mines;
 					alive.count = count;
@@ -347,6 +349,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					}
 				}
 				if (count > 1) {
+				//if (count > 2 || count == 2 && values[0] == false) {
 					Living alive = new Living(live.index);
 					alive.mines = mines;
 					alive.count = count;
@@ -623,6 +626,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	}
 	
 	@Override
+	protected int getNodeCount() {
+		return processCount;
+	}
+	
+	@Override
 	protected Action getNextMove(BoardState boardState) {
 		
 		Living bestLiving = getBestLocation(currentNode);
@@ -666,8 +674,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			solver.display("Value of " + i + " leaves " + bestLiving.children[i].getSolutionSize() + " solutions and winning probability " + probText);
 		}
 		
-		String text = " (" + Action.FORMAT_2DP.format(bestLiving.probability.multiply(ONE_HUNDRED)) + "%)";
-		Action action = new Action(loc, Action.CLEAR, Solver.BRUTE_FORCE_DEEP_ANALYSIS, Solver.METHOD[Solver.BRUTE_FORCE_DEEP_ANALYSIS] + text, prob);
+		String text = " (win game " + Action.FORMAT_2DP.format(bestLiving.probability.multiply(ONE_HUNDRED)) + "%)";
+		Action action = new Action(loc, Action.CLEAR, MoveMethod.BRUTE_FORCE_DEEP_ANALYSIS, text, prob);
 		
 		expectedMove = loc;
 		

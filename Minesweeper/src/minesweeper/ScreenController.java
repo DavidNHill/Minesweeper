@@ -24,6 +24,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
@@ -39,6 +41,10 @@ import minesweeper.coach.HelperController;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
+import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNGJava;
+import minesweeper.random.RNGKiss64;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 
@@ -77,9 +83,11 @@ public class ScreenController {
     @FXML private RadioMenuItem gameTypeNormal;
     @FXML private RadioMenuItem gameTypeHard;
     
-    
+    @FXML private RadioMenuItem rngJava;
+    @FXML private RadioMenuItem rngKiss64;
     
     @FXML private CheckMenuItem showMove;
+    @FXML private CheckMenuItem showTooltips;
     @FXML private CheckMenuItem acceptGuess;
     @FXML private CheckMenuItem showMines;
     @FXML private CheckMenuItem flagFree;
@@ -149,8 +157,12 @@ public class ScreenController {
 			
 			//System.out.println(event.getX() + "," + event.getY());
 			
+			if (!showTooltips.isSelected()) {
+				return;
+			}
+			
 			toolTip.setX(event.getScreenX() + 10);
-			toolTip.setY(event.getScreenY());
+			toolTip.setY(event.getScreenY() - 10);
 			
 			Point2D p = getSquare(event.getX(), event.getY());
 			
@@ -159,8 +171,14 @@ public class ScreenController {
 				prob = solver.getProbability((int) p.getX(), (int) p.getY());
 				if (prob == null) {
 					popupText.setText("?");
+				} else if (prob.compareTo(BigDecimal.ZERO) == 0) {
+					
+					popupText.setText("Mine!");
+				} else if (prob.compareTo(BigDecimal.ONE) == 0) {
+					popupText.setText("Safe");
+					
 				} else {
-					popupText.setText(Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%");
+					popupText.setText(Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "% safe");
 				}
 			} else {
 				popupText.setText("");
@@ -199,10 +217,15 @@ public class ScreenController {
         	FileChooser fileChooser = new FileChooser();
         	
         	fileChooser.setTitle("Open game to analyse");
+        	if (fileSelected != null) {
+        		fileChooser.setInitialDirectory(fileSelected.getParentFile());
+        	}
         	fileSelected = fileChooser.showOpenDialog(Minesweeper.getStage());
         	
         	if (fileSelected == null) {
         		difficulty = prevDiff;
+        	} else {
+        		newGame();
         	}
         	
         }
@@ -253,17 +276,23 @@ public class ScreenController {
     @FXML
     private void handleNewGameButton(ActionEvent event) {
         
-        //System.out.println("You clicked me!");
-        
-        // rotate the button
-        //new Rotator((Node) event.getSource()).start();
-    	
-
-    	
         newGame();
         
     }
 
+    @FXML
+    private void handleCopyToClipboard(ActionEvent event) {
+        
+    	//System.out.println("copy to clipboard");
+    	
+        // store the seed in the clipboard
+        ClipboardContent content = new ClipboardContent();
+        content.putString(String.valueOf(Minesweeper.getGame().getSeed()));
+        Clipboard.getSystemClipboard().setContent(content);
+        
+    }
+    
+    
     @FXML
     private void handleAutomateButton(ActionEvent event) {
         
@@ -314,9 +343,23 @@ public class ScreenController {
         //}
         
         window.setCursor(Cursor.WAIT);
-        
-        move = getMoves();
 
+        move = getMoves();
+        
+        /*
+        boolean loop = true;
+        while (loop) {
+        	move = getMoves();
+        	loop = false;
+            for (Action a: move) {
+            	if (a.getMoveMethod() == MoveMethod.TRIVIAL) {
+            		doMove(a);
+            		loop = true;
+            	}
+            }        	
+        }
+		*/
+        
         highlightMove(0);
 
         window.setCursor(Cursor.DEFAULT);
@@ -827,8 +870,19 @@ public class ScreenController {
     // stop the current game and start a new one
     protected void newGame(int difficulty) {
         
+    	if (rngKiss64.isSelected()) {
+    		DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
+    	} else {
+    		DefaultRNG.setDefaultRNGClass(RNGJava.class);
+    	}
+    	
         // create a new game state
         GameStateModel gs = Minesweeper.createNewGame(difficulty, gameType, fileSelected);
+        
+        if (gs == null) {
+        	System.out.println("new Game state has not been created!");
+        	return;
+        }
 
         // create a memory of the last screen - set to full refresh
         lastScreen = new int[gs.getx()][gs.gety()];
@@ -871,6 +925,8 @@ public class ScreenController {
         nextMove = 0;
         
         Minesweeper.getStage().setTitle(Minesweeper.TITLE + " - Game " + gs.showGameKey());
+        
+
         
         // garbage collection
         //System.gc();

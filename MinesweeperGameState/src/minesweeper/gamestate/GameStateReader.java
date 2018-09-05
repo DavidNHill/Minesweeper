@@ -11,7 +11,6 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
  * A Version of Minesweeper which reads the board state from a file
@@ -21,16 +20,16 @@ public class GameStateReader extends GameStateModelViewer {
     
     private final int[][] board;
     
-    private Random rng;
-    
-    private long seed;
-    
     private File file;
     
+  
     private GameStateReader(int x, int y, int mines) {
-        this(x, y, mines, new Random().nextLong());
+        super(x, y, mines, 0);
+        
+        this.board = new int[x][y];
     }
     
+    /*
     public GameStateReader(int x, int y, int mines, long seed) {
         this(x,y,mines, new Random(seed));
         
@@ -45,6 +44,7 @@ public class GameStateReader extends GameStateModelViewer {
         
         this.rng = rng; 
     }
+    */
     
     public final static GameStateModelViewer load(File file) {
     	
@@ -52,10 +52,12 @@ public class GameStateReader extends GameStateModelViewer {
     	int y;
     	int mines;
     	
-
+    	int minesCount = 0;
     	
     	GameStateReader result;
 
+
+    	int[][] tempBoard;
     	
 		try (InputStreamReader isr = new InputStreamReader(new FileInputStream(file));
 				BufferedReader reader  = new BufferedReader(isr)
@@ -81,6 +83,8 @@ public class GameStateReader extends GameStateModelViewer {
 			}
 
 			result = new GameStateReader(x, y, mines);
+
+	    	tempBoard = new int[x][y];
 			
 			data = reader.readLine();
 			int cy=0;
@@ -94,11 +98,28 @@ public class GameStateReader extends GameStateModelViewer {
 				int cx = 0;
 				for (char c: data.toCharArray()) {
 					if (c == 'M' || c == 'm') {
-						//result.setFlag(cx, cy);
+						
+						minesCount++;
+						
+						result.board[cx][cy] = GameStateModel.MINE;
+						
+	                    // tell all the surrounding squares they are next to a mine
+	                    for (int j=0; j < DX.length; j++) {
+	                        if (cx + DX[j] >= 0 && cx + DX[j] < result.x && cy + DY[j] >= 0 && cy + DY[j] < result.y) {
+	                            if (result.board[cx+DX[j]][cy+DY[j]] != GameStateModel.MINE) {
+	                                result.board[cx+DX[j]][cy+DY[j]]++;
+	                            }
+	                        }
+	                    }
+						
+						if (c == 'M') {
+							result.setFlag(cx, cy);
+						}
 					} else if (c != 'H' && c != 'h') {
 						int val = Character.getNumericValue(c);
 						result.setRevealed(cx, cy);
-						result.board[cx][cy] = val;
+						tempBoard[cx][cy] = val;
+						//result.board[cx][cy] = val;
 					}
 					cx++;
 				}
@@ -112,8 +133,26 @@ public class GameStateReader extends GameStateModelViewer {
 			return null;
 		}	
     	
+		if (mines != minesCount) {
+			System.out.println("Mines in puzzle is " + minesCount + ", but mines declared is " + mines);
+			result.partialGame = true;
+			
+			// for partial games use the revealed values as given in the file
+			for (int i=0; i < x; i++) {
+				for (int j=0; j < y; j++) {
+					result.board[i][j] = tempBoard[i][j];
+				}
+			}
+			
+			
+		} else {
+			result.partialGame = false;
+		}
+		
     	result.file = file;
 		
+    	result.start(new Location(0,0));
+    	
 		return result;
 		
     }
@@ -176,7 +215,12 @@ public class GameStateReader extends GameStateModelViewer {
     @Override
     public String showGameKey() {
     	
-    	return "file = " + file.getAbsolutePath();
+    	String partial = "";
+    	if (partialGame) {
+    		partial = " (Mines missing!)";
+    	}
+    	
+    	return "file = " + file.getAbsolutePath() + partial;
     	
     }
     

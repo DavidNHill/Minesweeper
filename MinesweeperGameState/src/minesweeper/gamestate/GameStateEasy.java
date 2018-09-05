@@ -9,6 +9,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNG;
+import minesweeper.random.RNGJava;
+import minesweeper.random.RNGKiss64;
+
 /**
  * A Version of Minesweeper which ensures the first click does not have any mines surrounding it
  * @author David
@@ -17,27 +22,23 @@ public class GameStateEasy extends GameStateModelViewer {
     
     private final int[][] board;
     
-    private Random rng;
+    private RNG rng;
     
-    private long seed;
+    //private long seed;
     
     public GameStateEasy(int x, int y, int mines) {
         this(x,y,mines, new Random().nextLong());
     }
     
-    public GameStateEasy(int x, int y, int mines, long seed) {
-        this(x,y,mines, new Random(seed));
-        
-        this.seed = seed;
-       
-    }
+
     
-    private GameStateEasy(int x, int y, int mines, Random rng) {
-        super(x,y,mines);
+    public GameStateEasy(int x, int y, int mines, long seed) {
+        super(x, y, mines, seed);
         
         this.board = new int[x][y];
         
-        this.rng = rng; 
+        this.rng = DefaultRNG.getRNG(seed); 
+  
     }
     
     // in this gamestate we are building the board ourselves
@@ -47,8 +48,8 @@ public class GameStateEasy extends GameStateModelViewer {
         int i=0;
         
         while (i < mines) {
-            int x1 = (int) Math.floor(rng.nextDouble()*this.x);
-            int y1 = (int) Math.floor(rng.nextDouble()*this.y);
+            int y1 = (int) rng.random(this.y);
+            int x1 = (int) rng.random(this.x);
             Location l1 = new Location(x1, y1);
             
             // if the location is NOT the first square pressed or surrounding it
@@ -126,7 +127,7 @@ public class GameStateEasy extends GameStateModelViewer {
     @Override
     public String showGameKey() {
     	
-    	return "Seed = " + seed;
+    	return "Seed = " + seed + "(" + rng.shortname() + ")";
     	
     }
     

@@ -11,6 +11,7 @@ import java.util.Set;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.BoardStateCache.AdjacentSquares;
 import minesweeper.solver.BoardStateCache.Cache;
 import minesweeper.solver.constructs.ChordLocation;
@@ -228,7 +229,7 @@ public class BoardState {
 				Action act = action[i][j];
 
 				// if the move isn't a certainty then don't bother with it. The opening book is a certainty on the first move, but isn't really if the player plays somewhere else.
-				if (act != null && (!act.isCertainty() || act.getType() == Solver.OPENING_BOOK)) {
+				if (act != null && (!act.isCertainty() || act.getMoveMethod() == MoveMethod.BOOK)) {
 					action[i][j] = null;
 					act = null;
 				}
@@ -254,7 +255,7 @@ public class BoardState {
 						// if the board is a flag, but we are 100% sure its a clear then remove the flag
 						// then clear the square
 						if (act != null && act.getAction() == Action.CLEAR && act.isCertainty()) {
-							actionList.add(new Action(act, Action.FLAG, Solver.OBVIOUS, "Remove flag", BigDecimal.ONE, 0));
+							actionList.add(new Action(act, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 							actionList.add(act);
 						}
 
@@ -263,6 +264,8 @@ public class BoardState {
 						// if this is a new unrevealed location then set it up and inform it's neighbours they have one less unrevealed adjacent location
 						if (!revealed[i][j]) {
 
+							//display("Location (" + i + "," + j + ") is revealed");
+							
 							revealed[i][j] = true;
 							board[i][j] = info;            
 
@@ -301,17 +304,17 @@ public class BoardState {
 		// this sorts the moves by when they were discovered
 		Collections.sort(actionList, Action.SORT_BY_MOVE_NUMBER);
 
-		unplayedMoves = new int[Solver.METHOD.length];
+		unplayedMoves = new int[MoveMethod.values().length];
 
 		// accumulate how many unplayed moves there are by method
 		for (Action a: actionList) {
-			unplayedMoves[a.getType()]++;
+			unplayedMoves[a.getMoveMethod().ordinal()]++;
 		}
 
 		display("Moves left to play = " + actionList.size());
 		for (int i=0; i < unplayedMoves.length; i++) {
 			if (unplayedMoves[i] != 0) {
-				display("   " + Solver.METHOD[i] + " has " + unplayedMoves[i] + " moves unplayed");
+				display("   " + MoveMethod.values()[i] + " has " + unplayedMoves[i] + " moves unplayed");
 			}
 		}
 
@@ -353,7 +356,7 @@ public class BoardState {
 			// if the flag is already on the board then nothing to do
 		} else if (isFlagOnBoard(a) && a.getAction() == Action.CLEAR) {
 			// if a flag is blocking the clear move then remove the flag first
-			actionList.add(new Action(a, Action.FLAG, Solver.OBVIOUS, "Remove flag", BigDecimal.ONE, 0));
+			actionList.add(new Action(a, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 			actionList.add(a);			
 		} else {
 			actionList.add(a);
@@ -407,16 +410,16 @@ public class BoardState {
 				for (Location l: getAdjacentSquaresIterable(cl)) {
 					// flag not yet on board
 					if (!processed[l.x][l.y] && isConfirmedFlag(l) && !isFlagOnBoard(l)) {
-						actions.add(new Action(l, Action.FLAG, Solver.OBVIOUS, "Place flag", BigDecimal.ONE, 0));
+						actions.add(new Action(l, Action.FLAG, MoveMethod.TRIVIAL, "Place flag", BigDecimal.ONE, 0));
 					}
 					// flag on board in error
 					if (!processed[l.x][l.y] && !isConfirmedFlag(l) && isFlagOnBoard(l)) {
-						actions.add(new Action(l, Action.FLAG, Solver.OBVIOUS, "Remove flag", BigDecimal.ONE, 0));
+						actions.add(new Action(l, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 					}
 					processed[l.x][l.y] = true;
 				}
 				// now add the clear all
-				actions.add(new Action(cl, Action.CLEARALL, Solver.OBVIOUS, "Clear All", BigDecimal.ONE, 1));	
+				actions.add(new Action(cl, Action.CLEARALL, MoveMethod.TRIVIAL, "Clear All", BigDecimal.ONE, 1));	
 				
 			} else {
 				//toDelete.add(cl);
@@ -434,6 +437,27 @@ public class BoardState {
 		}
 
 		return actions;
+	}
+	
+	/**
+	 * Get the probability of a mine being in this square (based upon the actions still pending)
+	 */
+	protected BigDecimal getProbability(int x, int y) {
+		
+		for (Action act: actionList) {
+			if (act.x == x && act.y== y) {
+				if (act.getAction() == Action.FLAG) {
+					return BigDecimal.ZERO;
+				} else if (act.getAction() == Action.CLEAR) {
+					return act.getBigProb();
+				}
+				
+			}
+		}		
+		
+		
+		return null;
+		
 	}
 	
 	
@@ -855,8 +879,8 @@ public class BoardState {
 		return this.totalFlags;
 	}
 
-	protected int getUnplayedMoves(int method) {
-		return unplayedMoves[method];
+	protected int getUnplayedMoves(MoveMethod method) {
+		return unplayedMoves[method.ordinal()];
 	}
 
 
@@ -868,7 +892,7 @@ public class BoardState {
 
 				// if there is an unconfirmed flag on the board but the solver
 				// thinks it is clear then the flag is wrong
-				if (isUnconfirmedFlag(i,j) && action[i][j] != null && action[i][j].getType() == Action.CLEAR) {
+				if (isUnconfirmedFlag(i,j) && action[i][j] != null && action[i][j].getAction() == Action.CLEAR) {
 					display("Flag in Error at " + i + " " + j + " confirmed CLEAR");
 					return false;
 				}

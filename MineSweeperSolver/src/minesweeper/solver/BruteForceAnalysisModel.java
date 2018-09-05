@@ -26,6 +26,8 @@ abstract public class BruteForceAnalysisModel {
 	}
 
 	abstract protected int getSolutionCount();
+	
+	abstract protected int getNodeCount();
 
 	abstract protected Action getNextMove(BoardState boardState);
 	

@@ -32,7 +32,9 @@ import minesweeper.gamestate.msx.ScreenScanner;
  */
 public class Minesweeper extends Application {
     
-	public static final String TITLE = "Minesweeper coach";
+	public final static String VERSION = "1.01";
+	
+	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
 	
     private static GameStateModelViewer myGame;
     
@@ -142,7 +144,12 @@ public class Minesweeper extends Application {
     		System.out.println("X = " + myGame.getx() + " Y =" + myGame.gety());
     		break;
     	case ScreenController.DIFFICULTY_FILE:
-    		myGame = GameStateReader.load(fileSelected);
+    		GameStateModelViewer game = GameStateReader.load(fileSelected);
+    		if (game == null) {
+    			return null;
+    		} else {
+    			myGame = game;
+    		}
     		break;
     	case ScreenController.DIFFICULTY_CUSTOM:
     		CustomController custom = CustomController.getCustomController();

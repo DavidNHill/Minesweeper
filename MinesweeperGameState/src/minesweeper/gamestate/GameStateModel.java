@@ -33,7 +33,7 @@ abstract public class GameStateModel {
     protected final int x;
     protected final int y;
     protected final int mines;
-    
+    protected final long seed;
     
     protected boolean allowEarlyFinish = true;
     
@@ -41,6 +41,8 @@ abstract public class GameStateModel {
      * If this is true then the solver will place the remaining flags when the number of free squares = number of mines left
      */
     protected boolean doAutoComplete = true;    
+    
+    protected boolean partialGame = false;
     
     private int gameState = NOT_STARTED;
     
@@ -51,12 +53,16 @@ abstract public class GameStateModel {
     private final boolean[][] flag;
     private final boolean[][] revealed;
     
-    
     public GameStateModel(int x, int y, int mines) {
+    	this(x, y, mines, 0);
+    }
+    
+    public GameStateModel(int x, int y, int mines, long seed) {
         
         this.x = x;
         this.y = y;
         this.mines = mines;
+        this.seed = seed;
         
         //board = new int[x][y];
         
@@ -128,6 +134,12 @@ abstract public class GameStateModel {
     // returns false if the move is not allowed
     protected boolean clearSquare(Location m) {
         
+    	// if the game is not complete then don't allow clicks (a partial game is one loaded for analysis which doesn't contain all the mines)
+    	if (partialGame) {
+    		return false;
+    	}
+    	
+    	
        // if the game is finished then nothing to do
         if (gameState > GameStateModel.STARTED) {
             return false;
@@ -205,6 +217,11 @@ abstract public class GameStateModel {
     // return false if the move is not allowed
     protected boolean clearSurround(Location m) {
         
+    	// if the game is not complete then don't allow clicks (a partial game is one loaded for analysis which doesn't contain all the mines)
+    	if (partialGame) {
+    		return false;
+    	}
+    	
         // if the game is finished then nothing to do
         if (gameState > GameStateModel.STARTED) {
             return false;
@@ -286,7 +303,7 @@ abstract public class GameStateModel {
     
     
     // set up the board with the mines
-    private void start(Location m) {
+    void start(Location m) {
         
         gameState = GameStateModel.STARTED;
         
@@ -410,6 +427,12 @@ abstract public class GameStateModel {
     	return "no key defined";
     	
     }
+    
+    public long getSeed() {
+    	return this.seed;
+    }
+    
+    
     
     /**
      * @return the width of the game board

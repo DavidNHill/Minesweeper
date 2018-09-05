@@ -11,6 +11,10 @@ import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateEasy;
 import minesweeper.gamestate.GameStateStandard;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
+import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNGJava;
+import minesweeper.random.RNGKiss64;
 import minesweeper.gamestate.GameStateHard;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
@@ -24,6 +28,10 @@ import minesweeper.solver.Solver;
  */
 public class MinesweeperBulk {
 
+	private final static int WON = 1;
+	private final static int LOST = 2;
+	private final static int IGNORE = 3;
+	
 	private static final DecimalFormat MASK = new DecimalFormat("#0.000");
 	private static final DecimalFormat MASK5DP = new DecimalFormat("#0.00000");
 	
@@ -47,13 +55,15 @@ public class MinesweeperBulk {
 
 		int wins=0;
 		int losses=0;
+		int ignored=0;
+		int played=0;
 
 		long start = System.currentTimeMillis();
 
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 1301985346;
+		//seed = 1301985346;
 
 		//Seed -1502353305 played 50000 games Wins=26816 (53.632%) after 119688(56389,63299) guesses(winning, losing), fairness ratio=-0.00035, duration = 484985 milliseconds
 		//Number of Never Guessed wins is 8036 (16.072%) modified win rate = 44.753%
@@ -95,37 +105,39 @@ public class MinesweeperBulk {
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
-		for (int i=0; i < MAX; i++) {
+		DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
+		
+		while (played < MAX) {
 
 			//GameStateModel gs = new GameStateHard(30, 16, 99, seeder.nextLong()); // first move can be a mine
-			//GameStateModel gs = new GameStateEasy(24, 30, 203, seeder.nextLong());  // first move is a zero
-			GameStateModel gs = new GameStateStandard(30, 16, 99, seeder.nextLong());
-			//GameStateModel gs = new GameStateStandard(9, 9, 10, seeder.nextLong());
-			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
-			solver.setTestMode();
-			//Solver solver = new Solver(gs, Preferences.TINY_BRUTE_FORCE, false);
+			//GameStateModel gs = new GameStateEasy(8, 8, 10, seeder.nextLong());  // first move is a zero
+			//GameStateModel gs = new GameStateStandard(30, 16, 99, seeder.nextLong());
+			GameStateModel gs = new GameStateStandard(9, 9, 10, seeder.nextLong());
+			//Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
+			//solver.setTestMode();
+			Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 
 			//solver.setFlagFree(true);
 			
-			//solver.overrideBookOpenings(new OpeningLocation(0, 0), new OpeningLocation(29,0),new OpeningLocation(29,15),new OpeningLocation(0,15));
-			
-			//solver.overrideBookOpenings(new OpeningLocation(3, 3), new OpeningLocation(29,0),new OpeningLocation(29,15), new OpeningLocation(0,15)); 
-			
-			//solver.overrideBookOpenings(new OpeningLocation(5,0), new OpeningLocation(10,0),new OpeningLocation(15,5), new OpeningLocation(15,10), new OpeningLocation(5,15), new OpeningLocation(10,15), new OpeningLocation(0,5), new OpeningLocation(0,10)); // 16x16
-
-			if (i % STEP == 0) {
-				double p = (double) wins / (double) i;
-				System.out.println("played " + i + "/" + MAX + " games Wins=" + wins + " (" + MASK.format(p * 100) + "%). After "
+			if (played % STEP == 0) {
+				double p = (double) wins / (double) played;
+				System.out.println("played " + played + "/" + MAX + " games Wins=" + wins + " (" + MASK.format(p * 100) + "%). After "
 						+ guesses + "(" + winningGuesses + "," + losingGuesses + ") guesses(winning, losing), fairness ratio=" + MASK5DP.format(fairness / guesses) + "." );
 			}
 
-			if (playGame(gs, solver)) {
+			int result = playGame(gs, solver);
+			
+			if (result == WON) {
 				wins++;
-			} else {
+			} else if (result == LOST) {
 				losses++;
+			} else {
+				ignored++;
+				continue;
 			}
 
+			played++;
 		}
 
 		long duration = System.currentTimeMillis() - start;
@@ -142,11 +154,12 @@ public class MinesweeperBulk {
 			System.out.println("Number of Less than " + (i+1)*10 + "% chance wins " + guessMatrix[i]);
 		}
 		
+		System.out.println("Number of games ignored = " + ignored);
 		System.out.println("Number of 50-50 guesses = " + fiftyFiftyGuess + " won " + fiftyFiftyWon + " lost " + fiftyFiftyLost);
 
 	}
 
-	static private boolean playGame(GameStateModel gs, Solver solver) {
+	static private int playGame(GameStateModel gs, Solver solver) {
 
 		int state;
 
@@ -154,6 +167,7 @@ public class MinesweeperBulk {
 		double probability = 1;
 
 		int gameGuesses = 0;
+
 
 		play: while (true) {
 
@@ -164,7 +178,7 @@ public class MinesweeperBulk {
 			} catch (Exception e) {
 				System.out.println("Game " + gs.showGameKey() + " has thrown an exception!");
 				e.printStackTrace();
-				return false;
+				return IGNORE;
 			}
 
 			if (moves.length == 0) {
@@ -175,14 +189,15 @@ public class MinesweeperBulk {
 			// play all the moves until all done, or the game is won or lost
 			for (int i=0; i < moves.length; i++) {
 
-				int type = moves[i].getType();
-				double prob = moves[i].getProb();
+				MoveMethod method = moves[i].getMoveMethod();
+				//double prob = moves[i].getProb();
+				BigDecimal prob = moves[i].getBigProb();
 
-				if (prob <= 0 || prob > 1) {
+				if (prob.compareTo(BigDecimal.ZERO) <= 0 || prob.compareTo(BigDecimal.ONE) > 0) {
 					System.out.println("Game (" + gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].asString());
-				} else if (prob != 1d) {
+				} else if (!moves[i].isCertainty()) {
 					certain = false;
-					probability = probability * prob;
+					probability = probability * prob.doubleValue();
 				}
 
 				//System.out.print(moves[i].asString());
@@ -196,7 +211,8 @@ public class MinesweeperBulk {
 
 				state = gs.getGameState();
 
-				if (moves[i].getBigProb().compareTo(BIG_HALF) == 0) { 
+				if (prob.compareTo(BIG_HALF) == 0) { 
+					//return IGNORE;
 					fiftyFiftyGuess++;
 					if (state == GameStateModel.STARTED || state == GameStateModel.WON) {
 						fiftyFiftyWon++;
@@ -209,16 +225,16 @@ public class MinesweeperBulk {
 				// only monitor good guesses (brute force, probability engine, zonal, opening book and hooks)
 				//if (type == 4 || type == 5 || type == 10 || type == 11 || type == 8 || type == 7) {
 					if (state == GameStateModel.STARTED || state == GameStateModel.WON) {
-						if (prob > 0d && prob < 1d) {
+						if (!moves[i].isCertainty()) {
 							gameGuesses++;
 							guesses++;
 							fairness = fairness + 1;
 						}
 					} else { // otherwise the guess resulted in a loss
-						if (prob > 0d && prob < 1d) {
+						if (!moves[i].isCertainty()) {
 							gameGuesses++;
 							guesses++;
-							fairness = fairness - prob / (1d -prob);
+							fairness = fairness - prob.doubleValue() / (1d - prob.doubleValue());
 						}                    
 					}
 				//} else {
@@ -228,7 +244,7 @@ public class MinesweeperBulk {
 				//}
 
 
-				if (state == GameStateModel.LOST && prob == 1d) {
+				if (state == GameStateModel.LOST && moves[i].isCertainty()) {
 					System.out.println("Game (" + gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].asString());
 				}
 
@@ -241,7 +257,7 @@ public class MinesweeperBulk {
 
 		if (state == GameStateModel.LOST) {
 			losingGuesses = losingGuesses + gameGuesses;
-			return false;
+			return LOST;
 		} else {
 			winningGuesses = winningGuesses + gameGuesses;
 			if (certain) {
@@ -252,7 +268,7 @@ public class MinesweeperBulk {
 				int i = (int) (probability * 10);
 				guessMatrix[i]++;
 			}
-			return true;
+			return WON;
 		}
 
 

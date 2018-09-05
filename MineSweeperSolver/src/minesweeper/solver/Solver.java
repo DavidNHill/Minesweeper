@@ -14,16 +14,15 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import Asynchronous.Asynchronous;
-import Monitor.AsynchMonitor;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.coach.CoachModel;
 import minesweeper.solver.coach.CoachSilent;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.HookLocation;
 import minesweeper.solver.constructs.LinkedLocation;
-import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.SubLocation;
 import minesweeper.solver.constructs.SuperLocation;
 import minesweeper.solver.filter.ContraLinkedFilter;
@@ -38,7 +37,6 @@ import minesweeper.solver.filter.SuperSquareFilter;
 import minesweeper.solver.filter.ZeroFilter;
 import minesweeper.solver.iterator.Iterator;
 import minesweeper.solver.iterator.SequentialIterator;
-import minesweeper.solver.iterator.WitnessWebIterator;
 import minesweeper.solver.utility.Binomial;
 
 /**
@@ -48,6 +46,9 @@ import minesweeper.solver.utility.Binomial;
 public class Solver implements Asynchronous<Action[]> {
 
 
+	public final static String VERSION = "1.01";
+	
+	
     // used to hold valid moves which are about to be passed out of the solver
     private class FinalMoves {
         
@@ -96,21 +97,21 @@ public class Solver implements Asynchronous<Action[]> {
 		
     }
     
-    public final static String[] METHOD = {"Undefined", "Trivial", "Locally resolved", "Brute Force", 
-        "Brute Force Best Guess", "Probability Engine Best Guess", "Probability Engine", "Brute Force Deep Analysis", 
-        "Hook", "Zonal Analysis", "Zonal Analysis Best Guess", "Opening book", "Guess"};
-    protected final static int OBVIOUS = 1;
-    protected final static int LESS_OBVIOUS = 2;
-    protected final static int BRUTE_FORCE = 256;
-    protected final static int BRUTE_FORCE_BEST_GUESS = 4;
-    protected final static int PROBABILITY_ENGINE_BEST_GUESS = 5;
-    protected final static int PROBABILITY_ENGINE = 6;
-    protected final static int BRUTE_FORCE_DEEP_ANALYSIS = 7;
-    protected final static int HOOK = 8;
-    protected final static int ZONAL_ANALYSIS = 9;
-    protected final static int ZONAL_ANALYSIS_BEST_GUESS = 10;
-    protected final static int OPENING_BOOK = 11;
-    protected final static int GUESS = 12;
+    //public final static String[] METHOD = {"Undefined", "Trivial", "Locally resolved", "Brute Force", 
+    //    "Brute Force Best Guess", "Probability Engine Best Guess", "Probability Engine", "Brute Force Deep Analysis", 
+    //   "Hook", "Zonal Analysis", "Zonal Analysis Best Guess", "Opening book", "Guess"};
+    //protected final static int OBVIOUS = 1;
+    //protected final static int LESS_OBVIOUS = 2;
+    //protected final static int BRUTE_FORCE = 256;
+    //protected final static int BRUTE_FORCE_BEST_GUESS = 4;
+    //protected final static int PROBABILITY_ENGINE_BEST_GUESS = 5;
+    //protected final static int PROBABILITY_ENGINE = 6;
+    //protected final static int BRUTE_FORCE_DEEP_ANALYSIS = 7;
+    //protected final static int HOOK = 8;
+    //protected final static int ZONAL_ANALYSIS = 9;
+    //protected final static int ZONAL_ANALYSIS_BEST_GUESS = 10;
+    //protected final static int OPENING_BOOK = 11;
+    //protected final static int GUESS = 12;
     
     protected final static int DP = 20;
 
@@ -342,12 +343,8 @@ public class Solver implements Asynchronous<Action[]> {
     public boolean isPlayChords() {
     	return this.playChords;
     }
+ 
     
-    
-    /**
-     * True indicates the solver should play chords
-     * @param playChords
-     */
     public void setShowProbabilityTree(boolean showTree) {
     	this.showProbabilityTree = showTree;
     }
@@ -476,8 +473,8 @@ public class Solver implements Asynchronous<Action[]> {
         
         // output some text describing the results
         
-        int displayObvious = obvious + boardState.getUnplayedMoves(Solver.OBVIOUS);
-        int displayLessObvious = lessObvious + boardState.getUnplayedMoves(Solver.LESS_OBVIOUS);
+        int displayObvious = obvious + boardState.getUnplayedMoves(MoveMethod.TRIVIAL);
+        int displayLessObvious = lessObvious + boardState.getUnplayedMoves(MoveMethod.LOCAL);
         
         newLine("----------- Basic Analysis -----------");
         newLine("There are " + displayObvious + " trivial moves found in " + (time2 - time1) + " milliseconds");        
@@ -564,14 +561,14 @@ public class Solver implements Asynchronous<Action[]> {
                     	bruteForceAnalysis.process();
                     	// if after trying to process the data we can't complete then abandon it
                     	if (!bruteForceAnalysis.isComplete()) {
-                    		displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis");
+                    		displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bruteForceAnalysis.getNodeCount() + " steps");
                     		bruteForceAnalysis = null;
                     		
                     	} else { // otherwise try and get the best long term move
                     		if (bruteForceAnalysis.isShallow()) {
                     			newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
                     		}
-                    		newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
+                    		newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
                         	Action move = bruteForceAnalysis.getNextMove(boardState);
                         	if (move != null) {
                         		display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
@@ -653,7 +650,7 @@ public class Solver implements Asynchronous<Action[]> {
                 if (findFifty != null && findFifty.moveFound) {
                 	fm = findFifty;
                 } else {
-                	fm = refineBestGuess(PROBABILITY_ENGINE_BEST_GUESS, PROBABILITY_ENGINE, best, pe.getSolutionCount(), ft);
+                	fm = refineBestGuess(MoveMethod.PROBABILITY_ENGINE, MoveMethod.PROBABILITY_ENGINE, best, pe.getSolutionCount(), ft);
                 }
             	
             	
@@ -700,7 +697,7 @@ public class Solver implements Asynchronous<Action[]> {
 
             	// sorting tries to find a hook with the least hidden adjacent locations... which should maximise the chance of hook coming good
             	Collections.sort(goodHooksOffEdge, HookLocation.SORT_BY_ADJ_HIDDEN);
-                Action action = new Action(goodHooksOffEdge.get(0), Action.CLEAR, Solver.HOOK,  METHOD[Solver.HOOK], offContourBigProb);
+                Action action = new Action(goodHooksOffEdge.get(0), Action.CLEAR, MoveMethod.GUESS, "Hook", offContourBigProb);
 
                 // by sending to boardState we centralise the logic which checks the move isn't blocked by a flag
                 boardState.setAction(action);
@@ -739,6 +736,7 @@ public class Solver implements Asynchronous<Action[]> {
             newLine("---------- Recommended Move ----------");
         	newLine(fm.result[0].asString());
             newLine("----------  Analysis Ended -----------");
+            //newLine("vsn " + Solver.VERSION);
         }
         
         return fm;
@@ -758,7 +756,7 @@ public class Solver implements Asynchronous<Action[]> {
 					if (boardState.isUnrevealed(l)) {
 			            if (!boardState.alreadyActioned(l)) {
 			                count++;
-		                    boardState.setAction(new Action(l, Action.CLEAR, Solver.OBVIOUS, METHOD[Solver.OBVIOUS], BigDecimal.ONE), !accepted);
+		                    boardState.setAction(new Action(l, Action.CLEAR, MoveMethod.TRIVIAL, "", BigDecimal.ONE), !accepted);
 		                    
 			            }
 						
@@ -771,7 +769,7 @@ public class Solver implements Asynchronous<Action[]> {
 						if (!boardState.alreadyActioned(l)) {
 			                count++;
 
-		                    boardState.setAction(new Action(l, Action.FLAG, Solver.OBVIOUS, METHOD[Solver.OBVIOUS],  BigDecimal.ONE));
+		                    boardState.setAction(new Action(l, Action.FLAG, MoveMethod.TRIVIAL, "",  BigDecimal.ONE));
 			                boardState.setFlagConfirmed(l);
 			            }
 						
@@ -856,8 +854,8 @@ public class Solver implements Asynchronous<Action[]> {
     				 hooks = null;
 
     				 CrunchResult output = crunch(square, witness, hooks, new SequentialIterator(boardState.getWitnessValue(loc) - flags, square.size()), false, null);
-    				 count = count + checkBigTally(output, Solver.LESS_OBVIOUS);
-    				 count = count + checkWitnesses(output, Solver.LESS_OBVIOUS);
+    				 count = count + checkBigTally(output, MoveMethod.LOCAL, "");
+    				 count = count + checkWitnesses(output, MoveMethod.LOCAL, "");
 
 
     				 if (hooks != null) {
@@ -1022,7 +1020,7 @@ public class Solver implements Asynchronous<Action[]> {
 				
 				
 				if (isOnlyOne(i, j-1) || isOnlyOne(i + 1, j-1) || isOnlyOne(i, j+1) || isOnlyOne(i + 1, j + 1)) {
-					Action a = new Action(new Location(i, j), Action.CLEAR, 1, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
 					fm = new FinalMoves(a);
 					return fm;
 				} 
@@ -1044,7 +1042,7 @@ public class Solver implements Asynchronous<Action[]> {
 				
 				
 				if (isOnlyOne(i - 1, j) || isOnlyOne(i + 1, j) || isOnlyOne(i - 1, j + 1) || isOnlyOne(i + 1, j + 1)) {
-					Action a = new Action(new Location(i, j), Action.CLEAR, 1, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
 					fm = new FinalMoves(a);
 					return fm;
 				} 
@@ -1102,7 +1100,7 @@ public class Solver implements Asynchronous<Action[]> {
             display("Zonal Analysis but found all the mines!");
             actions = new Action[targetZones.get(0).getInterior().size()];
             for (int i=0; i < targetZones.get(0).getInterior().size(); i++) {
-                actions[i] = new Action(targetZones.get(0).getInterior().get(i), Action.CLEAR, 1, "No mines left",  BigDecimal.ONE);
+                actions[i] = new Action(targetZones.get(0).getInterior().get(i), Action.CLEAR, MoveMethod.TRIVIAL, "No mines left",  BigDecimal.ONE);
             }       
             fm = new FinalMoves(actions);
             return fm;
@@ -1132,7 +1130,7 @@ public class Solver implements Asynchronous<Action[]> {
         }
         
         if (bf != null) {
-            int count = checkBigTally(bf.getCrunchResult(), Solver.ZONAL_ANALYSIS);
+            int count = checkBigTally(bf.getCrunchResult(), MoveMethod.BRUTE_FORCE, "Zonal");  // look for 100% moves
             if (count == 0) {
                 display("Zonal Analysis approach looking for best guess");
 
@@ -1155,7 +1153,7 @@ public class Solver implements Asynchronous<Action[]> {
                 
                 // if we couldn't then do the normal analysis
                 if (!fm.moveFound) {
-                	fm = determineBestGuess(Solver.ZONAL_ANALYSIS_BEST_GUESS,Solver.ZONAL_ANALYSIS, bf.getCrunchResult());
+                	fm = determineBestGuess(MoveMethod.BRUTE_FORCE, MoveMethod.BRUTE_FORCE, bf.getCrunchResult());
                 }
  
             
@@ -1681,7 +1679,7 @@ public class Solver implements Asynchronous<Action[]> {
     }
     
     // do the tally check using the BigInteger values
-    private int checkBigTally(CrunchResult output, int method) {
+    private int checkBigTally(CrunchResult output, MoveMethod method, String comment) {
         
         int result=0;
         
@@ -1704,7 +1702,7 @@ public class Solver implements Asynchronous<Action[]> {
                     //int index = method;
                     //String comment = METHOD[method];
                     
-                    boardState.setAction(new Action(l, Action.FLAG, method, METHOD[method], BigDecimal.ONE));
+                    boardState.setAction(new Action(l, Action.FLAG, method, comment, BigDecimal.ONE));
                     boardState.setFlagConfirmed(l);
                     
                 }
@@ -1719,7 +1717,7 @@ public class Solver implements Asynchronous<Action[]> {
                     //int index = method>>8;
                     //String comment = METHOD[index];
                     
-                    boardState.setAction(new Action(l, Action.CLEAR, method, METHOD[method], BigDecimal.ONE));
+                    boardState.setAction(new Action(l, Action.CLEAR, method, comment, BigDecimal.ONE));
                     //display("clear found at " + x + " " + y);
                 }                
             }
@@ -1730,7 +1728,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
-    private FinalMoves determineBestGuess(int methodGuess, int methodCertain, CrunchResult crunchResult) {
+    private FinalMoves determineBestGuess(MoveMethod methodGuess, MoveMethod methodCertain, CrunchResult crunchResult) {
 
     	//display("Crunch Results passed to determine best guess = " + output.length);
 
@@ -1789,7 +1787,7 @@ public class Solver implements Asynchronous<Action[]> {
     	ft.hookFilter = new HookFilter(goodHooksOnEdge, goodHooksOffEdge);
     	ft.solveLastFilter = new SolveLastFilter(zones);
         
-        if (preferences.USE_MIN_MAX && !found && crunchResult.bigDistribution != null && (methodGuess == Solver.BRUTE_FORCE_BEST_GUESS || methodGuess == Solver.ZONAL_ANALYSIS_BEST_GUESS)) {
+        if (preferences.USE_MIN_MAX && !found && crunchResult.bigDistribution != null && (methodGuess == MoveMethod.BRUTE_FORCE)) {
 
         	ft.minMaxFilter = new MinMaxFilter(crunchResult);
 
@@ -1807,7 +1805,7 @@ public class Solver implements Asynchronous<Action[]> {
     //}
     
     
-    private FinalMoves refineBestGuess(int methodGuess, int methodCertain, List<CandidateLocation> best, BigInteger solutionsCount, FilterTransport ft) {
+    private FinalMoves refineBestGuess(MoveMethod methodGuess, MoveMethod methodCertain, List<CandidateLocation> best, BigInteger solutionsCount, FilterTransport ft) {
     	
     	Collections.sort(best, CandidateLocation.SORT_BY_PROB_FLAG_FREE);  // this is better then prob, free, flag
     	//Collections.sort(best, CandidateLocation.SORT_BY_PROB_FREE_FLAG);
@@ -1978,7 +1976,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     // in some cases we learn more about the other witnesses during the crunch
     // this only happens for less obvious analysis. Contour analysis picks up all 100% moves regardless.
-    private int checkWitnesses(CrunchResult output, int method) {
+    private int checkWitnesses(CrunchResult output, MoveMethod method, String comment) {
         
         int result = 0;
  
@@ -1987,11 +1985,11 @@ public class Solver implements Asynchronous<Action[]> {
             if (output.witnessGood[i] != 0) {
                 if (output.witnessRestFlags[i]) {
                 	//display("CheckWitnesses has found a FLAG " + output.witness[i].display());
-                    result = result + restKnown(output.witness[i], output.getSquare(), Action.FLAG, method);
+                    result = result + restKnown(output.witness[i], output.getSquare(), Action.FLAG, method, comment);
                 }                
                 if (output.witnessRestClear[i]) {
                 	//display("CheckWitnesses has found a CLEAR " + output.witness[i].display());
-                    result = result + restKnown(output.witness[i], output.getSquare(), Action.CLEAR, method);
+                    result = result + restKnown(output.witness[i], output.getSquare(), Action.CLEAR, method, comment);
                 }                
             }
         } 
@@ -2002,7 +2000,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     
     
-    private int restKnown(Location witness, List<? extends Location> square, int action, int method) {
+    private int restKnown(Location witness, List<? extends Location> square, int action, MoveMethod method, String comment) {
         
         int result=0;
         
@@ -2025,10 +2023,10 @@ public class Solver implements Asynchronous<Action[]> {
 
                 	Action act;
                     if (action == Action.FLAG) {
-                    	act = new Action(l, Action.FLAG, method, METHOD[method], BigDecimal.ONE);
+                    	act = new Action(l, Action.FLAG, method, comment, BigDecimal.ONE);
                     	boardState.setFlagConfirmed(act);
                     } else {
-                    	act = new Action(l, Action.CLEAR, method, METHOD[method], BigDecimal.ONE);
+                    	act = new Action(l, Action.CLEAR, method, comment, BigDecimal.ONE);
                     }
                     result++;
      
@@ -2055,7 +2053,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     	// get the starting move if we are at the start of the game
     	if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
-    		action = new Action(myGame.getStartLocation(), Action.CLEAR, Solver.OPENING_BOOK, METHOD[Solver.OPENING_BOOK], offContourBigProb);
+    		action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
     	}
     	
     	// look for a book opening
@@ -2103,7 +2101,7 @@ public class Solver implements Asynchronous<Action[]> {
             Collections.sort(list, CandidateLocation.SORT_BY_PROB_FREE_FLAG);
             
             // ... and pick the first one
-            action = list.get(0).buildAction(GUESS);
+            action = list.get(0).buildAction(MoveMethod.GUESS);
         }
         
         // this will check there isn't a flag blocking the move 
@@ -2353,7 +2351,7 @@ public class Solver implements Asynchronous<Action[]> {
     	} else if (pe != null) {
     		return pe.getProbability(new Location(x,y));
     	} else {
-    		return null;
+    		return boardState.getProbability(x, y);
     	}
  
     }
@@ -2419,11 +2417,6 @@ public class Solver implements Asynchronous<Action[]> {
     
     @Override
     protected void finalize() {
-        try {
-            super.finalize();
-        } catch (Throwable ex) {
-            Logger.getLogger(Solver.class.getName()).log(Level.SEVERE, null, ex);
-        }
         
         display("Solver Class finalize method invoked");
         

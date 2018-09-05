@@ -5,6 +5,7 @@ import java.util.Comparator;
 
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.Location;
+import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.Solver;
 public class CandidateLocation extends Location {
 	
@@ -54,9 +55,9 @@ public class CandidateLocation extends Location {
 		return this.description;
 	}
 	
-	public Action buildAction(int method) {
+	public Action buildAction(MoveMethod method) {
 		
-        String comment = Solver.METHOD[method] + description;
+        String comment = description;
         
         return new Action(this, Action.CLEAR, method, comment, prob);		
 		
