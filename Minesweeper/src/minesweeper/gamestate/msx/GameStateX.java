@@ -3,13 +3,14 @@ package minesweeper.gamestate.msx;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.Location;
+import minesweeper.settings.GameSettings;
 
 public class GameStateX extends GameStateModelViewer {
 
 	private ScreenScanner scanner;
 	
 	public GameStateX(ScreenScanner scanner) {
-        super(scanner.getColumns(), scanner.getRows(), scanner.getMines());
+        super(GameSettings.create(scanner.getColumns(), scanner.getRows(), scanner.getMines()));
         
         this.scanner = scanner;
         

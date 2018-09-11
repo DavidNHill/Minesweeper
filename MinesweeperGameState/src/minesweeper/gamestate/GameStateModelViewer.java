@@ -1,5 +1,7 @@
 package minesweeper.gamestate;
 
+import minesweeper.settings.GameSettings;
+
 /**
  * This contains a method to allow the viewer to see where the mines are
  * @author David
@@ -7,12 +9,12 @@ package minesweeper.gamestate;
  */
 abstract public class GameStateModelViewer extends GameStateModel {
 
-    public GameStateModelViewer(int x, int y, int mines) {
-		this(x, y, mines, 0);
+    public GameStateModelViewer(GameSettings gameSettings) {
+		this(gameSettings, 0);
 	}
 
-    public GameStateModelViewer(int x, int y, int mines, long seed) {
-		super(x, y, mines, seed);
+    public GameStateModelViewer(GameSettings gameSettings, long seed) {
+		super(gameSettings, seed);
 	}
     
 	// can be used by the display to get the mines

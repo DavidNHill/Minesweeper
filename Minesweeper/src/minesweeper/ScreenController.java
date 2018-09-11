@@ -37,6 +37,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Popup;
+import minesweeper.bulk.BulkController;
 import minesweeper.coach.HelperController;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
@@ -45,6 +46,7 @@ import minesweeper.gamestate.MoveMethod;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNGJava;
 import minesweeper.random.RNGKiss64;
+import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 
@@ -102,17 +104,13 @@ public class ScreenController {
     
     //private static final int SOLVER = Solver.ANY_GUESSES;
     
-    public static final int DIFFICULTY_EASY = 1;
-    public static final int DIFFICULTY_MEDIUM = 2;
-    public static final int DIFFICULTY_HARD = 3;
+    public static final int DIFFICULTY_BEGINNER = 1;
+    public static final int DIFFICULTY_ADVANCED = 2;
+    public static final int DIFFICULTY_EXPERT = 3;
     public static final int DIFFICULTY_FILE = 98;
     public static final int DEFER_TO_MINESWEEPERX = 99;
     
     public static final int DIFFICULTY_CUSTOM = 100;
-    
-    public static final int GAMETYPE_EASY = 1;
-    public static final int GAMETYPE_NORMAL = 2;
-    public static final int GAMETYPE_HARD = 3;
     
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
     
@@ -141,10 +139,10 @@ public class ScreenController {
     
     private double combProb = 1;
     
-    private int difficulty = DIFFICULTY_HARD;
+    private int difficulty = DIFFICULTY_EXPERT;
     private File fileSelected = null;
     
-    private int gameType = GAMETYPE_NORMAL;
+    private GameType gameType = GameType.STANDARD;
     
     private Popup toolTip = new Popup();
     private Text popupText = new Text();
@@ -202,11 +200,11 @@ public class ScreenController {
     	int prevDiff = difficulty;
     	
         if (easyMode.isSelected()) {
-            difficulty = DIFFICULTY_EASY;
+            difficulty = DIFFICULTY_BEGINNER;
         } else if (mediumMode.isSelected()) {
-            difficulty = DIFFICULTY_MEDIUM;
+            difficulty = DIFFICULTY_ADVANCED;
         } else if (hardMode.isSelected()) {
-            difficulty = DIFFICULTY_HARD;
+            difficulty = DIFFICULTY_EXPERT;
         } else if (msxMode.isSelected()) {
             difficulty = DEFER_TO_MINESWEEPERX;
         } else if (customMode.isSelected()) {
@@ -264,11 +262,11 @@ public class ScreenController {
     private void handleGameType(ActionEvent event) {
         
         if (gameTypeEasy.isSelected()) {
-            gameType = GAMETYPE_EASY;
+            gameType = GameType.EASY;
         } else if (gameTypeNormal.isSelected()) {
-            gameType = GAMETYPE_NORMAL;
+            gameType = GameType.STANDARD;
         } else if (gameTypeHard.isSelected()) {
-            gameType = GAMETYPE_HARD;
+            gameType = GameType.HARD;
         }
 
     }    
@@ -280,6 +278,15 @@ public class ScreenController {
         
     }
 
+    @FXML
+    private void handleNewBulkRun(ActionEvent event) {
+        
+        BulkController.launch(window.getScene().getWindow(), Minesweeper.getGameSettings(), gameType);
+        
+    }
+
+    
+    
     @FXML
     private void handleCopyToClipboard(ActionEvent event) {
         
@@ -855,7 +862,7 @@ public class ScreenController {
         return difficulty;
     }
         
-    public int getGameType() {
+    public GameType getGameType() {
         return gameType;
     }
     

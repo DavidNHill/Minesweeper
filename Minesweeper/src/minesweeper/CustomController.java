@@ -5,6 +5,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -16,8 +17,10 @@ import javafx.scene.layout.AnchorPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.stage.WindowEvent;
 import minesweeper.coach.HelperController;
 import minesweeper.gamestate.GameStateModel;
+import minesweeper.settings.GameSettings;
 
 public class CustomController {
 
@@ -36,6 +39,7 @@ public class CustomController {
 	private int height;
 	private int width;
 	private int mines;
+	private GameSettings gameSettings;
 
 	private long gameCode;
 	
@@ -80,6 +84,8 @@ public class CustomController {
 		if (mines > width * height - 10) {
 			mines = width * height - 10;
 		}
+		
+		gameSettings = GameSettings.create(width, height, mines);
 		
 		stage.close();
 		
@@ -157,6 +163,18 @@ public class CustomController {
 		//custom.stage.setX(st.getX()+ st.getWidth());
 		//custom.stage.setY(st.getY());
 
+		custom.stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+
+			@Override
+			public void handle(WindowEvent event) {
+				System.out.println("Entered OnCloseRequest handler");
+				custom.wasCancelled = true;
+			
+			}
+			
+		});
+		
+		
 		return custom;
 	}
 
@@ -183,6 +201,11 @@ public class CustomController {
 	public Stage getStage() {
 		return this.stage;
 	}
+	
+	public GameSettings getGameSettings() {
+		return this.gameSettings;
+	}
+	
 	
 	public int getMines() {
 		return this.mines;

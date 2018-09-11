@@ -12,6 +12,8 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import minesweeper.settings.GameSettings;
+
 /**
  * A Version of Minesweeper which reads the board state from a file
  * @author David
@@ -23,10 +25,10 @@ public class GameStateReader extends GameStateModelViewer {
     private File file;
     
   
-    private GameStateReader(int x, int y, int mines) {
-        super(x, y, mines, 0);
+    private GameStateReader(GameSettings gameSettings) {
+        super(gameSettings, 0);
         
-        this.board = new int[x][y];
+        this.board = new int[width][height];
     }
     
     /*
@@ -46,10 +48,10 @@ public class GameStateReader extends GameStateModelViewer {
     }
     */
     
-    public final static GameStateModelViewer load(File file) {
+    public final static GameStateModelViewer load(File file) throws Exception {
     	
-    	int x;
-    	int y;
+    	int width;
+    	int height;
     	int mines;
     	
     	int minesCount = 0;
@@ -66,37 +68,37 @@ public class GameStateReader extends GameStateModelViewer {
 			String data = reader.readLine();
 			
 			if (data == null) {
-				return null;
+				throw new Exception("File is empty!");
 			}
 			
-			String[] header = data.split("x");
+			String[] header = data.trim().split("x");
 			if (header.length != 3) {
-				return null;
+				throw new Exception("Header (" + data + ") doesn't contain width, height, mine separated by 'x'");
 			}
 			
 			try {
-				x = Integer.parseInt(header[0]);
-				y = Integer.parseInt(header[1]);
+				width = Integer.parseInt(header[0]);
+				height = Integer.parseInt(header[1]);
 				mines = Integer.parseInt(header[2]);
 			} catch (Exception e) {
-				return null;
+				throw new Exception("Unable to parse the values in the header (" + data + ")");
 			}
 
-			result = new GameStateReader(x, y, mines);
+			result = new GameStateReader(GameSettings.create(width, height, mines));
 
-	    	tempBoard = new int[x][y];
+	    	tempBoard = new int[width][height];
 			
 			data = reader.readLine();
 			int cy=0;
 			
 			while (data != null) {
 				
-				if (data.length() != x) {
-					return null;
+				if (data.trim().length() != width) {
+					throw new Exception("Detail row is not the same width as the header's width value");
 				}
 				
 				int cx = 0;
-				for (char c: data.toCharArray()) {
+				for (char c: data.trim().toCharArray()) {
 					if (c == 'M' || c == 'm') {
 						
 						minesCount++;
@@ -105,7 +107,7 @@ public class GameStateReader extends GameStateModelViewer {
 						
 	                    // tell all the surrounding squares they are next to a mine
 	                    for (int j=0; j < DX.length; j++) {
-	                        if (cx + DX[j] >= 0 && cx + DX[j] < result.x && cy + DY[j] >= 0 && cy + DY[j] < result.y) {
+	                        if (cx + DX[j] >= 0 && cx + DX[j] < result.width && cy + DY[j] >= 0 && cy + DY[j] < result.height) {
 	                            if (result.board[cx+DX[j]][cy+DY[j]] != GameStateModel.MINE) {
 	                                result.board[cx+DX[j]][cy+DY[j]]++;
 	                            }
@@ -130,7 +132,7 @@ public class GameStateReader extends GameStateModelViewer {
 
 		
 		} catch (Exception e) {
-			return null;
+			throw e;
 		}	
     	
 		if (mines != minesCount) {
@@ -138,8 +140,8 @@ public class GameStateReader extends GameStateModelViewer {
 			result.partialGame = true;
 			
 			// for partial games use the revealed values as given in the file
-			for (int i=0; i < x; i++) {
-				for (int j=0; j < y; j++) {
+			for (int i=0; i < width; i++) {
+				for (int j=0; j < height; j++) {
 					result.board[i][j] = tempBoard[i][j];
 				}
 			}
@@ -227,7 +229,7 @@ public class GameStateReader extends GameStateModelViewer {
     
     private void explode(Location loc) {
     	
-    	boolean[][] done = new boolean[x][y];
+    	boolean[][] done = new boolean[width][height];
     	
     	List<Location> interiorList = new ArrayList<>();
     	
@@ -248,7 +250,7 @@ public class GameStateReader extends GameStateModelViewer {
                 int y1 = cl.y + DY[i];
                 
                 // check each of the surrounding squares which haven't already been checked
-                if (x1 >= 0 && x1 < x && y1 >= 0 && y1 < y) {
+                if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
                 	if (!done[x1][y1] && query(new Location(x1, y1)) == GameStateModel.HIDDEN) {
                 		
                 		done[x1][y1] = true;
@@ -274,7 +276,7 @@ public class GameStateReader extends GameStateModelViewer {
 		
         // otherwise, clear around this revealed square
         for (int j=0; j < DX.length; j++) {
-            if (m.x + DX[j] >= 0 && m.x + DX[j] < this.x && m.y + DY[j] >= 0 && m.y + DY[j] < this.y) {
+            if (m.x + DX[j] >= 0 && m.x + DX[j] < this.width && m.y + DY[j] >= 0 && m.y + DY[j] < this.height) {
                 clearSquare(new Location(m.x+DX[j], m.y+DY[j]));
             }
         }      

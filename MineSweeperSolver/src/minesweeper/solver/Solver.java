@@ -1303,6 +1303,7 @@ public class Solver implements Asynchronous<Action[]> {
         if (result == null && solveLast) {
         	z.setSolveLast(true);
         	display("Zone has been set to 'solve last' because solution count is 1 for all values of mine examined");
+        	//display(this.myGame.showGameKey() + ": Zone has been set to 'solve last' because solution count is 1 for at least 1 value of mine examined");
         }
         
         return result;

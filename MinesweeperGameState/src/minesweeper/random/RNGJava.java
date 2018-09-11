@@ -21,7 +21,12 @@ public class RNGJava implements RNG{
 	@Override
 	public long random(int in) {
 
-		return (long) Math.floor(rng.nextDouble() * in);
+		if (in == 0) {
+			return rng.nextLong();
+		} else {
+			return rng.nextInt(in);
+		}
+		//return (long) Math.floor(rng.nextDouble() * in);
 		
 	}
 

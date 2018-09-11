@@ -70,6 +70,11 @@
                   </Menu>
               </items>
             </Menu>
+            <Menu mnemonicParsing="false" text="Bulk run">
+               <items>
+                  <MenuItem mnemonicParsing="false" onAction="#handleNewBulkRun" text="New bulk run..." />
+               </items>
+            </Menu>
       </menus>
     </MenuBar>
     <Label fx:id="scoreLabel" alignment="TOP_CENTER" layoutY="28.0" minHeight="24.0" prefHeight="37.0" prefWidth="56.0" style="-fx-border-color: Black; -fx-border-radius: 15; -fx-border-style: solid outside;" text="000" textAlignment="LEFT" textFill="BLACK" AnchorPane.leftAnchor="10.0">

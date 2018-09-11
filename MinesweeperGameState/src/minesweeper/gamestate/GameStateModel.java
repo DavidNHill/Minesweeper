@@ -4,6 +4,8 @@
  */
 package minesweeper.gamestate;
 
+import minesweeper.settings.GameSettings;
+
 /**
  * An abstract representation of a game of Minesweeper.
  * <p>Allows a player to query squares to discover if they are HIDDEN, FLAGGED or how many mines surround them.</p>
@@ -30,8 +32,8 @@ abstract public class GameStateModel {
     private long startTS = 0;
     private long finishTS = 0;
     
-    protected final int x;
-    protected final int y;
+    protected final int width;
+    protected final int height;
     protected final int mines;
     protected final long seed;
     
@@ -53,22 +55,22 @@ abstract public class GameStateModel {
     private final boolean[][] flag;
     private final boolean[][] revealed;
     
-    public GameStateModel(int x, int y, int mines) {
-    	this(x, y, mines, 0);
+    public GameStateModel(GameSettings gameSettings) {
+    	this(gameSettings, 0);
     }
     
-    public GameStateModel(int x, int y, int mines, long seed) {
+    public GameStateModel(GameSettings gameSettings, long seed) {
         
-        this.x = x;
-        this.y = y;
-        this.mines = mines;
+        this.width = gameSettings.width;
+        this.height = gameSettings.height;
+        this.mines = gameSettings.mines;
         this.seed = seed;
         
         //board = new int[x][y];
         
-        flag = new boolean[x][y];
+        flag = new boolean[width][height];
         
-        revealed = new boolean[x][y];
+        revealed = new boolean[width][height];
         
         this.gameState = NOT_STARTED;
         
@@ -180,7 +182,7 @@ abstract public class GameStateModel {
 
         // if we have revealed enough locations without hitting a mine
         // we have won
-        if (squaresRevealed == this.x * this.y - this.mines) {
+        if (squaresRevealed == this.width * this.height - this.mines) {
             finishFlags();
             finish(GameStateModel.WON);
             return true;
@@ -196,7 +198,7 @@ abstract public class GameStateModel {
      */
     protected boolean checkForWin() {
     	
-        if (squaresRevealed == this.x * this.y - this.mines) {
+        if (squaresRevealed == this.width * this.height - this.mines) {
             finishFlags();
             finish(GameStateModel.WON);
             return true;
@@ -271,7 +273,7 @@ abstract public class GameStateModel {
          int result = 0;
         
          for (int j=0; j < DX.length; j++) {
-            if (x + DX[j] >= 0 && x + DX[j] < this.x && y + DY[j] >= 0 && y + DY[j] < this.y) {
+            if (x + DX[j] >= 0 && x + DX[j] < this.width && y + DY[j] >= 0 && y + DY[j] < this.height) {
                 if (flag[x+DX[j]][y+DY[j]]) {
                     result++;
                 }
@@ -289,8 +291,8 @@ abstract public class GameStateModel {
     		return;
     	}
     	
-        for (int i=0; i < x; i++) {
-            for (int j=0; j < y; j++) {
+        for (int i=0; i < width; i++) {
+            for (int j=0; j < height; j++) {
                 Location l = new Location(i,j);
                 if (query(l) == GameStateModel.HIDDEN) {
                     doAction(new Action(l, Action.FLAG));
@@ -438,14 +440,14 @@ abstract public class GameStateModel {
      * @return the width of the game board
      */
     final public int getx() {
-        return x;
+        return width;
     }
     
     /**
      * @return the height of the game board
      */
     final public int gety() {
-        return y;
+        return height;
     }    
     
     /**
@@ -474,7 +476,7 @@ abstract public class GameStateModel {
      * Returns the number of squares hidden
      */
     final public int getHidden() {
-    	return this.x * this.y - this.squaresRevealed;
+    	return this.width * this.height - this.squaresRevealed;
     }
     
     /**

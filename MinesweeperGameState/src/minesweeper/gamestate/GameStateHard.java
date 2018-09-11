@@ -11,6 +11,7 @@ import java.util.Random;
 
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
+import minesweeper.settings.GameSettings;
 
 /**
  * A Version of Minesweeper where the first click can be a mine
@@ -22,15 +23,15 @@ public class GameStateHard extends GameStateModelViewer {
     
     private RNG rng;
     
-    public GameStateHard(int x, int y, int mines) {
-        this(x, y, mines, new Random().nextLong());
+    public GameStateHard(GameSettings gameSettings) {
+        this(gameSettings, new Random().nextLong());
     }
     
 
-    public GameStateHard(int x, int y, int mines, long seed) {
-        super(x ,y, mines, seed);
+    public GameStateHard(GameSettings gameSettings, long seed) {
+        super(gameSettings, seed);
         
-        this.board = new int[x][y];
+        this.board = new int[width][height];
         
         this.rng = DefaultRNG.getRNG(seed); 
     }
@@ -42,8 +43,8 @@ public class GameStateHard extends GameStateModelViewer {
     	int i=0;
 
     	while (i < mines) {
-    		int y1 = (int) rng.random(this.y);
-    		int x1 = (int) rng.random(this.x);
+    		int y1 = (int) rng.random(this.height);
+    		int x1 = (int) rng.random(this.width);
     		Location l1 = new Location(x1, y1);
 
     		if (board[x1][y1] != GameStateModel.MINE) {
@@ -53,7 +54,7 @@ public class GameStateHard extends GameStateModelViewer {
 
     			// tell all the surrounding squares they are next to a mine
     			for (int j=0; j < DX.length; j++) {
-    				if (x1 + DX[j] >= 0 && x1 + DX[j] < this.x && y1 + DY[j] >= 0 && y1 + DY[j] < this.y) {
+    				if (x1 + DX[j] >= 0 && x1 + DX[j] < this.width && y1 + DY[j] >= 0 && y1 + DY[j] < this.height) {
     					if (board[x1+DX[j]][y1+DY[j]] != GameStateModel.MINE) {
     						board[x1+DX[j]][y1+DY[j]]++;
     					}
@@ -123,7 +124,7 @@ public class GameStateHard extends GameStateModelViewer {
     
     private void explode(Location loc) {
     	
-    	boolean[][] done = new boolean[x][y];
+    	boolean[][] done = new boolean[width][height];
     	
     	List<Location> interiorList = new ArrayList<>();
     	
@@ -144,7 +145,7 @@ public class GameStateHard extends GameStateModelViewer {
                 int y1 = cl.y + DY[i];
                 
                 // check each of the surrounding squares which haven't already been checked
-                if (x1 >= 0 && x1 < x && y1 >= 0 && y1 < y) {
+                if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
                 	if (!done[x1][y1] && query(new Location(x1, y1)) == GameStateModel.HIDDEN) {
                 		
                 		done[x1][y1] = true;
@@ -170,7 +171,7 @@ public class GameStateHard extends GameStateModelViewer {
 		
         // otherwise, clear around this revealed square
         for (int j=0; j < DX.length; j++) {
-            if (m.x + DX[j] >= 0 && m.x + DX[j] < this.x && m.y + DY[j] >= 0 && m.y + DY[j] < this.y) {
+            if (m.x + DX[j] >= 0 && m.x + DX[j] < this.width && m.y + DY[j] >= 0 && m.y + DY[j] < this.height) {
                 clearSquare(new Location(m.x+DX[j], m.y+DY[j]));
             }
         }      

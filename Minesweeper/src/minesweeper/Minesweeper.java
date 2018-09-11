@@ -18,6 +18,7 @@ import javafx.scene.control.ButtonType;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import minesweeper.gamestate.GameStateStandard;
+import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateEasy;
 import minesweeper.gamestate.GameStateHard;
 import minesweeper.gamestate.GameStateModel;
@@ -25,6 +26,8 @@ import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateReader;
 import minesweeper.gamestate.msx.GameStateX;
 import minesweeper.gamestate.msx.ScreenScanner;
+import minesweeper.settings.GameSettings;
+import minesweeper.settings.GameType;
 
 /**
  *
@@ -32,11 +35,12 @@ import minesweeper.gamestate.msx.ScreenScanner;
  */
 public class Minesweeper extends Application {
     
-	public final static String VERSION = "1.01";
+	public final static String VERSION = "1.02-wip";
 	
 	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
 	
     private static GameStateModelViewer myGame;
+    private static GameSettings gameSettings;
     
     private static Stage myStage = null;
     
@@ -49,7 +53,7 @@ public class Minesweeper extends Application {
         myStage = stage;
 
         // this creates a hard game on start-up
-        createNewGame(ScreenController.DIFFICULTY_HARD, ScreenController.GAMETYPE_NORMAL, null);
+        createNewGame(ScreenController.DIFFICULTY_EXPERT, GameType.STANDARD, null);
 
         System.out.println("creating root");
         
@@ -57,8 +61,7 @@ public class Minesweeper extends Application {
         
         Parent root = (Parent) loader.load();
         
-        //Parent root = FXMLLoader.load(getClass().getResource("Screen.fxml"));
-        
+  
         myController = loader.getController();
         
         System.out.println("root created");
@@ -80,11 +83,11 @@ public class Minesweeper extends Application {
   
         //stage.setResizable(false);
 
-        myController.newGame(ScreenController.DIFFICULTY_HARD);
+        myController.newGame(ScreenController.DIFFICULTY_EXPERT);
         
         stage.setOnHidden(null);
         
-        // actions to perform when a close rquest is received
+        // actions to perform when a close request is received
         stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
             @Override
             public void handle(WindowEvent event) {
@@ -104,29 +107,20 @@ public class Minesweeper extends Application {
     }
     
     // force a difficulty setting
-    static public GameStateModel createNewGame(int difficulty, int gameType, File fileSelected) {
+    static public GameStateModel createNewGame(int difficulty, GameType gameType, File fileSelected) {
         
-    	int width = 30;
-    	int height = 16;
-    	int mines = 99;
     	long gameCode = 0;
-    	
+    	gameSettings = GameSettings.EXPERT;
     	
     	switch (difficulty) {
-    	case ScreenController.DIFFICULTY_EASY: 
-    		width = 9;
-    		height = 9;
-    		mines = 10;
+    	case ScreenController.DIFFICULTY_BEGINNER: 
+    		gameSettings = GameSettings.BEGINNER;
     		break;
-    	case ScreenController.DIFFICULTY_MEDIUM: 
-    		width = 16;
-    		height = 16;
-    		mines = 40;
+    	case ScreenController.DIFFICULTY_ADVANCED: 
+    		gameSettings = GameSettings.ADVANCED;
     		break;
-    	case ScreenController.DIFFICULTY_HARD: 
-    		width = 30;
-    		height = 16;
-    		mines = 99;
+    	case ScreenController.DIFFICULTY_EXPERT: 
+    		gameSettings = GameSettings.EXPERT;
     		break;
     	case ScreenController.DEFER_TO_MINESWEEPERX:
     		ScreenScanner scanner = new ScreenScanner("Minesweeper X");
@@ -144,26 +138,24 @@ public class Minesweeper extends Application {
     		System.out.println("X = " + myGame.getx() + " Y =" + myGame.gety());
     		break;
     	case ScreenController.DIFFICULTY_FILE:
-    		GameStateModelViewer game = GameStateReader.load(fileSelected);
-    		if (game == null) {
-    			return null;
-    		} else {
-    			myGame = game;
-    		}
+    		GameStateModelViewer game;
+			try {
+				game = GameStateReader.load(fileSelected);
+				myGame = game;
+			} catch (Exception e) {
+    			Alert alert = new Alert(AlertType.ERROR, e.getLocalizedMessage());
+    			Optional<ButtonType> result = alert.showAndWait();
+				return null;
+			}
     		break;
     	case ScreenController.DIFFICULTY_CUSTOM:
     		CustomController custom = CustomController.getCustomController();
-    		width = custom.getWidth();
-    		height = custom.getHeight();
-    		mines = custom.getMines();
-    		
+    		gameSettings = custom.getGameSettings();
     		gameCode = custom.getGameCode();
     		
      		break;
     	default:
-    		width = 30;
-    		height = 16;
-    		mines = 99;
+    		gameSettings = GameSettings.EXPERT;
     	}
 
     	// if we are shadowing minesweeperX then we don't need to do any more
@@ -172,36 +164,40 @@ public class Minesweeper extends Application {
     	}
     	
     	
+    	myGame = GameFactory.create(gameType, gameSettings, gameCode);
+    	
+    	/*
     	switch (gameType) {
-    	case ScreenController.GAMETYPE_EASY: 
+    	case GameType.: 
     		
     		if (gameCode == 0) {
-    			myGame = new GameStateEasy(width, height, mines);
+    			myGame = new GameStateEasy(gameSettings);
     		} else {
-    			myGame = new GameStateEasy(width, height, mines, gameCode);
+    			myGame = new GameStateEasy(gameSettings, gameCode);
     		}
     		break;
     	case ScreenController.GAMETYPE_NORMAL: 
     		if (gameCode == 0) {
-    			myGame = new GameStateStandard(width, height, mines);
+    			myGame = new GameStateStandard(gameSettings);
     		} else {
-    			myGame = new GameStateStandard(width, height, mines, gameCode);
+    			myGame = new GameStateStandard(gameSettings, gameCode);
     		}
     		break;
     	case ScreenController.GAMETYPE_HARD: 
     		if (gameCode == 0) {
-    			myGame = new GameStateHard(width, height, mines);
+    			myGame = new GameStateHard(gameSettings);
     		} else {
-    			myGame = new GameStateHard(width, height, mines, gameCode);
+    			myGame = new GameStateHard(gameSettings, gameCode);
     		}
     		break;    	
     	default:
     		if (gameCode == 0) {
-    			myGame = new GameStateStandard(width, height, mines);
+    			myGame = new GameStateStandard(gameSettings);
     		} else {
-    			myGame = new GameStateStandard(width, height, mines, gameCode);
+    			myGame = new GameStateStandard(gameSettings, gameCode);
     		}
     	}    	
+    	*/
     	
     	return myGame;        
         
@@ -209,9 +205,11 @@ public class Minesweeper extends Application {
     
     
     static public GameStateModelViewer getGame() {
-        
-        return myGame;
-        
+         return myGame;
+    }
+    
+    static public GameSettings getGameSettings() {
+    	return gameSettings;
     }
     
     static public Stage getStage() {
