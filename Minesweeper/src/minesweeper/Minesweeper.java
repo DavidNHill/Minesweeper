@@ -35,7 +35,7 @@ import minesweeper.settings.GameType;
  */
 public class Minesweeper extends Application {
     
-	public final static String VERSION = "1.02-wip";
+	public final static String VERSION = "1.02";
 	
 	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
 	

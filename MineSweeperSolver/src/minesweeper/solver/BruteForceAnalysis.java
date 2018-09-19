@@ -471,7 +471,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			
 			BigDecimal prob = process(1, top, alive, best);
 			
-			if (best.compareTo(prob) < 0) {
+			if (best.compareTo(prob) < 0 || top.bestLiving != null && best.compareTo(prob) == 0 && top.bestLiving.mines < alive.mines) {
 				best = prob;
 				top.bestLiving = alive;
 			}
@@ -560,7 +560,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 
 				for (Living alive: child.getLivingLocations()) {
 					BigDecimal prob = process(depth + 1, child, alive, best);
-					if (best.compareTo(prob) < 0) {
+					if (best.compareTo(prob) < 0 || child.bestLiving != null && best.compareTo(prob) == 0 && child.bestLiving.mines < alive.mines) {
 						best = prob;
 						child.bestLiving = alive;
 					}

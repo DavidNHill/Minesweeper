@@ -3,6 +3,7 @@ package minesweeper.random;
 
 public class RNGKiss64 implements RNG {
 	
+	
 	private long kiss64_x = 1234567890987654321l;
 	private long kiss64_c = 123456123456123456l;
 	private long kiss64_y = 362436362436362436l;

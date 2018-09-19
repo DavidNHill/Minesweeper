@@ -128,13 +128,23 @@ public class GameStateReader extends GameStateModelViewer {
 			
 				cy++;
 				data = reader.readLine();	
+				
+				if (cy == height) {
+					break;
+				}
+				
 			};
 
+			if (cy != height) {
+				throw new Exception("Not enough rows in the file for the game defined in the header");
+			}
 		
 		} catch (Exception e) {
 			throw e;
 		}	
     	
+
+		
 		if (mines != minesCount) {
 			System.out.println("Mines in puzzle is " + minesCount + ", but mines declared is " + mines);
 			result.partialGame = true;

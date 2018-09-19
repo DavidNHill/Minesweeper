@@ -42,5 +42,6 @@
          </font>
       </Label>
       <TextField fx:id="gameSeed" layoutX="95.0" layoutY="57.0" style="-fx-background-color: silver;" />
+      <Button layoutX="253.0" layoutY="57.0" mnemonicParsing="false" onAction="#handleNewSeedButton" prefHeight="25.0" prefWidth="72.0" text="New seed" />
    </children>
 </AnchorPane>

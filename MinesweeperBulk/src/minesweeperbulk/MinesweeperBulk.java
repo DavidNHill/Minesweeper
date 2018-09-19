@@ -40,7 +40,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 100000;
+	private final static int MAX = 50000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;

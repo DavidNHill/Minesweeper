@@ -230,6 +230,7 @@ public class Solver implements Asynchronous<Action[]> {
         this.preferences = preferences;
         
         this.boardState = new BoardState(this);
+        boardState.process();
         
         // create book moves
         //createBook(myGame.getx(), myGame.gety());
@@ -238,6 +239,19 @@ public class Solver implements Asynchronous<Action[]> {
         display("Solving game " + myGame.showGameKey());
         
         this.coachDisplay = coachDisplay;
+        
+        List<Location> witnesses = new ArrayList<>(500);
+        for (int x=0; x < myGame.getx(); x++) {
+        	for (int y=0; y < myGame.gety(); y++) {
+        		Location l = new Location(x,y);
+        		if (myGame.query(l) != GameStateModel.FLAG && myGame.query(l) != GameStateModel.HIDDEN) {
+        			witnesses.add(l);
+        		}
+        	}
+        }
+        display("Found " + witnesses.size() + " witnesses already in the game");
+        findObvious(witnesses);
+        
         
     }
 

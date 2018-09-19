@@ -2,8 +2,10 @@ package minesweeper.random;
 
 import java.util.Random;
 
-public class RNGJava implements RNG{
+public class RNGJava implements RNG {
 
+	static String shortName = "Java RNG";
+	
 	private Random rng = new Random();
 	
 	public RNGJava() {

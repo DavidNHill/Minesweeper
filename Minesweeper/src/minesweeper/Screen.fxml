@@ -35,7 +35,7 @@
                               <ToggleGroup fx:id="gameType" />
                            </toggleGroup>
                         </RadioMenuItem>
-                        <RadioMenuItem fx:id="gameTypeNormal" mnemonicParsing="false" onAction="#handleGameType" selected="true" text="Normal (safe start)" toggleGroup="$gameType" />
+                        <RadioMenuItem fx:id="gameTypeNormal" mnemonicParsing="false" onAction="#handleGameType" selected="true" text="Standard (safe start)" toggleGroup="$gameType" />
                         <RadioMenuItem fx:id="gameTypeHard" mnemonicParsing="false" onAction="#handleGameType" text="Hard (unsafe start)" toggleGroup="$gameType" />
                     </items>
                   </Menu>

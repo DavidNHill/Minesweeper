@@ -58,6 +58,11 @@ public class BulkController {
 	}
 
 	@FXML
+	private void handleNewSeedButton(ActionEvent event) {
+		gameSeed.setText(String.valueOf(new Random().nextLong()));
+	}
+	
+	@FXML
 	private void handleOkayButton(ActionEvent event) {
 	
 		System.out.println("handleOkayButton method entered");
@@ -89,9 +94,11 @@ public class BulkController {
 				gameGenerator = Long.parseLong(gameSeed.getText().trim());
 			} catch (NumberFormatException e) {
 				gameGenerator = new Random().nextLong();
-				gameSeed.setText("");
+				//gameSeed.setText("");
 			}
 		}
+		
+		gameSeed.setText(String.valueOf(gameGenerator));
 		
 		bulkRunner = new BulkRunner(this, gamesMax, gameSettings, gameType, gameGenerator);
 		
@@ -144,7 +151,7 @@ public class BulkController {
 		custom.stage = new Stage();
 
 		custom.stage.setScene(custom.scene);
-		custom.stage.setTitle("Bulk run - " + gameSettings.description() + " " + gameType.name + " " + DefaultRNG.getDefaultRNGClass().getSimpleName());
+		custom.stage.setTitle("Bulk run - " + gameSettings.description() + ", " + gameType.name + ", " + DefaultRNG.getRNG(1).shortname());
 		
 		custom.stage.getIcons().add(Graphics.getMine());
 		
@@ -167,26 +174,14 @@ public class BulkController {
 			
 		});
 		
+		custom.gameCount.setText("1000");
+		custom.progressRun.setProgress(0d);
+		custom.progressRunLabel.setText("");
+		
 		custom.getStage().show();
 
 		return custom;
 	}
-
-	private int StringToInteger(String text, int min, int max, int dflt) {
-		
-		int val = dflt;
-		try {
-			val = Integer.parseInt(text);
-		} catch (NumberFormatException e) {
-		}
-
-		val = Math.max(val, min);
-		val = Math.min(val, max);
-		
-		return val;
-		
-	}
-	
 
 	public Stage getStage() {
 		return this.stage;
