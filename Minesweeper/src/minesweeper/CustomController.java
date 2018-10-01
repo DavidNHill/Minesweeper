@@ -151,8 +151,8 @@ public class CustomController {
 		custom.stage.initOwner(owner);
 		custom.stage.initModality(Modality.WINDOW_MODAL);
 
-		custom.width = game.getx();
-		custom.height = game.gety();
+		custom.width = game.getWidth();
+		custom.height = game.getHeight();
 		custom.mines = game.getMines();
 
 		custom.widthText.setText(String.valueOf(custom.width));

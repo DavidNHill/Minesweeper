@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.Optional;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -35,7 +36,7 @@ import minesweeper.settings.GameType;
  */
 public class Minesweeper extends Application {
     
-	public final static String VERSION = "1.02";
+	public final static String VERSION = "1.03";
 	
 	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
 	
@@ -94,6 +95,7 @@ public class Minesweeper extends Application {
                 System.out.println("Minesweeper window has received a close request");
                 //event.consume();
                 myController.kill();
+                Platform.exit();
             }
         });                        
  
@@ -135,7 +137,7 @@ public class Minesweeper extends Application {
     			
     		}
     		myGame = new GameStateX(scanner);
-    		System.out.println("X = " + myGame.getx() + " Y =" + myGame.gety());
+    		System.out.println("X = " + myGame.getWidth() + " Y =" + myGame.getHeight());
     		break;
     	case ScreenController.DIFFICULTY_FILE:
     		GameStateModelViewer game;
@@ -207,6 +209,12 @@ public class Minesweeper extends Application {
     static public GameStateModelViewer getGame() {
          return myGame;
     }
+    
+    static public void playGame(GameStateModelViewer gs) {
+    	myGame = gs;
+    	myController.newGame(gs);
+    }
+    
     
     static public GameSettings getGameSettings() {
     	return gameSettings;

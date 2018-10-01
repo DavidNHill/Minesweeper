@@ -25,7 +25,7 @@ public class ZeroFilter extends Filter {
 		
 		BigDecimal hwm = BigDecimal.ZERO;
 		
-		// only keep the best hooks based on probability of it happening (got from brute force analysis)
+		// only keep the best zero locations based on probability of it happening (got from brute force analysis)
         for (CandidateLocation l: input) {
             for (ZeroLocation s: zeros) {
                 if (s.equals(l)) {

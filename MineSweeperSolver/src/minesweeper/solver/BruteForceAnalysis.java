@@ -398,6 +398,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private final SolutionTable allSolutions;
 	
+	private final String scope;
+	
 	private Node currentNode;
 	private Location expectedMove;
 	
@@ -413,11 +415,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private Map<Position, Node> cache = new HashMap<>();
 	
-	public BruteForceAnalysis(Solver solver, List<? extends Location> locations, int size) {
+	public BruteForceAnalysis(Solver solver, List<? extends Location> locations, int size, String scope) {
 		
 		this.solver = solver;
 		this.locations = locations;
 		this.maxSolutionSize = size;
+		this.scope = scope;
 		this.allSolutions = new SolutionTable(size);
 		this.top = new Node();
 		this.sorters = new SortSolutions[locations.size()];
@@ -674,7 +677,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			solver.display("Value of " + i + " leaves " + bestLiving.children[i].getSolutionSize() + " solutions and winning probability " + probText);
 		}
 		
-		String text = " (win game " + Action.FORMAT_2DP.format(bestLiving.probability.multiply(ONE_HUNDRED)) + "%)";
+		String text = " (solve " + scope + " " + Action.FORMAT_2DP.format(bestLiving.probability.multiply(ONE_HUNDRED)) + "%)";
 		Action action = new Action(loc, Action.CLEAR, MoveMethod.BRUTE_FORCE_DEEP_ANALYSIS, text, prob);
 		
 		expectedMove = loc;
@@ -716,7 +719,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 		if (node.bestLiving == null) {
-			String line = INDENT.substring(0, depth*3) + condition + " Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
+			String line = INDENT.substring(0, depth*3) + condition + " Solve chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
 			System.out.println(line);
 			solver.newLine(line);
 			return;
@@ -727,7 +730,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(node.bestLiving.mines).divide(BigDecimal.valueOf(node.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 		
 		
-		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Game win chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
+		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Solve chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
 		
 		System.out.println(line);
 		solver.newLine(line);

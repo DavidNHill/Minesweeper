@@ -170,7 +170,7 @@ abstract public class GameStateModel {
         */
         revealed[m.x][m.y] = true;
         
-        squaresRevealed++;
+        
  
         boolean mine = clearSquareHitMine(m);
         
@@ -180,6 +180,9 @@ abstract public class GameStateModel {
             return true;
         }
 
+        // if it wasn't a mine we have revealed one more square
+        squaresRevealed++;
+        
         // if we have revealed enough locations without hitting a mine
         // we have won
         if (squaresRevealed == this.width * this.height - this.mines) {
@@ -439,14 +442,14 @@ abstract public class GameStateModel {
     /**
      * @return the width of the game board
      */
-    final public int getx() {
+    final public int getWidth() {
         return width;
     }
     
     /**
      * @return the height of the game board
      */
-    final public int gety() {
+    final public int getHeight() {
         return height;
     }    
     

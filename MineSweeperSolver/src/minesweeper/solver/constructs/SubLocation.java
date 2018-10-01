@@ -26,7 +26,6 @@ public class SubLocation extends ProbabilityLocation {
 
 	@Override
 	public int[] getAdjacentFlagsRequired() {
-		// TODO Auto-generated method stub
 		return new int[] {this.value};
 	}
 		

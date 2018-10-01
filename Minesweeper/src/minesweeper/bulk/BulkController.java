@@ -11,6 +11,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
@@ -20,6 +21,8 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import minesweeper.Graphics;
+import minesweeper.gamestate.GameStateModel;
+import minesweeper.gamestate.Location;
 import minesweeper.random.DefaultRNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
@@ -35,6 +38,9 @@ public class BulkController {
 	@FXML private Label winPercentage;
 	@FXML private ProgressBar progressRun;
 	@FXML private Label progressRunLabel;
+	@FXML private TextField startLocX;
+	@FXML private TextField startLocY;
+	@FXML private CheckBox showGames;
 	
 	private Stage stage;
 	private Scene scene;
@@ -44,6 +50,9 @@ public class BulkController {
 
 	private GameSettings gameSettings;
 	private GameType gameType;
+	private Location startLocation;
+	
+	//private ResultsController resultsController;
 	
 	private BulkRunner bulkRunner;
 	
@@ -98,9 +107,23 @@ public class BulkController {
 			}
 		}
 		
+		startLocation = null;
+		if (!startLocX.getText().trim().isEmpty() && !startLocY.getText().trim().isEmpty()) {
+			try {
+				int startX = Integer.parseInt(startLocX.getText().trim());
+				int startY = Integer.parseInt(startLocY.getText().trim());
+				if (startX >= 0 && startX < gameSettings.width && startY >= 0 && startY < gameSettings.height) {
+					startLocation = new Location(startX, startY);
+					System.out.println("Start location set to " + startLocation.display());
+				}
+				
+			} catch (NumberFormatException e) {
+			}
+		}
+
 		gameSeed.setText(String.valueOf(gameGenerator));
 		
-		bulkRunner = new BulkRunner(this, gamesMax, gameSettings, gameType, gameGenerator);
+		bulkRunner = new BulkRunner(this, gamesMax, gameSettings, gameType, gameGenerator, startLocation, showGames.isSelected());
 		
 		new Thread(bulkRunner, "Bulk Run").start();
 		
@@ -123,7 +146,7 @@ public class BulkController {
 			System.out.println("BulkScreen.fxml not found");
 		}
 
-		// create the helper screen
+		// create the bulk runner screen
 		FXMLLoader loader = new FXMLLoader(BulkController.class.getResource("BulkScreen.fxml"));
 
 		Parent root = null;
@@ -168,7 +191,9 @@ public class BulkController {
 				
 				if (custom.bulkRunner != null) {
 					custom.bulkRunner.forceStop();
-				}				
+				}		
+				
+				System.gc();
 			
 			}
 			
@@ -177,6 +202,9 @@ public class BulkController {
 		custom.gameCount.setText("1000");
 		custom.progressRun.setProgress(0d);
 		custom.progressRunLabel.setText("");
+		
+		//custom.resultsController = ResultsController.launch(null, gameSettings, gameType);
+		
 		
 		custom.getStage().show();
 
@@ -210,5 +238,12 @@ public class BulkController {
 		
 		
 	}
-
+	
+	/*
+	public void storeResult(GameStateModel gs) {
+		
+		resultsController.update(gs);
+		
+	}
+	*/
 }

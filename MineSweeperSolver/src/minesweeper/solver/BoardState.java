@@ -164,27 +164,27 @@ public class BoardState {
 		this.solver = solver;
 		this.myGame = solver.getGame();
 
-		flagConfirmed = new boolean[myGame.getx()][myGame.gety()];
-		adjFlagsConfirmed =  new int[myGame.getx()][myGame.gety()];
-		adjUnrevealed = new int[myGame.getx()][myGame.gety()];
-		revealed = new boolean[myGame.getx()][myGame.gety()];
-		board = new int[myGame.getx()][myGame.gety()];
+		flagConfirmed = new boolean[myGame.getWidth()][myGame.getHeight()];
+		adjFlagsConfirmed =  new int[myGame.getWidth()][myGame.getHeight()];
+		adjUnrevealed = new int[myGame.getWidth()][myGame.getHeight()];
+		revealed = new boolean[myGame.getWidth()][myGame.getHeight()];
+		board = new int[myGame.getWidth()][myGame.getHeight()];
 		//clearAll = new int[myGame.getx()][myGame.gety()];
 
-		action = new Action[myGame.getx()][myGame.gety()];
+		action = new Action[myGame.getWidth()][myGame.getHeight()];
 
 		// look up the adjacent squares details
-		Cache cache = BoardStateCache.getInstance().getAdjacentSquares1(myGame.getx(), myGame.gety());
+		Cache cache = BoardStateCache.getInstance().getAdjacentSquares1(myGame.getWidth(), myGame.getHeight());
 		adjacentLocations1 = cache.adjacentLocations1;
 		adjacentLocations2 = cache.adjacentLocations2;
 		
 
-		final int bottom = myGame.gety() - 1;
-		final int right =  myGame.getx() - 1;
+		final int bottom = myGame.getHeight() - 1;
+		final int right =  myGame.getWidth() - 1;
 
 		//  set up how many adjacent locations there are to each square - they are all unrevealed to start with
-		for (int x=0; x < myGame.getx(); x++) {
-			for (int y=0; y < myGame.gety(); y++) {
+		for (int x=0; x < myGame.getWidth(); x++) {
+			for (int y=0; y < myGame.getHeight(); y++) {
 
 				int adjacent = 8;
 				// corners
@@ -208,8 +208,8 @@ public class BoardState {
 
 	public void process() {
 
-		flagOnBoard = new boolean[myGame.getx()][myGame.gety()];
-		adjFlagsOnBoard = new int[myGame.getx()][myGame.gety()];
+		flagOnBoard = new boolean[myGame.getWidth()][myGame.getHeight()];
+		adjFlagsOnBoard = new int[myGame.getWidth()][myGame.getHeight()];
 		totalFlags = 0;
 		totalFlagsConfirmed = 0;
 		numOfHidden = 0;
@@ -222,8 +222,8 @@ public class BoardState {
 		actionList.clear();
 
 		// load up what we can see on the board
-		for (int i=0; i < myGame.getx(); i++) {
-			for (int j=0; j < myGame.gety(); j++) {
+		for (int i=0; i < myGame.getWidth(); i++) {
+			for (int j=0; j < myGame.getHeight(); j++) {
 				int info = myGame.query(new Location(i, j));
 
 				Action act = action[i][j];
@@ -241,7 +241,7 @@ public class BoardState {
 						
 						// inform its neighbours they have a flag on the board
 						for (int k=0; k < DX.length; k++) {
-							if (i + DX[k] >= 0 && i + DX[k] < myGame.getx() && j + DY[k] >= 0 && j + DY[k] < myGame.gety()) {
+							if (i + DX[k] >= 0 && i + DX[k] < myGame.getWidth() && j + DY[k] >= 0 && j + DY[k] < myGame.getHeight()) {
 								adjFlagsOnBoard[i + DX[k]][j + DY[k]]++;
 							}
 						}    							
@@ -270,7 +270,7 @@ public class BoardState {
 							board[i][j] = info;            
 
 							for (int k=0; k < DX.length; k++) {
-								if (i + DX[k] >= 0 && i + DX[k] < myGame.getx() && j + DY[k] >= 0 && j + DY[k] < myGame.gety()) {
+								if (i + DX[k] >= 0 && i + DX[k] < myGame.getWidth() && j + DY[k] >= 0 && j + DY[k] < myGame.getHeight()) {
 									adjUnrevealed[i + DX[k]][j + DY[k]]--;
 								}
 							}    	
@@ -322,11 +322,11 @@ public class BoardState {
 	}
 
 	protected int getGameWidth() {
-		return this.myGame.getx();
+		return this.myGame.getWidth();
 	}
 
 	protected int getGameHeight() {
-		return this.myGame.gety();
+		return this.myGame.getHeight();
 	}
 
 	protected int getMines() {
@@ -382,7 +382,7 @@ public class BoardState {
 
 		List<Action> actions = new ArrayList<>();
 		
-		boolean[][] processed = new boolean[myGame.getx()][myGame.gety()];
+		boolean[][] processed = new boolean[myGame.getWidth()][myGame.getHeight()];
 		
 		// sort the most beneficial chords to the top
 		Collections.sort(chordLocations, ChordLocation.SORT_BY_BENEFIT_DESC);
@@ -553,10 +553,10 @@ public class BoardState {
 	 */
 	protected List<Location> getAllUnrevealedSquares() {
 
-		ArrayList<Location> work = new ArrayList<>(myGame.getx() * myGame.gety());       
+		ArrayList<Location> work = new ArrayList<>(myGame.getWidth() * myGame.getHeight());       
 
-		for (int i=0; i < myGame.getx(); i++) {
-			for (int j=0; j < myGame.gety(); j++) {
+		for (int i=0; i < myGame.getWidth(); i++) {
+			for (int j=0; j < myGame.getHeight(); j++) {
 				if (isUnrevealed(i,j)) {
 					work.add(new Location(i,j));
 				}
@@ -817,7 +817,7 @@ public class BoardState {
 		int result = 0;
 
 		for (int i=0; i < DX.length; i++) {
-			if (x + DX[i] >= 0 && x + DX[i] < myGame.getx() && y + DY[i] >= 0 && y + DY[i] < myGame.gety()) {
+			if (x + DX[i] >= 0 && x + DX[i] < myGame.getWidth() && y + DY[i] >= 0 && y + DY[i] < myGame.getHeight()) {
 				if (flagConfirmed[x + DX[i]][y + DY[i]] || flagOnBoard[x + DX[i]][y + DY[i]]) {
 					result++;
 				}
@@ -887,8 +887,8 @@ public class BoardState {
 	// check for flags which can be determined to be wrong
 	protected boolean validateData() {
 
-		for (int i=0; i < myGame.getx(); i++) {
-			for (int j=0; j < myGame.gety(); j++) {
+		for (int i=0; i < myGame.getWidth(); i++) {
+			for (int j=0; j < myGame.getHeight(); j++) {
 
 				// if there is an unconfirmed flag on the board but the solver
 				// thinks it is clear then the flag is wrong

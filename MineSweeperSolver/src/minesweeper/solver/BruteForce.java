@@ -12,13 +12,14 @@ import minesweeper.gamestate.Location;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.ProbabilityLocation;
 import minesweeper.solver.constructs.Square;
+import minesweeper.solver.constructs.SuperLocation;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.constructs.ZeroLocation;
 import minesweeper.solver.iterator.WitnessWebIterator;
 
 public class BruteForce {
 
-	private final static BigDecimal ZERO_THRESHOLD = new BigDecimal("0.75");
+	private final static BigDecimal ZERO_THRESHOLD = new BigDecimal("0.25");
 	
 	
 	private final WitnessWeb web;
@@ -34,18 +35,22 @@ public class BruteForce {
 	private boolean hasRun = false;
 	private boolean certainClear = false;
 	
-	private final List<ZeroLocation> zeroLocations = new ArrayList<>();
+	private final List<SuperLocation> zeroLocations = new ArrayList<>();
 	
 	private final List<CandidateLocation> results = new ArrayList<>();
+	
+	private final String scope;
+	
 	private BigInteger iterations;
 	
 	private BruteForceAnalysisModel bruteForceAnalysis;
 
-	public BruteForce(Solver solver, BoardState boardState, WitnessWeb web, int mines, BigInteger max) {
+	public BruteForce(Solver solver, BoardState boardState, WitnessWeb web, int mines, BigInteger max, String scope) {
 
 		this.solver = solver;
 		this.boardState = boardState;
 		this.max = max;
+		this.scope = scope;
 		
 		this.web = web;		
 		
@@ -81,7 +86,7 @@ public class BruteForce {
 
 				//if (iterations.compareTo(BigInteger.valueOf(1000000l)) <= 0) {
 					//this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS);
-					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS);
+					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS, scope);
 				//}
 				
 			
@@ -100,7 +105,7 @@ public class BruteForce {
 
 				boardState.display("Expected iterations = " + iterations + " Actual iterations = " + actIterations);
 
-				boardState.display("Found " + crunchResult.bigGoodCandidates + " candidate solutions");
+				boardState.display("Found " + crunchResult.bigGoodCandidates + " candidate solutions in the " + scope);
 				
 				certainClear = findCertainClear(crunchResult);
 				if (certainClear) {
@@ -109,7 +114,7 @@ public class BruteForce {
 				
 				hasRun = true;
 				
-				/*
+				//TODO zero additional mines calculater - do we want it?
 				if (crunchResult.bigGoodCandidates.compareTo(BigInteger.ZERO) != 0) {
 					BigInteger hwm = BigInteger.ZERO;
 					int best = -1;
@@ -122,7 +127,8 @@ public class BruteForce {
 						BigDecimal prob = new BigDecimal(crunchResult.bigDistribution[i][adjacentMines]).divide(new BigDecimal(crunchResult.bigGoodCandidates), Solver.DP, RoundingMode.HALF_UP);
 						
 						if (prob.compareTo(ZERO_THRESHOLD) >= 0) {
-							ZeroLocation zl = new ZeroLocation(loc.x, loc.y, prob);
+							SuperLocation zl = new SuperLocation(loc.x, loc.y, boardState.countAdjacentUnrevealed(loc), adjacentMines);
+							zl.setProbability(prob);
 							zeroLocations.add(zl);						
 						}
 						if (crunchResult.bigDistribution[i][adjacentMines].compareTo(hwm) > 0) {
@@ -136,7 +142,7 @@ public class BruteForce {
 						boardState.display("Location " + crunchResult.getSquare().get(best).display() + " is a 'zero additional mines' with probability " + prob);
 					}
 				}
-				*/
+
 
 			} else {
 				boardState.display("Brute Force too large with " + iterations + " iterations");
@@ -374,7 +380,7 @@ public class BruteForce {
 	 * This is a list of locations and the probability that they don't have any undiscovered mines adjacent to them.
 	 * The list is restricted to probabilities >= to the constant ZERO_THRESHOLD.
 	 */
-	public List<ZeroLocation> getZeroLocations() {
+	public List<SuperLocation> getZeroLocations() {
 		return this.zeroLocations;
 	}
 	
@@ -411,6 +417,7 @@ public class BruteForce {
 					if (count.compareTo(BigInteger.ZERO) != 0) {
 						BigDecimal prob = new BigDecimal(count).divide(new BigDecimal(crunchResult.bigGoodCandidates), Solver.DP, RoundingMode.HALF_UP);
 						pl.setProbability(prob);
+						boardState.display(pl.display() + " has probability " + prob);
 						output.add((T) pl);
 					} else {
 						boardState.display(pl.display() + " has probability zero and is being discarded");

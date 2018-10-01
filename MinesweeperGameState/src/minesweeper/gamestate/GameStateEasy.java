@@ -11,8 +11,6 @@ import java.util.Random;
 
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
-import minesweeper.random.RNGJava;
-import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameSettings;
 
 /**

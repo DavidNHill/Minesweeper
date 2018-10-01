@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="554.0" prefWidth="446.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.bulk.ResultsController">
+   <children>
+      <Button alignment="CENTER" layoutX="379.0" layoutY="401.0" mnemonicParsing="false" onAction="#handlePlayButton" prefHeight="25.0" prefWidth="84.0" text="Play game" AnchorPane.bottomAnchor="5.0" AnchorPane.rightAnchor="20.0" />
+      <TableView fx:id="resultsTable" prefHeight="414.0" prefWidth="550.0" AnchorPane.bottomAnchor="40.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <columns>
+            <TableColumn fx:id="columnCount" prefWidth="79.0" style="-fx-alignment: CENTER_RIGHT;" text="Number" />
+          <TableColumn fx:id="columnSeed" prefWidth="165.0" style="-fx-alignment: CENTER;" text="Seed" />
+          <TableColumn fx:id="columnComplete" prefWidth="99.0" style="-fx-alignment: CENTER_RIGHT;" text="Tiles revealed" />
+            <TableColumn fx:id="columnResult" prefWidth="88.0" style="-fx-alignment: CENTER;" text="Result" />
+        </columns>
+      </TableView>
+   </children>
+</AnchorPane>

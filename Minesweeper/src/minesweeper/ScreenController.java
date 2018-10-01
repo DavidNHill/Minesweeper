@@ -165,7 +165,7 @@ public class ScreenController {
 			Point2D p = getSquare(event.getX(), event.getY());
 			
 			BigDecimal prob = null;
-			if (p.getX() >= 0 && p.getX() <= solver.getGame().getx() && p.getY() >= 0 && p.getY() <= solver.getGame().gety() && solver.getGame().query(new Location((int) p.getX(), (int) p.getY())) == GameStateModel.HIDDEN) {
+			if (p.getX() >= 0 && p.getX() <= solver.getGame().getWidth() && p.getY() >= 0 && p.getY() <= solver.getGame().getHeight() && solver.getGame().query(new Location((int) p.getX(), (int) p.getY())) == GameStateModel.HIDDEN) {
 				prob = solver.getProbability((int) p.getX(), (int) p.getY());
 				if (prob == null) {
 					popupText.setText("?");
@@ -465,8 +465,8 @@ public class ScreenController {
         
         // get some details about the game
         GameStateModel gs = Minesweeper.getGame();
-        int x = gs.getx();
-        int y = gs.gety();
+        int x = gs.getWidth();
+        int y = gs.getHeight();
 
         //Scene sc = window.getScene();
         //System.out.println("Scene size is " + sc.getX() + " by " + sc.getY());
@@ -623,10 +623,10 @@ public class ScreenController {
         double x1 = a.x;
         double y1 = a.y;
         
-        double x2 = display.getFitWidth() * x1 / (double) gs.getx() + myPane.getLayoutX();
-        double y2 = display.getFitHeight() * y1 / (double) gs.gety() + myPane.getLayoutY();
+        double x2 = display.getFitWidth() * x1 / (double) gs.getWidth() + myPane.getLayoutX();
+        double y2 = display.getFitHeight() * y1 / (double) gs.getHeight() + myPane.getLayoutY();
         
-        double d = Math.max(display.getFitWidth() / gs.getx(), display.getFitHeight() / gs.gety());
+        double d = Math.max(display.getFitWidth() / gs.getWidth(), display.getFitHeight() / gs.getHeight());
         
         // set the colours for the move indicator
         if (a.getAction() == Action.FLAG) {
@@ -693,8 +693,8 @@ public class ScreenController {
 
         GameStateModel gs = Minesweeper.getGame();
         
-        int x = gs.getx();
-        int y = gs.gety();
+        int x = gs.getWidth();
+        int y = gs.getHeight();
         
         // show mines if it has been selected or the game is lost
         boolean revealMines = (gs.getGameState() == GameStateModel.LOST) || this.showMines.isSelected();
@@ -806,8 +806,8 @@ public class ScreenController {
         
         GameStateModel gs = Minesweeper.getGame();
         
-        double x1 = gs.getx();
-        double y1 = gs.gety();
+        double x1 = gs.getWidth();
+        double y1 = gs.getHeight();
         
         double x2 = x1 * x / display.getFitWidth();
         double y2 = y1 * y / display.getFitHeight();
@@ -886,15 +886,23 @@ public class ScreenController {
         // create a new game state
         GameStateModel gs = Minesweeper.createNewGame(difficulty, gameType, fileSelected);
         
+        newGame(gs);
+        
+       
+    }
+    
+    // stop the current game and start a new using this gameState
+    protected void newGame(GameStateModel gs) {
+        
         if (gs == null) {
         	System.out.println("new Game state has not been created!");
         	return;
         }
 
         // create a memory of the last screen - set to full refresh
-        lastScreen = new int[gs.getx()][gs.gety()];
-        for (int i=0; i < gs.getx(); i++) {
-            for (int j=0; j < gs.gety(); j++) {
+        lastScreen = new int[gs.getWidth()][gs.getHeight()];
+        for (int i=0; i < gs.getWidth(); i++) {
+            for (int j=0; j < gs.getHeight(); j++) {
                 lastScreen[i][j] = -1;
             }
         }
@@ -904,14 +912,14 @@ public class ScreenController {
         }
 
         // if the screen image doesn't exist or is the wrong size then create a new one
-        if (scr == null || IMAGE_SIZE * gs.getx() != scr.getWidth() || IMAGE_SIZE * gs.gety() != scr.getHeight()) {
+        if (scr == null || IMAGE_SIZE * gs.getWidth() != scr.getWidth() || IMAGE_SIZE * gs.getHeight() != scr.getHeight()) {
             System.out.println("Creating a new Screen Image");
-            scr = new WritableImage(IMAGE_SIZE * gs.getx(), IMAGE_SIZE * gs.gety());
+            scr = new WritableImage(IMAGE_SIZE * gs.getWidth(), IMAGE_SIZE * gs.getHeight());
         }
         
         updateScreen();
         
-        Double offsetX = (IMAGE_SIZE * gs.getx() - newGameButton.getWidth())/ 2d;
+        Double offsetX = (IMAGE_SIZE * gs.getWidth() - newGameButton.getWidth())/ 2d;
          
         newGameButton.setLayoutX(offsetX);
         
@@ -933,13 +941,8 @@ public class ScreenController {
         
         Minesweeper.getStage().setTitle(Minesweeper.TITLE + " - Game " + gs.showGameKey());
         
-
-        
-        // garbage collection
-        //System.gc();
-        
+       
     }
-    
     
     public void kill() {
         

@@ -95,7 +95,7 @@ public class ProbabilityEngine {
 	final private List<Witness> witnesses;
 	final private List<Box> boxes;
 	final private int minesLeft;                 // number of mines undiscovered in the game
-	final private int squaresLeft;               // number of mines undiscovered in the game and off the web
+	final private int squaresLeft;               // number of squares undiscovered in the game and off the web
 	
 	private int independentGroups = 0;
 	private int recursions = 0;

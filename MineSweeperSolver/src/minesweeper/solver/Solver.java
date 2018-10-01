@@ -171,7 +171,6 @@ public class Solver implements Asynchronous<Action[]> {
     private BruteForceAnalysisModel bruteForceAnalysis;
     
     private BigDecimal offContourBigProb;
-    //private double guessProb;
     private WitnessWeb wholeEdge; 
     private List<HookLocation> goodHooksOffEdge = new ArrayList<>();
     private List<HookLocation> goodHooksOnEdge = new ArrayList<>();
@@ -179,7 +178,7 @@ public class Solver implements Asynchronous<Action[]> {
     private List<SubLocation> subSquares = new ArrayList<>();
     private List<SuperLocation> superSquares = new ArrayList<>();
     
-    //final private List<Location> allWitnessesList = new ArrayList<>();
+    private Location overriddenStartLocation;
     
     private List<Zone> zones;
     
@@ -236,13 +235,15 @@ public class Solver implements Asynchronous<Action[]> {
         //createBook(myGame.getx(), myGame.gety());
         
         display("Running with " + CORES + " Cores");
+        display("Max memory available to JVM " + Runtime.getRuntime().maxMemory());
+        display("Free Memory available to JVM " + Runtime.getRuntime().freeMemory());
         display("Solving game " + myGame.showGameKey());
         
         this.coachDisplay = coachDisplay;
         
         List<Location> witnesses = new ArrayList<>(500);
-        for (int x=0; x < myGame.getx(); x++) {
-        	for (int y=0; y < myGame.gety(); y++) {
+        for (int x=0; x < myGame.getWidth(); x++) {
+        	for (int y=0; y < myGame.getHeight(); y++) {
         		Location l = new Location(x,y);
         		if (myGame.query(l) != GameStateModel.FLAG && myGame.query(l) != GameStateModel.HIDDEN) {
         			witnesses.add(l);
@@ -347,6 +348,14 @@ public class Solver implements Asynchronous<Action[]> {
     }
     
     /**
+     * Use this to override the default start location (which depends on the game type being played)
+     * @param startLocation
+     */
+    public void setStartLocation(Location startLocation) {
+    	overriddenStartLocation = startLocation;
+    }
+    
+    /**
      * True indicates the solver should play chords
      * @param playChords
      */
@@ -410,7 +419,7 @@ public class Solver implements Asynchronous<Action[]> {
          // being asked to start the game
         if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
         	
-        	offContourBigProb = BigDecimal.ONE;   // this assumes the first guess is not a mine, not always the case
+        	offContourBigProb = BigDecimal.ONE;   //TODO this assumes the first guess is not a mine, not always the case
         	
         	fm = guess();
         	
@@ -555,7 +564,7 @@ public class Solver implements Asynchronous<Action[]> {
             newLine("----------- Brute Force Analysis -----------");
             
             WitnessWeb wholeBoard = new WitnessWeb(boardState, allWitnesses, boardState.getAllUnrevealedSquares());
-            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.BRUTE_FORCE_MAX);
+            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.BRUTE_FORCE_MAX, "Game");
             
             bf.process();
             
@@ -615,7 +624,10 @@ public class Solver implements Asynchronous<Action[]> {
                 
                 if (bf.hasRun()) {
                 	ft.minMaxFilter = new MinMaxFilter(bf.getCrunchResult());
-                	ft.zeroFilter = new ZeroFilter(bf.getZeroLocations());
+                	//ft.zeroFilter = new ZeroFilter(bf.getZeroLocations());
+                	
+                	// add locations which have a good probability of not having any further mines around them
+                	superSquares.addAll(bf.getZeroLocations());
                 	
                 	goodHooksOnEdge = bf.setProbabilities(goodHooksOnEdge);
                 	goodHooksOffEdge = bf.setProbabilities(goodHooksOffEdge);
@@ -674,6 +686,7 @@ public class Solver implements Asynchronous<Action[]> {
 
                 }
 
+                display("Probability Engine processing took " + pe.getDuration() + " milliseconds");
             	display("--- Probability engine finished ---");
             	
                 newLine("----------- Edge Analysis -----------");
@@ -968,7 +981,7 @@ public class Solver implements Asynchronous<Action[]> {
         
         int x = x1 + 2;
         int y = y1;
-        if (x < myGame.getx() && boardState.isUnrevealed(x,y)) {
+        if (x < myGame.getWidth() && boardState.isUnrevealed(x,y)) {
             HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
             //if (!wholeWeb.isOnWeb(l)) {
                 list.add(l);
@@ -986,7 +999,7 @@ public class Solver implements Asynchronous<Action[]> {
         
         x = x1;
         y = y1 + 2;
-        if (y < myGame.gety() && boardState.isUnrevealed(x,y)) {
+        if (y < myGame.getHeight() && boardState.isUnrevealed(x,y)) {
         	HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
             //if (!wholeWeb.isOnWeb(l)) {
                 list.add(l);
@@ -1019,8 +1032,8 @@ public class Solver implements Asynchronous<Action[]> {
 
     	FinalMoves fm;
     	
-		for (int i=0; i < myGame.getx() - 1; i++) {
-			for (int j=0; j < myGame.gety(); j++) {
+		for (int i=0; i < myGame.getWidth() - 1; i++) {
+			for (int j=0; j < myGame.getHeight(); j++) {
 
 				// need 2 unrevealed squares
 				if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i + 1, j)) != GameStateModel.HIDDEN) {
@@ -1041,8 +1054,8 @@ public class Solver implements Asynchronous<Action[]> {
 			}
 		}                        
     	
-		for (int i=0; i < myGame.getx(); i++) {
-			for (int j=0; j < myGame.gety() - 1; j++) {
+		for (int i=0; i < myGame.getWidth(); i++) {
+			for (int j=0; j < myGame.getHeight() - 1; j++) {
 				
 				// need 2 unrevealed squares
 				if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i, j + 1)) != GameStateModel.HIDDEN) {
@@ -1071,7 +1084,7 @@ public class Solver implements Asynchronous<Action[]> {
     // returns whether there information to be had at this location; i.e. on the board and either unrevealed or revealed
     private boolean isPotentialInfo(int x, int y) {
     	
-    	if (x<0 || x >= myGame.getx() || y<0 || y >= myGame.gety()) {
+    	if (x<0 || x >= myGame.getWidth() || y<0 || y >= myGame.getHeight()) {
     		return false;
     	}
     	
@@ -1086,7 +1099,7 @@ public class Solver implements Asynchronous<Action[]> {
     // returns whether the witness at this location implies there is at most 1 mine adjacent to it
     private boolean isOnlyOne(int x, int y) {
     	
-    	if (x<0 || x >= myGame.getx() || y<0 || y >= myGame.gety()) {
+    	if (x<0 || x >= myGame.getWidth() || y<0 || y >= myGame.getHeight()) {
     		return false;
     	}
     	
@@ -1289,7 +1302,7 @@ public class Solver implements Asynchronous<Action[]> {
         for (int n=web.getMinesPlaced(); n <= squares.size(); n++) {
         	
         	
-        	BruteForce bf = new BruteForce(this, boardState, web, n, preferences.BRUTE_FORCE_MAX);
+        	BruteForce bf = new BruteForce(this, boardState, web, n, preferences.BRUTE_FORCE_MAX, "Zone");
         	
         	bf.process();
         	
@@ -2068,7 +2081,11 @@ public class Solver implements Asynchronous<Action[]> {
         
     	// get the starting move if we are at the start of the game
     	if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
-    		action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
+    		if (overriddenStartLocation != null) {
+    			action = new Action(overriddenStartLocation, Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
+    		} else { 
+    			action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
+    		}
     	}
     	
     	// look for a book opening
@@ -2097,8 +2114,8 @@ public class Solver implements Asynchronous<Action[]> {
             }
 			*/
             
-            for (int i=0; i < myGame.getx(); i++) {
-                for (int j=0; j < myGame.gety(); j++) {
+            for (int i=0; i < myGame.getWidth(); i++) {
+                for (int j=0; j < myGame.getHeight(); j++) {
                     // if we are an unrevealed square and we aren't on the contour
                     // then store the location
                     if (boardState.isUnrevealed(i,j)) {
@@ -2131,10 +2148,10 @@ public class Solver implements Asynchronous<Action[]> {
     
         ArrayList<Zone> work = new ArrayList<>();
         
-        boolean[][] boardCheck = new boolean[myGame.getx()][myGame.gety()];
+        boolean[][] boardCheck = new boolean[myGame.getWidth()][myGame.getHeight()];
         
-        for (int i=0; i < myGame.getx(); i++) {
-            for (int j=0; j < myGame.gety(); j++) {
+        for (int i=0; i < myGame.getWidth(); i++) {
+            for (int j=0; j < myGame.getHeight(); j++) {
                 
                 if (!boardCheck[i][j]) {
                     Location l = new Location(i,j);
@@ -2208,8 +2225,8 @@ public class Solver implements Asynchronous<Action[]> {
         //	superSquares.add(sl);
         //}
         
-        for (int i=0; i < myGame.getx(); i++) {
-            for (int j=0; j < myGame.gety(); j++) {
+        for (int i=0; i < myGame.getWidth(); i++) {
+            for (int j=0; j < myGame.getHeight(); j++) {
                 
                 // if we have a witness then get the surrounding squares
                 if (boardState.isRevealed(i,j)) {

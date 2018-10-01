@@ -66,7 +66,7 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = -2093373953;
+		seed = 1774952086;
 
 		//Seed -1502353305 played 50000 games Wins=26816 (53.632%) after 119688(56389,63299) guesses(winning, losing), fairness ratio=-0.00035, duration = 484985 milliseconds
 		//Number of Never Guessed wins is 8036 (16.072%) modified win rate = 44.753%
@@ -108,7 +108,7 @@ public class MinesweeperBulk {
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
-		DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
+		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
 		GameSettings gameSettings = GameSettings.EXPERT;
 		GameType gameType = GameType.STANDARD;
 		
@@ -116,7 +116,7 @@ public class MinesweeperBulk {
 
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.nextLong());
 
-			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
+			Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			
 			//solver.setTestMode();
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
