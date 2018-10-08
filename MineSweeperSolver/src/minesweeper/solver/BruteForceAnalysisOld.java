@@ -16,16 +16,16 @@ import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.utility.BigDecimalCache;
 
-public class BruteForceAnalysis extends BruteForceAnalysisModel{
+public class BruteForceAnalysisOld extends BruteForceAnalysisModel{
 	
 	private static final int DP = 10;
 	
 	private static final BigDecimal[] INVERTS = {null, BigDecimal.ONE,
-			BigDecimal.ONE.divide(BigDecimal.valueOf(2), BruteForceAnalysis.DP, RoundingMode.HALF_UP),  // a half
-			BigDecimal.ONE.divide(BigDecimal.valueOf(3), BruteForceAnalysis.DP, RoundingMode.HALF_UP),  // a third
-			BigDecimal.ONE.divide(BigDecimal.valueOf(4), BruteForceAnalysis.DP, RoundingMode.HALF_UP),  // a quarter
-			BigDecimal.ONE.divide(BigDecimal.valueOf(5), BruteForceAnalysis.DP, RoundingMode.HALF_UP),  // a fifth
-			BigDecimal.ONE.divide(BigDecimal.valueOf(6), BruteForceAnalysis.DP, RoundingMode.HALF_UP)};  // a sixth
+			BigDecimal.ONE.divide(BigDecimal.valueOf(2), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP),  // a half
+			BigDecimal.ONE.divide(BigDecimal.valueOf(3), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP),  // a third
+			BigDecimal.ONE.divide(BigDecimal.valueOf(4), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP),  // a quarter
+			BigDecimal.ONE.divide(BigDecimal.valueOf(5), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP),  // a fifth
+			BigDecimal.ONE.divide(BigDecimal.valueOf(6), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP)};  // a sixth
 	
 	// used to hold all the solutions left in the game
 	private class SolutionTable {
@@ -175,7 +175,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	private class Node {
 		
 		// this is the best probability from the list of living locations at this node
-		private int winningLines = 0;
+		private BigDecimal probability = BigDecimal.ZERO;
 		private boolean fromCache = false; // indicates whether this position came from the cache
 		
 		// holds the position we are analysing / have reached
@@ -210,16 +210,6 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		private int getSolutionSize() {
 			return end - start;
-		}
-		
-		/**
-		 * Get the probability of winning the game from the position this node represents
-		 * @return
-		 */
-		private BigDecimal getProbability() {
-			
-			return BigDecimal.valueOf(winningLines).divide(BigDecimal.valueOf(getSolutionSize()), BruteForceAnalysis.DP, RoundingMode.HALF_UP); 
-			
 		}
 		
 		private Node[] getChildren(Living living) {
@@ -458,6 +448,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private int cacheHit = 0;
 	private int cacheSize = 0;
+	private int counter = 0;
 	
 	// some work areas to prevent having to instantiate many 1000's of copies of them 
 	//private final boolean[] values = new boolean[9];
@@ -465,7 +456,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private Map<Position, Node> cache = new HashMap<>(5000);
 	
-	public BruteForceAnalysis(Solver solver, List<? extends Location> locations, int size, String scope) {
+	public BruteForceAnalysisOld(Solver solver, List<? extends Location> locations, int size, String scope) {
 		
 		this.solver = solver;
 		this.locations = locations;
@@ -517,29 +508,29 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		// determine which locations are alive
 		top.determineLivingLocations();
 		
-		int best = 0;
+		BigDecimal best = BigDecimal.ZERO;
 		
 		for (Living alive: top.getLivingLocations()) {
 			
-			int prob = process(1, top, alive, best);
+			BigDecimal prob = process(1, top, alive, best);
 			
-			if (best < prob || (top.bestLiving != null && best == prob && top.bestLiving.mines < alive.mines)) {
+			if (best.compareTo(prob) < 0 || top.bestLiving != null && best.compareTo(prob) == 0 && top.bestLiving.mines < alive.mines) {
 				best = prob;
 				top.bestLiving = alive;
 			}
 			
-			BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - alive.mines).divide(BigDecimal.valueOf(allSolutions.size()), BruteForceAnalysis.DP, RoundingMode.HALF_UP);
+			BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - alive.mines).divide(BigDecimal.valueOf(allSolutions.size()), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP);
 			
 			if (alive.pruned) {
 				solver.display(alive.index + " " + locations.get(alive.index).display() + " is living with " + alive.count + " possible values and probability " + percentage(singleProb) + ", this location was pruned");
 			} else {
-				solver.display(alive.index + " " + locations.get(alive.index).display() + " is living with " + alive.count + " possible values and probability " + percentage(singleProb) + ", winning lines " + prob);
+				solver.display(alive.index + " " + locations.get(alive.index).display() + " is living with " + alive.count + " possible values and probability " + percentage(singleProb) + ", winning probability is " + percentage(prob));
 			}
 			
 			
 		}
 		
-		top.winningLines = best;
+		top.probability = best;
 		
 		currentNode = top;
 		
@@ -557,6 +548,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		cache.clear();
 		
 		long end = System.currentTimeMillis();
+		solver.display("Counter = " + counter);
 		solver.display("Total nodes in cache = " + cacheSize + " total cache hits = " + cacheHit);
 		solver.display("process took " + (end - start) + " milliseconds and explored " + processCount + " nodes" );
 		solver.display("----- Brute Force Deep Analysis finished ----");
@@ -564,15 +556,22 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	
 	// cut off is the best solution we have so far
-	private int process(int depth, Node parent, Living parentAlive, int cutoff) {
+	private BigDecimal process(int depth, Node parent, Living parentAlive, BigDecimal cutoff) {
 
-		int result = 0;
+		BigDecimal result = BigDecimal.ZERO;
 		
 		processCount++;
 		if (processCount > solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_NODES) {
 			return result;
 		}
 
+		// make the cutoff larger to avoid rounding errors making a difference
+		BigDecimal useCutoff = cutoff.setScale(BruteForceAnalysisOld.DP -2, RoundingMode.CEILING);
+		//BigDecimal useCutoff = cutoff;
+		
+		//BigDecimal parentSolutionSize = BigDecimal.valueOf(parent.getSolutionSize());
+		BigDecimal parentSolutionSize = BigDecimalCache.get(parent.getSolutionSize());
+		
 		parentAlive.children = parent.getChildren(parentAlive);
 
 		int notMines = parent.getSolutionSize() - parentAlive.mines;
@@ -583,31 +582,44 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				continue;  // continue the loop but ignore this entry
 			}
 			
-			int maxWinningLines = result + notMines;
+			// this is the maximum probability that this move can yield, i.e. if everything else left in the loop is 100%
+			//BigDecimal maxProb = result.add(BigDecimal.valueOf(notMines).divide(parentSolutionSize, BruteForceAnalysis.DP, RoundingMode.HALF_UP)); 
+			BigDecimal maxProb = result.add(BigDecimalCache.get(notMines).divide(parentSolutionSize, BruteForceAnalysisOld.DP, RoundingMode.HALF_UP)); 
+			
 			
 			// if the max probability is less than the current cutoff then no point doing the analysis
-			if (Solver.PRUNE_BF_ANALYSIS && maxWinningLines <= cutoff) {
+			if (Solver.PRUNE_BF_ANALYSIS && maxProb.compareTo(useCutoff) <= 0) {
 				parentAlive.pruned = true;
 				return result;
 			}
 			
 			boolean doCache = false;
-			int bestWinningLines = 0;
+			BigDecimal best = BigDecimal.ZERO;
 			if (child.fromCache) {
-				bestWinningLines = child.winningLines;
-			} else if (child.getLivingLocations().isEmpty()) {  // no further information ==> all solution indistinguishable ==> 1 winning line
+				best = child.probability;
+			} else if (child.getSolutionSize() == 0) {
+				solver.display("Zero solutions!");
+				best = BigDecimal.ZERO;
+			} else if (child.getSolutionSize() == 1) {
+				best = BigDecimal.ONE;   // if only one solution left then we have solved it
+				//solver.display("End - one solution");
+			} else if (child.getLivingLocations().isEmpty()) {  // no further information ==> all solution indistinguishable ==> 1 / number of solutions
 
-				bestWinningLines = 1;
-						
+				if (child.getSolutionSize() < INVERTS.length ) {   // use a pre-baked value (memory optimisation)
+					best = INVERTS[child.getSolutionSize()];
+				} else {
+					best = BigDecimal.ONE.divide(BigDecimal.valueOf(child.getSolutionSize()), BruteForceAnalysisOld.DP, RoundingMode.HALF_UP);  										
+				}
+				
 			} else {
 				if (child.getLivingLocations().size() > 1) {
 					doCache = true;					
 				}
 
 				for (Living alive: child.getLivingLocations()) {
-					int prob = process(depth + 1, child, alive, bestWinningLines);
-					if (bestWinningLines < prob || (child.bestLiving != null && bestWinningLines == prob && child.bestLiving.mines < alive.mines)) {
-						bestWinningLines = prob;
+					BigDecimal prob = process(depth + 1, child, alive, best);
+					if (best.compareTo(prob) < 0 || child.bestLiving != null && best.compareTo(prob) == 0 && child.bestLiving.mines < alive.mines) {
+						best = prob;
 						child.bestLiving = alive;
 					}
 					// if there are no mines then this is a 100% certain move, so skip any further analysis and don't cache it
@@ -627,8 +639,10 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			//	child.bestLiving = null;
 			//}
 			
+			//BigDecimal work = best.multiply(BigDecimal.valueOf(child.getSolutionSize())).divide(parentSolutionSize, BruteForceAnalysis.DP, RoundingMode.HALF_UP);
+			
 			// store the best probability available at this node
-			child.winningLines = bestWinningLines;
+			child.probability = best;
 			
 			// add the child to the cache if it didn't come from there
 			if (!child.fromCache && doCache && depth < 100) {
@@ -637,13 +651,18 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			}
 			
 			
-			// store the aggregate best move 
-			result = result + bestWinningLines;	
+			// store the aggregate best move (we divide by the parent solution size outside the loop for performance reasons
+			BigDecimal work = best.multiply(BigDecimalCache.get(child.getSolutionSize()));
+			result = result.add(work);	
 			
 			notMines = notMines - child.getSolutionSize();  // reduce the number of not mines
 			
 		}
 		
+		result = result.divide(parentSolutionSize, BruteForceAnalysisOld.DP, RoundingMode.HALF_UP);
+
+		//parentAlive.probability = result;
+
 		return result;
 		
 	}
@@ -705,13 +724,13 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				probText =  Action.FORMAT_2DP.format(ONE_HUNDRED.divide(BigDecimal.valueOf(bestLiving.children[i].getSolutionSize()), Solver.DP, RoundingMode.HALF_UP)) + "%";
 			} else {
 				//probText = Action.FORMAT_2DP.format(bestLiving.children[i].bestLiving.probability.multiply(ONE_HUNDRED)) + "%";
-				probText = Action.FORMAT_2DP.format(bestLiving.children[i].getProbability().multiply(ONE_HUNDRED)) + "%";
+				probText = Action.FORMAT_2DP.format(bestLiving.children[i].probability.multiply(ONE_HUNDRED)) + "%";
 			}
 			solver.display("Value of " + i + " leaves " + bestLiving.children[i].getSolutionSize() + " solutions and winning probability " + probText);
 		}
 		
 		//String text = " (solve " + scope + " " + Action.FORMAT_2DP.format(bestLiving.probability.multiply(ONE_HUNDRED)) + "%)";
-		String text = " (solve " + scope + " " + Action.FORMAT_2DP.format(currentNode.getProbability().multiply(ONE_HUNDRED)) + "%)";
+		String text = " (solve " + scope + " " + Action.FORMAT_2DP.format(currentNode.probability.multiply(ONE_HUNDRED)) + "%)";
 		Action action = new Action(loc, Action.CLEAR, MoveMethod.BRUTE_FORCE_DEEP_ANALYSIS, text, prob);
 		
 		expectedMove = loc;
@@ -753,7 +772,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 		if (node.bestLiving == null) {
-			String line = INDENT.substring(0, depth*3) + condition + " Solve chance " + Action.FORMAT_2DP.format(node.getProbability().multiply(ONE_HUNDRED)) + "%";
+			String line = INDENT.substring(0, depth*3) + condition + " Solve chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
 			System.out.println(line);
 			solver.newLine(line);
 			return;
@@ -764,7 +783,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(node.bestLiving.mines).divide(BigDecimal.valueOf(node.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 		
 		
-		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Solve chance " + Action.FORMAT_2DP.format(node.getProbability().multiply(ONE_HUNDRED)) + "%";
+		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Solve chance " + Action.FORMAT_2DP.format(node.probability.multiply(ONE_HUNDRED)) + "%";
 		
 		System.out.println(line);
 		solver.newLine(line);

@@ -5,7 +5,10 @@
 package minesweeper;
 
 import java.io.File;
+import java.io.PrintStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 import Monitor.AsynchMonitor;
 import javafx.application.Platform;
@@ -36,11 +39,13 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Popup;
 import minesweeper.bulk.BulkController;
 import minesweeper.coach.HelperController;
 import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
+import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.random.DefaultRNG;
@@ -147,6 +152,8 @@ public class ScreenController {
     private Popup toolTip = new Popup();
     private Text popupText = new Text();
 
+    private FileChooser fileChooser = new FileChooser();
+    
     //TODO finish this ...
     private EventHandler<MouseEvent> me = new EventHandler<MouseEvent>() {
 
@@ -212,7 +219,7 @@ public class ScreenController {
         } else if (fromFile.isSelected()) {
             difficulty = DIFFICULTY_FILE;
             
-        	FileChooser fileChooser = new FileChooser();
+        	//FileChooser fileChooser = new FileChooser();
         	
         	fileChooser.setTitle("Open game to analyse");
         	if (fileSelected != null) {
@@ -250,6 +257,28 @@ public class ScreenController {
         
         
     }
+    
+    @FXML
+    private void saveBoardHandle(ActionEvent event) {
+        
+    	//FileChooser fileChooser = new FileChooser();
+    	
+    	fileChooser.setTitle("Save board position");
+    	if (fileSelected != null) {
+    		fileChooser.setInitialDirectory(fileSelected.getParentFile());
+    	}
+    	
+     	fileSelected = fileChooser.showSaveDialog(Minesweeper.getStage());
+
+     	try {
+			saveGame(fileSelected);
+		} catch (Exception e) {
+			System.out.println("Error writing to output file");
+			e.printStackTrace();
+		}
+    	
+    	
+    }    
     
     @FXML
     private void exitGameHandle(ActionEvent event) {
@@ -494,6 +523,15 @@ public class ScreenController {
         popupText.setText("Test");
         popupText.setFont(new Font(20));
         
+        // set-up the filechooser
+    	ExtensionFilter ef1 = new ExtensionFilter("All files", "*.*");
+    	ExtensionFilter ef2 = new ExtensionFilter("Minesweeper board", "*.mine");
+    	ExtensionFilter ef3 = new ExtensionFilter("Minesweeper board", "*.board");
+    	fileChooser.getExtensionFilters().addAll(ef1, ef2, ef3);
+    	fileChooser.setSelectedExtensionFilter(ef2);        
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.dir")));
+    	
+    	
         animator = new Animator(this);
         animator.start();
         
@@ -790,7 +828,7 @@ public class ScreenController {
             result = Graphics.getMine();
         } else if (query == GameStateModel.HIDDEN) {
             result = Graphics.getButton();
-        } else if (query == GameStateModel.FLAG) {
+        } else if (query == GameStateModel.FLAG || query == GameStateModel.BAD_FLAG) {
             result = Graphics.getFlag();
         } else if (query == GameStateModel.EXPLODED_MINE) {
             result = Graphics.getMineBang();
@@ -942,6 +980,63 @@ public class ScreenController {
         Minesweeper.getStage().setTitle(Minesweeper.TITLE + " - Game " + gs.showGameKey());
         
        
+    }
+    
+    private void saveGame(File file) throws Exception {
+    	
+    	GameStateModelViewer gs = Minesweeper.getGame();
+    	
+    	if (gs == null) {
+    		return;
+    	}
+    	
+    	int width = gs.getWidth();
+    	int height = gs.getHeight();
+    	
+    	List<String> records = new ArrayList<>();
+    	
+    	String header =  width + "x" + height + "x" + gs.getMines();
+    	records.add(header);
+    	
+    	for (int y=0; y < height; y++) {
+    		
+    		StringBuilder record = new StringBuilder();
+        	for (int x=0; x < width; x++) {
+        		
+        		Location l = new Location(x, y);
+        		
+                int query = Minesweeper.getGame().privilegedQuery(l, true);
+             
+                if (query == GameStateModel.MINE) {
+                     record.append("m");
+                } else if (query == GameStateModel.HIDDEN) {
+                	 record.append("h");
+                } else if (query == GameStateModel.FLAG) {
+                	record.append("M");
+                }  else if (query == GameStateModel.BAD_FLAG) {   // a flag but not a mine underneath
+                	record.append("h");
+                } else if (query == GameStateModel.EXPLODED_MINE) {
+                	record.append("m");
+                } else {
+                	record.append(String.valueOf(query));
+                }
+        	}   		
+    		
+        	records.add(record.toString());
+    		
+    	}
+
+    	records.add("Game created by Minesweeper Coach vsn " + Minesweeper.VERSION);
+    	records.add(gs.showGameKey());
+    	
+    	try (PrintStream output = new PrintStream(file)) {
+    	   	for (String record: records) {
+        		output.println(record);
+        	}    		
+    	} catch (Exception e) {
+    		throw e;
+    	}
+    	
     }
     
     public void kill() {

@@ -46,7 +46,7 @@ import minesweeper.solver.utility.Binomial;
 public class Solver implements Asynchronous<Action[]> {
 
 
-	public final static String VERSION = "1.01";
+	public final static String VERSION = "1.02";
 	
 	
     // used to hold valid moves which are about to be passed out of the solver
@@ -2120,7 +2120,8 @@ public class Solver implements Asynchronous<Action[]> {
                     // then store the location
                     if (boardState.isUnrevealed(i,j)) {
                     	Location l = new Location(i, j);
-                        if (wholeEdge == null || !wholeEdge.isOnWeb(l)) {
+                    	// if we aren't on the edge and there are some adjacent squares 
+                        if ((wholeEdge == null || !wholeEdge.isOnWeb(l)) && boardState.countAdjacentUnrevealed(l) != 0) {
                             list.add(new CandidateLocation(l.x, l.y, offContourBigProb, boardState.countAdjacentUnrevealed(l), boardState.countAdjacentConfirmedFlags(l)));
                         }
                         

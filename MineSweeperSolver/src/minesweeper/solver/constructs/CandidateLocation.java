@@ -100,7 +100,18 @@ public class CandidateLocation extends Location {
 			
 			int c = -o1.prob.compareTo(o2.prob);  // highest probability first
 			if (c == 0) {
-				c=  o1.adjSquares - o2.adjSquares;   // lowest adjacent free squares
+				int a1, a2;
+				if (o1.adjSquares == 0) {
+					a1 = 9;
+				} else {
+					a1 = o1.adjSquares;
+				}
+				if (o2.adjSquares == 0) {
+					a2 = 9;
+				} else {
+					a2 = o2.adjSquares;
+				}
+				c=  a1 - a2;   // lowest adjacent free squares  (except zero treated as 9)
 				if (c == 0) {
 					c = -(o1.adjFlags - o2.adjFlags);  // highest number of flags 
 					if (c == 0) {

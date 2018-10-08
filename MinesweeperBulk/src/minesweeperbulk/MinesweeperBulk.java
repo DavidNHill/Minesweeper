@@ -66,31 +66,8 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 1774952086;
+		seed = -971066655;
 
-		//Seed -1502353305 played 50000 games Wins=26816 (53.632%) after 119688(56389,63299) guesses(winning, losing), fairness ratio=-0.00035, duration = 484985 milliseconds
-		//Number of Never Guessed wins is 8036 (16.072%) modified win rate = 44.753%
-		
-		//Seed -834064616 played 100000 games Wins=39761 (39.761%) after 329403(137589,191814) guesses(winning, losing), fairness ratio=0.00221, duration = 470243 milliseconds
-		//Number of Never Guessed wins is 5164 modified win rate = 36.481
-		
-		//Seed 1301985346 played [400 + 20000] 50000 games Wins=20096 (40.192%) after 162217(68817,93400) guesses(winning, losing), fairness ratio=-0.00417, duration = 412378 milliseconds
-		//Number of Never Guessed wins is 2591 modified win rate = 36.923
-		
-		//Seed 1301985346 played [400 + 75000] 50000 games Wins=20158 (40.316%) after 162067(68509,93558) guesses(winning, losing), fairness ratio=-0.00134, duration = 471477 milliseconds
-		//Number of Never Guessed wins is 2592 (5.184%) modified win rate = 37.053%
-		//Seed 1301985346 played [400 + 75000] 50000 games Wins=20160 (40.320%) after 162288(68609,93679) guesses(winning, losing), fairness ratio=-0.00191, duration = 340840 milliseconds
-		//		Number of Never Guessed wins is 2592 (5.184%) modified win rate = 37.057%
-		
-		
-		//Seed 1301985346 played [100 + 5000] 50000 games Wins=20118 (40.236%) after 162327(68421,93906) guesses(winning, losing), fairness ratio=-0.00337, duration = 336992 milliseconds
-		//Number of Never Guessed wins is 2592 (5.184%) mo dified win rate = 36.968%
-		
-		//Seed 1301985346 played [no brute force] 50000 games Wins=19792 (39.584%) after 163503(67454,96049) guesses(winning, losing), fairness ratio=-0.00410, duration = 308200 milliseconds
-		//Number of Never Guessed wins is 2592 (5.184%) modified win rate = 36.281%
-		
-		//Seed -778220640 played 50000 games Wins=19925 (39.850%) after 161812(67190,94622) guesses(winning, losing), fairness ratio=-0.01167, duration = 305548 milliseconds
-		//Number of Never Guessed wins is 2624 modified win rate = 36.518
 			
 		// start (3,2)
 		//Seed 1652664258 played 100000 games Wins=88880 (88.880%) after 40412(25413,14999) guesses(winning, losing), fairness ratio=0.01630, duration = 200178 milliseconds
@@ -116,7 +93,7 @@ public class MinesweeperBulk {
 
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.nextLong());
 
-			Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
+			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
 			
 			//solver.setTestMode();
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);

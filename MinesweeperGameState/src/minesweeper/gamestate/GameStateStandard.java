@@ -115,6 +115,10 @@ public class GameStateStandard extends GameStateModelViewer {
             result = GameStateModel.MINE;
         }
 
+        if (showMines && result == GameStateModel.FLAG && board[m.x][m.y] != GameStateModel.MINE ) {
+        	result = GameStateModel.BAD_FLAG;
+        }
+        
         return result;
         
     }

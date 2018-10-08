@@ -19,7 +19,7 @@ abstract public class GameStateModel {
     public final static int MINE = -10;
     public final static int FLAG = -12;
     public final static int EXPLODED_MINE = - 13;
-    //public final static int CLEAR = - 14;
+    public final static int BAD_FLAG = - 14;
     
     public final static int NOT_STARTED = 0;
     public final static int STARTED = 1;

@@ -69,7 +69,7 @@ abstract public class Preferences {
 		public void setVariables() {
 		   	
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
-			BRUTE_FORCE_ANALYSIS_MAX_NODES = 75000;
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 150000;
 	    	BRUTE_FORCE_MAX = new BigInteger("500000"); // 500 thousand
 	    	//ZONE_MAX = new BigInteger("50000"); // 50 thousand
 	    	USE_MIN_MAX = true;
