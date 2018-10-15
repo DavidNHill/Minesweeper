@@ -81,7 +81,7 @@ public class HookLocation extends ProbabilityLocation {
 			values = values + allValues.get(i) + " ";
 		}
 		
-		return "Hook: " + super.display() + " value(s) " + values;
+		return "Hook: " + super.display() + " value(s) " + values + " size " + adjHidden;
 	}
 
 	@Override

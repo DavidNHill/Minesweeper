@@ -40,7 +40,7 @@
                     </items>
                   </Menu>
                   <SeparatorMenuItem mnemonicParsing="false" />
-                  <MenuItem mnemonicParsing="false" onAction="#saveBoardHandle" text="Save board..." />
+                  <MenuItem fx:id="saveBoard" mnemonicParsing="false" onAction="#saveBoardHandle" text="Save board..." />
                   <SeparatorMenuItem mnemonicParsing="false" />
             <MenuItem mnemonicParsing="false" onAction="#exitGameHandle" text="Exit game" />
           </items>

@@ -60,7 +60,7 @@ public class BulkRunner implements Runnable {
 			
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.random(0));
 
-			Solver solver = new Solver(gs, Preferences.SMALL_BRUTE_FORCE, false);
+			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
 			if (startLocation != null) {
 				solver.setStartLocation(startLocation);
 			}

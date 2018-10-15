@@ -23,6 +23,7 @@ public class GameStateReader extends GameStateModelViewer {
     private final int[][] board;
     
     private File file;
+    private boolean safeOpening;
     
   
     private GameStateReader(GameSettings gameSettings) {
@@ -121,7 +122,7 @@ public class GameStateReader extends GameStateModelViewer {
 						int val = Character.getNumericValue(c);
 						result.setRevealed(cx, cy);
 						tempBoard[cx][cy] = val;
-						//result.board[cx][cy] = val;
+						result.safeOpening = false;     // if we have already revealed some square it isn't a safe opening
 					}
 					cx++;
 				}
@@ -294,6 +295,10 @@ public class GameStateReader extends GameStateModelViewer {
         return true;
 	}
     
+	@Override
+    public boolean safeOpening() {
+    	return safeOpening;
+    }
     
     
 }

@@ -646,6 +646,13 @@ public class BoardState {
 	protected void setWitnessValue(Location l, int value) {    	 
 		board[l.x][l.y] = value;
 		revealed[l.x][l.y] = true;
+		
+		//for (int k=0; k < DX.length; k++) {
+		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
+		//		adjUnrevealed[l.x + DX[k]][l.y + DY[k]]--;
+		//	}
+		//}    	
+		
 	}
 
 	/**
@@ -654,6 +661,12 @@ public class BoardState {
 	protected void clearWitness(Location l) {    	 
 		board[l.x][l.y] = 0;
 		revealed[l.x][l.y] = false;
+		
+		//for (int k=0; k < DX.length; k++) {
+		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
+		//		adjUnrevealed[l.x + DX[k]][l.y + DY[k]]++;
+		//	}
+		//}    	
 	}
 
 	/**
@@ -842,11 +855,7 @@ public class BoardState {
 	 */
 	protected int countAdjacentUnrevealed(int x, int y) {
 
-		int result = 0;
-
-		result = adjUnrevealed[x][y];
-
-		return result;
+		return adjUnrevealed[x][y];
 
 	}    
 
@@ -855,11 +864,7 @@ public class BoardState {
 	 */    
 	protected int getTotalUnrevealedCount() {
 
-		int result = 0;
-
-		result = numOfHidden;
-
-		return result;
+		return numOfHidden;
 
 	}
 

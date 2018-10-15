@@ -14,7 +14,7 @@ import minesweeper.gamestate.Location;
  *
  * @author David
  */
-public class Zone {
+public class Zone implements Comparable<Zone>{
     
     private final static int[] DX = {0, 1, 1, 1, 0, -1, -1, -1};
     private final static int[] DY = {-1, -1, 0, 1, 1, 1, 0, -1};
@@ -224,5 +224,11 @@ public class Zone {
     	return web;
     	
     }
+
+	@Override
+	public int compareTo(Zone o) {
+		// sort by the size of the zone
+		return this.interiorList.size() - o.interiorList.size();
+	}
     
 }

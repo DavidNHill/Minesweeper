@@ -47,6 +47,9 @@ public class Location implements Comparable<Location> {
     }
     
     @Override
+    /**
+     * Returns true if m describes the same location
+     */
     public boolean equals(Object m) {
         
         if (m instanceof Location) {

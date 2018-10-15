@@ -438,6 +438,10 @@ abstract public class GameStateModel {
     }
     
     
+    public boolean safeOpening() {
+    	return true;
+    }
+    
     
     /**
      * @return the width of the game board

@@ -179,6 +179,10 @@ public class GameStateHard extends GameStateModelViewer {
         return true;
 	}
     
+	@Override
+    public boolean safeOpening() {
+    	return false;
+    }
     
     
 }

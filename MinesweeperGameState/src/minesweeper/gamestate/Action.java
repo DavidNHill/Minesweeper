@@ -19,7 +19,7 @@ public class Action extends Location {
     public static final int CLEARALL = 2;
     public static final int FLAG = 3;
     
-    public static final DecimalFormat FORMAT_2DP = new DecimalFormat("00.00");
+    public static final DecimalFormat FORMAT_2DP = new DecimalFormat("#0.00");
     
     private final static String[] ACTION = {"", "Clear", "Clear around", "Place flag"};
     private final static BigDecimal MINUS_ONE = new BigDecimal("-1");
@@ -109,6 +109,8 @@ public class Action extends Location {
     public String asString() {
         
         String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description + " " + comment; 
+        
+        //String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description; 
         
         if (prob > 0 && prob < 1) {
             result = result + " with a probability of " + FORMAT_2DP.format(prob * 100) + "%";

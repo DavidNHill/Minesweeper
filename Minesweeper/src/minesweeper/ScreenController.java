@@ -21,6 +21,7 @@ import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -90,6 +91,8 @@ public class ScreenController {
     @FXML private RadioMenuItem gameTypeNormal;
     @FXML private RadioMenuItem gameTypeHard;
     
+    @FXML private MenuItem saveBoard;
+    
     @FXML private RadioMenuItem rngJava;
     @FXML private RadioMenuItem rngKiss64;
     
@@ -121,9 +124,9 @@ public class ScreenController {
     
     
     // What kind of solver should we use
-    //private static final Preferences preferences = Preferences.NO_BRUTE_FORCE; 
-    //private static final Preferences preferences = Preferences.MEDIUM_BRUTE_FORCE; 
-    private static final Preferences preferences = Preferences.LARGE_BRUTE_FORCE; 
+    //private static final Preferences preferences = Preferences.NO_BRUTE_FORCE;
+    //private static final Preferences preferences = Preferences.MAX_ANALYSIS; 
+    private static final Preferences preferences = Preferences.LARGE_ANALYSIS; 
     private Solver solver;
     
     private WritableImage scr;
@@ -561,6 +564,10 @@ public class ScreenController {
         
         boolean result = Minesweeper.getGame().doAction(action);
         
+        if (Minesweeper.getGame().getGameState() == GameStateModel.STARTED) {
+        	saveBoard.setDisable(false);
+        }
+        
         if (result) {
             updateScreen();
         }
@@ -569,9 +576,7 @@ public class ScreenController {
     }
     
     protected void moveCheck() {
-        
-
-    	
+     	
         if (!automate) {
         	window.setCursor(Cursor.DEFAULT);
             return;
@@ -937,6 +942,10 @@ public class ScreenController {
         	return;
         }
 
+        if (gs.getGameState() == GameStateModel.NOT_STARTED) {
+        	saveBoard.setDisable(true);  // can't save a game which isn't started since that sets the board layout
+        }
+        
         // create a memory of the last screen - set to full refresh
         lastScreen = new int[gs.getWidth()][gs.getHeight()];
         for (int i=0; i < gs.getWidth(); i++) {
@@ -984,9 +993,13 @@ public class ScreenController {
     
     private void saveGame(File file) throws Exception {
     	
+    	if (file == null) {
+    		return;
+    	}
+    	
     	GameStateModelViewer gs = Minesweeper.getGame();
     	
-    	if (gs == null) {
+    	if (gs == null || gs.getGameState() == GameStateModel.NOT_STARTED) {
     		return;
     	}
     	

@@ -1,22 +1,13 @@
 package minesweeper.solver;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
 
-import minesweeper.gamestate.Location;
 import minesweeper.solver.constructs.Box;
-import minesweeper.solver.constructs.CandidateLocation;
-import minesweeper.solver.constructs.LinkedLocation;
-import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 
 /**
@@ -25,7 +16,7 @@ import minesweeper.solver.constructs.Witness;
  * @author David
  *
  */
-public class ProbabilityEngine {
+public class SolutionCounter {
 
 	private int[][] SMALL_COMBINATIONS = new int[][] {new int[] {1}, new int[] {1,1}, new int[] {1,2,1}, new int[] {1,3,3,1}, new int[] {1,4,6,4,1}, new int[] {1,5,10,10,5,1}, new int[] {1,6,15,20,15,6,1}, new int[] {1,7,21,35,35,21,7,1},new int[] {1,8,28,56,70,56,28,8,1}};
 	
@@ -36,13 +27,13 @@ public class ProbabilityEngine {
 		private BigInteger solutionCount = BigInteger.ZERO;
 		private BigInteger[] mineBoxCount  = new BigInteger[boxCount];
 		
-		private BigInteger[] hashCount  = new BigInteger[boxCount];
-		private BigInteger hash = new BigInteger(20, new Random());
+		//private BigInteger[] hashCount  = new BigInteger[boxCount];
+		//private BigInteger hash = new BigInteger(20, new Random());
 		
 		{
 			for (int i=0; i < mineBoxCount.length; i++) {
 				mineBoxCount[i] = BigInteger.ZERO;
-				hashCount[i] = BigInteger.ZERO;
+				//hashCount[i] = BigInteger.ZERO;
 			}
 		}
 		
@@ -81,18 +72,11 @@ public class ProbabilityEngine {
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
  	private List<ProbabilityLine> heldProbs = new ArrayList<>();  
 	
-	private BigDecimal[] boxProb;
-	private BigInteger[] hashTally;
-	private boolean offEdgeBest = true;
-	private BigDecimal offEdgeProbability;
-	private BigDecimal bestProbability;
-	private BigDecimal cutoffProbability;
-
 	//when set to true indicates that the box has been part of this analysis
 	private boolean[] mask;           
 	
-	private List<LinkedLocation> linkedLocations = new ArrayList<>();
-	private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
+	//private List<LinkedLocation> linkedLocations = new ArrayList<>();
+	//private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
 	
 	final private BoardState solver;
 	final private WitnessWeb web;
@@ -115,7 +99,7 @@ public class ProbabilityEngine {
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
-	public ProbabilityEngine(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft) {
+	public SolutionCounter(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft) {
 		
 		this.solver = solver;
 		this.web = web;
@@ -132,9 +116,6 @@ public class ProbabilityEngine {
 		
 		this.boxCount = boxes.size();
 		
-		this.boxProb = new BigDecimal[boxCount];
-		this.hashTally = new BigInteger[boxCount];
-		
 		for (Witness w: witnesses) {
 			w.setProcessed(false);
 		}
@@ -145,7 +126,9 @@ public class ProbabilityEngine {
 		
 	}
 
-	// run the probability engine
+	/**
+	 * Run the solution counter
+	 */
 	public void process() {
 		
 		long startTime = System.currentTimeMillis();
@@ -177,48 +160,8 @@ public class ProbabilityEngine {
 			witness = findNextWitness(witness);
 			
 		}
-		
-		// we have now processed all the independent sets of witness and they are being held in our list of list
-		
-		/*
-		for (Box b: boxes) {
-			System.out.print(b.getSquares().size() + " ");
-		}
-		System.out.println("");
-		
-		// display what we have found
-		System.out.println("pre crunch by mine count");
-		for (ProbabilityLine pl: probs) {
-			System.out.print("Mines = " + pl.mineCount + " solutions = " + pl.solutionCount + " mines: ");
-			for (int i=0; i < pl.mineBoxCount.length; i++) {
-				System.out.print(" " + pl.mineBoxCount[i]);
-			}
-			System.out.println("");
-		}
-		*/
-		
-		//workingProbs = crunchByMineCount();
-		
-		
+
 		calculateBoxProbabilities();
-		
-		/*
-		System.out.println("post crunch by mine count");
-		// display what we have found
-		for (ProbabilityLine pl: probs) {
-			System.out.print("Mines = " + pl.mineCount + " solutions = " + pl.solutionCount + " boxes: ");
-			for (int i=0; i < pl.mineBoxCount.length; i++) {
-				System.out.print(" " + pl.mineBoxCount[i]);
-			}
-			System.out.println("");
-		}
-		*/
-		
-		/*
-		for (Box b: boxes) {
-			solver.display("Box " + b.getUID() + " has probability " + boxProb[b.getUID()]);
-		}
-		*/
 		
 		duration = System.currentTimeMillis() - startTime;
 	}
@@ -248,9 +191,7 @@ public class ProbabilityEngine {
 			mergeProbabilities(npl, pl);
 		}
 
-		//if (npl.mineCount >= minTotalMines) {
-			result.add(npl);
-		//}	
+		result.add(npl);
 		
 		return result;
 		
@@ -270,12 +211,6 @@ public class ProbabilityEngine {
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
 			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
 	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
-				
-				if (pl.mineBoxCount[i].compareTo(BigInteger.ZERO) == 0) {
-					npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash.multiply(BigInteger.valueOf(boxes.get(i).getSquares().size())));   // treat no mines as -1 rather than zero
-				} else {
-					npl.hashCount[i] = npl.hashCount[i].add(pl.mineBoxCount[i].multiply(pl.hash));
-				}				
 			}
 
 			
@@ -314,8 +249,6 @@ public class ProbabilityEngine {
 						BigInteger w2 = epl.mineBoxCount[i].multiply(pl.solutionCount);
 						npl.mineBoxCount[i] = w1.add(w2);
 						
-						npl.hashCount[i] = epl.hashCount[i].add(pl.hashCount[i]);
-
 					}
 					result.add(npl);
 					
@@ -351,40 +284,18 @@ public class ProbabilityEngine {
 			
 			for (int i = 0; i < pl.mineBoxCount.length; i++) {
 				npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
-				
-				npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
 			}
 		}
 
 		heldProbs.add(npl);
 
-		/*
-		for (Box b: boxes) {
-			System.out.print(b.getSquares().size() + " ");
-		}
-		System.out.println("");
-		for (ProbabilityLine pl: heldProbs) {
-			System.out.print("Mines = " + pl.mineCount + " solutions = " + pl.solutionCount + " boxes: ");
-			for (int i=0; i < pl.mineBoxCount.length; i++) {
-				System.out.print(" " + pl.mineBoxCount[i]);
-			}
-			System.out.println("");
-		}
-		*/
-		
-		
+
 	}
 	
 	// here we expand the localised solution to one across the whole board and
 	// sum them together to create a definitive probability for each box
 	private void calculateBoxProbabilities() {
 		
-		BigInteger[] tally = new BigInteger[boxCount];
-		for (int i=0; i < tally.length; i++) {
-			tally[i] = BigInteger.ZERO;
-			hashTally[i] =  BigInteger.ZERO;
-		}
-
 		// total game tally
 		BigInteger totalTally = BigInteger.ZERO;
 		
@@ -397,9 +308,8 @@ public class ProbabilityEngine {
 			if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
 				
 				if (mineCounts.put(pl.mineCount, pl.solutionCount) != null) {
-					System.out.println("Duplicate mines in probabiluity Engine");
+					System.out.println("Duplicate mines in probability Engine");
 				}
-					
 				
 				BigInteger mult = Solver.combination(minesLeft - pl.mineCount, squaresLeft);  //# of ways the rest of the board can be formed
 				
@@ -408,105 +318,15 @@ public class ProbabilityEngine {
 				// this is all the possible ways the mines can be placed across the whole game
 				totalTally = totalTally.add(mult.multiply(pl.solutionCount));
 				
-				for (int i=0; i < tally.length; i++) {
-					tally[i] = tally[i].add(mult.multiply(pl.mineBoxCount[i]).divide(BigInteger.valueOf( boxes.get(i).getSquares().size())));
-					hashTally[i] = hashTally[i].add(pl.hashCount[i]);
-				}				
 			}
 
 		}		
-		
-		
-		for (int i=0; i < boxProb.length; i++) {
-			if (totalTally.compareTo(BigInteger.ZERO) != 0) {
-				boxProb[i] = BigDecimal.ONE.subtract(new BigDecimal(tally[i]).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP));
-			} else {
-				boxProb[i] = BigDecimal.ZERO;
-			}
-		}
 
-		for (int i=0; i < hashTally.length; i++) {
-			//solver.display(boxes.get(i).getSquares().size() + " " + boxes.get(i).getSquares().get(0).display() + " " + hashTally[i].toString());
-			for (int j=i+1; j < hashTally.length; j++) {
-				
-				BigInteger hash1 = hashTally[i].divide(BigInteger.valueOf(boxes.get(i).getSquares().size()));
-				BigInteger hash2 = hashTally[j].divide(BigInteger.valueOf(boxes.get(j).getSquares().size()));
-				
-				//if (hashTally[i].compareTo(hashTally[j]) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
-				if (hash1.compareTo(hash2) == 0) {
-					addLinkedLocation(linkedLocations, boxes.get(i));
-					addLinkedLocation(linkedLocations, boxes.get(j));
-					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i]);
-				}
-				
-				// if one hasTally is the negative of the other then   i flag <=> j clear
-				//if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
-				if (hash1.compareTo(hash2.negate()) == 0) {
-					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is contra linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i] + " " + boxProb[j]);
-					addLinkedLocation(contraLinkedLocations, boxes.get(i));
-					addLinkedLocation(contraLinkedLocations, boxes.get(j));					
-				}
-			}
-		}
-		
-		// sort so that the locations with the most links are at the top
-		Collections.sort(linkedLocations, LinkedLocation.SORT_BY_LINKS_DESC);
-		
-		// avoid divide by zero
-		if (squaresLeft != 0 && totalTally.compareTo(BigInteger.ZERO) != 0) {
-			offEdgeProbability = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(squaresLeft), Solver.DP, RoundingMode.HALF_UP));
-		} else {
-			offEdgeProbability = BigDecimal.ZERO;
-		}
-	
 		finalSolutionsCount = totalTally;
 
-		// see if we can find a guess which is better than outside the boxes
-		BigDecimal hwm = offEdgeProbability;
-		
-		offEdgeBest = true;
-		for (BigDecimal bd: boxProb) {
-			if (hwm.compareTo(bd) <= 0) {
-				offEdgeBest = false;
-				hwm = bd;
-			}
-			hwm = hwm.max(bd);
-		}
-		
-		bestProbability = hwm;
-		cutoffProbability = bestProbability.multiply(Solver.PROB_ENGINE_TOLERENCE);
-		
 		//solver.display("probability off web is " + outsideProb);
 		
 		
-	}
-	
-	
-	private void addLinkedLocation(List<LinkedLocation> list, Box box) {
-		
-		top:for (Square s: box.getSquares()) {
-			
-			for (LinkedLocation ll: list) {
-				if (s.equals(ll)) {
-					ll.incrementLinks();
-					continue top;
-				}
-			}		
-			
-			list.add(new LinkedLocation(s.x, s.y));
-		}
-		
-		/*
-		Square s = box.getSquares().get(0);
-		for (LinkedLocation ll: list) {
-			if (s.equals(ll)) {
-				ll.incrementLinks();
-				return;
-			}
-		}
-		*/
-		
-
 	}
 	
 	
@@ -688,78 +508,6 @@ public class ProbabilityEngine {
 		
 	}
 	
-	protected BigDecimal getProbability(Location l) {
-		
-		for (Box b: boxes) {
-			if (b.contains(l)) {
-				return boxProb[b.getUID()];
-			}
-		}
-		
-		return offEdgeProbability;
-	}
-	
-	/**
-	 * The probability of a mine being in a square not considered by this process
-	 * @return
-	 */
-	protected BigDecimal getOutsideProb() {
-		return offEdgeProbability;
-	}
-	
-	/**
-	 * Moves with probability above this are candidate moves
-	 * @return
-	 */
-	protected BigDecimal geCutoffProb() {
-		return cutoffProbability;
-	}
-	
-	protected boolean isBestGuessOffEdge() {
-		return this.offEdgeBest;
-	}
-	
-	/**
-	 * true if a 100% certain move has been found
-	 * @return
-	 */
-	protected boolean foundCertainty() {
-		return (bestProbability.compareTo(BigDecimal.ONE) == 0);
-	}
-	
-	
-	
-	protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold) {
-		
-		List<CandidateLocation> best = new ArrayList<>();
-		
-		//solver.display("Squares left " + this.squaresLeft + " squares analysed " + web.getSquares().size());
-		
-		// if the outside probability is the best then return an empty list
-		BigDecimal test;
-		if (offEdgeBest) {
-			solver.display("Best probability is off the edge " + bestProbability + " but will look for options on the edge only slightly worse");
-			//test = bestProbability.multiply(Solver.EDGE_TOLERENCE);
-			test = bestProbability.multiply(freshhold);
-		} else if (bestProbability.compareTo(BigDecimal.ONE) == 0){  // if we have a probability of one then don't allow lesser probs to get a look in
-			test = bestProbability;
-		} else {
-			test = bestProbability.multiply(freshhold);
-		}
-
-		solver.display("Best probability is " + bestProbability + " freshhold is " + test);
-		
-		for (int i=0; i < boxProb.length; i++) {
-			if (boxProb[i].compareTo(test) >= 0) {
-				for (Square squ: boxes.get(i).getSquares()) {
-					best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], solver.countAdjacentUnrevealed(squ), solver.countAdjacentConfirmedFlags(squ)));
-				}
-			}
-		}
-		
-		return best;
-		
-	}
 	
 	/**
 	 * The number of ways the mines can be placed in the game position
@@ -783,14 +531,6 @@ public class ProbabilityEngine {
 	 */
 	protected long getIndependentGroups() {
 		return this.independentGroups;
-	}
-	
-	protected List<LinkedLocation> getLinkedLocations() {
-		return this.linkedLocations;
-	}
-	
-	protected List<LinkedLocation> getContraLinkedLocations() {
-		return this.contraLinkedLocations;
 	}
 	
 	protected Map<Integer, BigInteger> getValidMineCounts() {

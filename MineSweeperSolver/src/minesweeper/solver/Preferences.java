@@ -6,8 +6,8 @@ abstract public class Preferences {
 
 	protected int BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
 	protected int BRUTE_FORCE_ANALYSIS_MAX_NODES = 50000;
+	protected int BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 50;
     protected BigInteger BRUTE_FORCE_MAX = new BigInteger("50000000");  // 50 million
-    //protected BigInteger ZONE_MAX = new BigInteger("10000000");  // 10 million
     protected boolean USE_MIN_MAX = true;
 	
     public Preferences() {
@@ -18,8 +18,7 @@ abstract public class Preferences {
     
     
     /**
-     * Does obvious and less obvious moves.
-     * Looks for very small independent zones which have to be guessed.
+     * Does trivial, Local and Probability Engine searches.
      * No brute force.
      */
     final static public Preferences NO_BRUTE_FORCE = new Preferences() {
@@ -30,7 +29,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
 	    	BRUTE_FORCE_MAX = new BigInteger("0");  
-	    	//ZONE_MAX = new BigInteger("2500"); 
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -38,40 +36,55 @@ abstract public class Preferences {
     };
     
     /**
-     * Does obvious and less obvious moves.
-     * Looks for very small independent zones which have to be guessed.
-     * Very small brute force at the end which optimally reduces the solution space.
+     * Does trivial, Local and Probability Engine searches.
+     * Does a small brute force search but with no deep analysis.
      */
-    final static public Preferences TINY_BRUTE_FORCE = new Preferences() {
+    final static public Preferences NO_DEEP_ANALYSIS = new Preferences() {
+
+		@Override
+		public void setVariables() {
+		   	
+			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
+	    	BRUTE_FORCE_MAX = new BigInteger("250000");  // 250 thousand
+	    	USE_MIN_MAX = true;
+	    	
+		}
+    	
+    };
+
+    /**
+     * Does trivial, Local and Probability Engine searches.
+     * Does a small brute force search with a 100 solution deep analysis.
+     * This is suitable for bulk runs.
+     */
+    final static public Preferences VERY_SMALL_ANALYSIS = new Preferences() {
 
 		@Override
 		public void setVariables() {
 		   	
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 100;
-			BRUTE_FORCE_ANALYSIS_MAX_NODES = 5000;
-	    	BRUTE_FORCE_MAX = new BigInteger("250000");  // 250 thousand
-	    	//ZONE_MAX = new BigInteger("25000"); 
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 100000;    // 100,000
+	    	BRUTE_FORCE_MAX = new BigInteger("500000"); // 500,000
 	    	USE_MIN_MAX = true;
 	    	
 		}
     	
     };
-
  
     /**
-     * Does obvious and less obvious moves.
-     * Looks for small independent zones which have to be guessed.
-     * Small brute force at the end of the game which optimally reduces the solution space.
+     * Does trivial, Local and Probability Engine searches.
+     * Does a small brute force search with a 400 solution deep analysis.
+     * This is suitable for bulk runs.
      */
-    final static public Preferences SMALL_BRUTE_FORCE = new Preferences() {
+    final static public Preferences SMALL_ANALYSIS = new Preferences() {
 
 		@Override
 		public void setVariables() {
 		   	
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
-			BRUTE_FORCE_ANALYSIS_MAX_NODES = 150000;
-	    	BRUTE_FORCE_MAX = new BigInteger("500000"); // 500 thousand
-	    	//ZONE_MAX = new BigInteger("50000"); // 50 thousand
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 100000;
+	    	BRUTE_FORCE_MAX = new BigInteger("1000000"); // 1 million
 	    	USE_MIN_MAX = true;
 	    	
 		}
@@ -82,12 +95,10 @@ abstract public class Preferences {
     
     
     /**
-     * Does obvious and less obvious moves.
-     * Analyses moderate Edges in order to determine a good guess.
-     * Looks for small independent zones which have to be guessed 
-     * Moderate brute force at the end of the game and uses guesses which minimise the solution space.
+     * Does trivial, Local and Probability Engine searches.
+     * Does a medium brute force search with a 1000 solution deep analysis.
      */
-    final static public Preferences MEDIUM_BRUTE_FORCE = new Preferences() {
+    final static public Preferences MEDIUM_ANALYSIS = new Preferences() {
 
 		@Override
 		public void setVariables() {
@@ -103,18 +114,17 @@ abstract public class Preferences {
     };
     
     /**
-     * Does obvious and less obvious moves.
-     * Analyses large Edges in order to determine a good guess.
-     * Looks for large independent zones which have to be guessed.
-     * Large brute force at the end of the game and uses guesses which minimise the solution space.
+     * Does trivial, Local and Probability Engine searches.
+     * Does a large brute force search with a 4000 solution deep analysis.
+     * This is suitable for individual games.
      */
-    final static public Preferences LARGE_BRUTE_FORCE = new Preferences() {
+    final static public Preferences LARGE_ANALYSIS = new Preferences() {
 
 		@Override
 		public void setVariables() {
 
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 4000;
-			BRUTE_FORCE_ANALYSIS_MAX_NODES = 20000000;
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 20000000;     // 20 million
 			BRUTE_FORCE_MAX = new BigInteger("10000000");  // 10 million
 		    //ZONE_MAX = new BigInteger("1000000");  // 1 million
 		    USE_MIN_MAX = true;
@@ -122,22 +132,42 @@ abstract public class Preferences {
     	
     };
     
+    
     /**
-     * Does obvious and less obvious moves.
-     * Analyses very large Edges in order to determine a good guess.
-     * Looks for very large independent zones which have to be guessed.
-     * Very large brute force at the end of the game and uses guesses which minimise the solution space.
+     * Does trivial, Local and Probability Engine searches.
+     * Does a very large brute force search with a 40000 solution deep analysis.
+     * This WILL cause performance issues and should only be used for single move analysis.
      */
-    /*
-    final static public Preferences VERY_LARGE_BRUTE_FORCE = new Preferences() {
+    final static public Preferences VERY_LARGE_ANALYSIS = new Preferences() {
 
 		@Override
 		public void setVariables() {
 
-		    ZONE_MAX = new BigInteger("20000000");  // 20 million
+			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 40000;  // 40,000
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 200000000;  // 200 millions
+			BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 4;          // too much tree depth will cause memory to run out
+			BRUTE_FORCE_MAX = new BigInteger("50000000");  // 50 million
 		    USE_MIN_MAX = true;
 		}
     	
     };
-	*/
+    
+    /**
+     * Does trivial, Local and Probability Engine searches.
+     * Does a very large brute force search with a 400000 solution deep analysis.
+     * This WILL cause performance issues and should only be used for single move analysis.
+     */
+    final static public Preferences MAX_ANALYSIS = new Preferences() {
+
+		@Override
+		public void setVariables() {
+
+			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400000;  // 400,000
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 2000000000;  // 2 billion
+			BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 3;          // too much tree depth will cause memory to run out
+			BRUTE_FORCE_MAX = new BigInteger("100000000");  // 100 million
+		    USE_MIN_MAX = true;
+		}
+    	
+    };
 }

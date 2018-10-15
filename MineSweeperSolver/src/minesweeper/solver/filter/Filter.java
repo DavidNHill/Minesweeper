@@ -22,6 +22,7 @@ public abstract class Filter {
 		
         filtered = true;
         
+        /*
         int count = output.size();
         
         String desc = "[" + stamp + ":" + count + "]";
@@ -30,7 +31,8 @@ public abstract class Filter {
         for (CandidateLocation l: output) {
         	l.appendDescription(desc);
         }
-		
+		*/
+        
 	}
 	
 }
