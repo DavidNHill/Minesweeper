@@ -2,8 +2,8 @@ package minesweeper.solver.constructs;
 
 import java.math.BigDecimal;
 
-import minesweeper.gamestate.Action;
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 abstract public class ProbabilityLocation extends Location {
 

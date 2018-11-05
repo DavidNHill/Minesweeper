@@ -5,27 +5,36 @@
 package minesweeper.solver;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Area;
+import minesweeper.structure.Location;
 
 /**
- *
- * @author David
+ *  Represents an independent zone in the game.
  */
 public class Zone implements Comparable<Zone>{
     
     private final static int[] DX = {0, 1, 1, 1, 0, -1, -1, -1};
     private final static int[] DY = {-1, -1, 0, 1, 1, 1, 0, -1};
     
+  
+    
     //private GameStateModel gameState;
     private BoardState solver;
     
-    private List<Location> interiorList;
-    private List<Location> witnessList;
-    private boolean allSquaresWitnessed = true;
+    private List<Location> interiorList;    // un-revealed tiles inside the zone
+    private List<Location> witnessList;     // witnesses which are part of this zone
+    private Area witnessedArea;             // the area witnessed by the witnesses
+    private boolean allSquaresWitnessed = false;
             
+    private Set<Integer> mergeWith = new HashSet<>();
+    
+    
     // assume the zone doesn't share a witness with any other for the moment
     private boolean independent = true;
     
@@ -33,44 +42,53 @@ public class Zone implements Comparable<Zone>{
     // the rest of the board first
     private boolean solveLast = false;
     
-    public Zone(BoardState solver, Location l, boolean[][] boardCheck) {
+    private final int zoneIndex;
+    
+    public Zone(BoardState solver, Location l, int[][] boardCheck, int zoneIndex) {
         
     	this.solver = solver;
-        //this.gameState = solver.getGame();
+        this.zoneIndex = zoneIndex;
         
-        createZone(l, boardCheck);
+        createZone(l, boardCheck, zoneIndex);
         
     }
     
-    private void createZone(Location loc, boolean[][] boardCheck) {
+    private void createZone(Location loc, int[][] boardCheck, int zoneIndex) {
         
        
-        boolean[][] board = new boolean[solver.getGameWidth()][solver.getGameHeight()];
+        //boolean[][] board = new boolean[solver.getGameWidth()][solver.getGameHeight()];
         
         interiorList = new ArrayList<>(240);
         witnessList = new ArrayList<>();
  
         // determine the interior and perimeter of this zone
-        expand1(interiorList, witnessList, board, loc);
+        expand1(interiorList, witnessList, boardCheck, loc, zoneIndex);
+        
+        witnessedArea = solver.getUnrevealedArea(witnessList);
+        
+        if (witnessedArea.size() == interiorList.size()) {
+        	allSquaresWitnessed = true;
+        }
         
         //solver.display("Zone of size " + interiorList.size() + " created with " + witnessList.size() + " witnesses, all squares witnessed: " + allSquaresWitnessed);
         
     }
     
-    private void expand1(List<Location> interiorList, List<Location> witnessList, boolean[][] board, Location loc) {
+    private void expand1(List<Location> interiorList, List<Location> witnessList, int[][] board, Location loc, int zoneIndex) {
         
         // add this location to the interior array list
-        board[loc.x][loc.y] = true;
+        board[loc.x][loc.y] = zoneIndex;
         interiorList.add(loc);
         
         int processFrom = 0;
+        
+        final int height = solver.getGameHeight();
+        final int width = solver.getGameWidth();
         
         while (processFrom < interiorList.size()) {
         	
         	// get the current location to process surrounding squares
         	Location cl = interiorList.get(processFrom);
-        	
-        	boolean noWitness = true;
         	
             for (int i=0; i < DX.length; i++) {
                 
@@ -79,59 +97,65 @@ public class Zone implements Comparable<Zone>{
 
                 
                 // check each of the surrounding squares which haven't already been checked
-                if (x1 >= 0 && x1 < solver.getGameWidth() && y1 >= 0 && y1 < solver.getGameHeight()) {
+                if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
 
-                    Location l = new Location(x1, y1);
-                    
-                    int n;
-                    if (solver.isConfirmedFlag(l)) {
-                    	n = GameStateModel.FLAG;
-                    } else if (solver.isUnrevealed(l)) {
-                    	n = GameStateModel.HIDDEN;
-                    } else {
-                    	n = solver.getWitnessValue(l);
-                    }                	
+                    int index = board[x1][y1];
 
-                    if (n > 0) {
-                    	noWitness = false;
-                    }
-                	
-                	if (!board[x1][y1]) {
+                	if (index != zoneIndex) {
                        
+                        Location l = new Location(x1, y1);
+
+                        int n;
+                        if (solver.isConfirmedFlag(l)) {
+                        	n = GameStateModel.FLAG;
+                        } else if (solver.isUnrevealed(l)) {
+                        	n = GameStateModel.HIDDEN;
+                        } else {
+                        	n = solver.getWitnessValue(l);
+                        }                	
+                        
                         // if the squares is hidden then add it to the list
                         if (n == GameStateModel.HIDDEN) {
-                        	board[l.x][l.y] = true;
+                        	board[l.x][l.y] = zoneIndex;
                             interiorList.add(l);
                         } else if ( n !=  GameStateModel.FLAG){
-                            board[l.x][l.y] = true;
+                        	if (index != 0) {
+                        		//solver.display("Merge with zone " + index);
+                        		mergeWith.add(index);
+                        	}
+                            board[l.x][l.y] = zoneIndex;
                             witnessList.add(l);
                         }
                 	}
                 }
             }     
 
-            if (noWitness) {
-            	allSquaresWitnessed = false;
-            }
-            
             processFrom++;
         }
 
         
     }
 
-    // return a copy of the array which represents the interior of this zone
+    /**
+     * return all the un-revealed tiles within this zone
+     */
     public List<Location> getInterior() {
-        
         return interiorList;
-        
     }
-    // return a copy of the array which represents the witnesses of this zone
-    public List<Location> getWitness() {
-        
+    
+    /**
+     * return the witnesses of this zone
+     */
+    public List<Location> getWitnesses() {
         return witnessList;
-        
     }    
+    
+    /**
+     * return an area containing the tiles witnessed in this zone
+     */
+    public Area getWitnessedArea() {
+    	return witnessedArea;
+    }
     
     // does this zone contain the passed location?
     public boolean contains(Location loc) {
@@ -196,6 +220,9 @@ public class Zone implements Comparable<Zone>{
             }
         }
         
+        // merge the witnessed areas
+        witnessedArea = witnessedArea.merge(zone.witnessedArea);
+        
         // all the squares are witnessed if they are witnessed in both zones
         this.allSquaresWitnessed = this.allSquaresWitnessed() & zone.allSquaresWitnessed;
         
@@ -219,7 +246,7 @@ public class Zone implements Comparable<Zone>{
      */
     public WitnessWeb createWitnessWeb(BoardState solver) {
     	
-    	WitnessWeb web = new WitnessWeb(solver, witnessList, interiorList);
+    	WitnessWeb web = new WitnessWeb(solver, witnessList, witnessedArea.getLocations());
     	
     	return web;
     	
@@ -229,6 +256,14 @@ public class Zone implements Comparable<Zone>{
 	public int compareTo(Zone o) {
 		// sort by the size of the zone
 		return this.interiorList.size() - o.interiorList.size();
+	}
+	
+	public Collection<Integer> getMerges() {
+		return mergeWith;
+	}
+	
+	public int getIndex() {
+		return zoneIndex;
 	}
     
 }

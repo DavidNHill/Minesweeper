@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 public class BoardStateCache {
 

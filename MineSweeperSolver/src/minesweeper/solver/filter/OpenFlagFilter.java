@@ -3,9 +3,9 @@ package minesweeper.solver.filter;
 import java.util.ArrayList;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.SubLocation;
+import minesweeper.structure.Location;
 
 public class OpenFlagFilter extends Filter {
 

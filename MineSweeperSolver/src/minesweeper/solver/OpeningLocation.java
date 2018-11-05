@@ -3,7 +3,7 @@ package minesweeper.solver;
 import java.util.ArrayList;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 public class OpeningLocation extends Location {
 

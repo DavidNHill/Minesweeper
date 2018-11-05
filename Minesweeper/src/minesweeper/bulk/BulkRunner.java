@@ -1,15 +1,15 @@
 package minesweeper.bulk;
 
-import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 public class BulkRunner implements Runnable {
 	
@@ -105,7 +105,7 @@ public class BulkRunner implements Runnable {
 			}
 
 			if (moves.length == 0) {
-				System.err.println("No moves returned by the solver");
+				System.err.println("No moves returned by the solver for game " + gs.showGameKey());
 				stop = true;
 				return false;
 			}            

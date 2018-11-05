@@ -28,13 +28,13 @@ public class LinkedFilter extends Filter {
         for (CandidateLocation l: input) {
             for (LinkedLocation s: links) {
                 if (s.equals(l)) {
-                	if (s.getLinks() > numLinks) {
-                    	numLinks = s.getLinks();
+                	if (s.getLinksCount() > numLinks) {
+                    	numLinks = s.getLinksCount();
                         output.clear();
                     	output.add(l);
                         found = true;
                         break;                		
-                	} else if (s.getLinks() == numLinks) {
+                	} else if (s.getLinksCount() == numLinks) {
                 		output.add(l);
                 	}
 

@@ -4,7 +4,7 @@
  */
 package minesweeper.solver.iterator;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 /**
  *

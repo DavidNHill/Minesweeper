@@ -1,7 +1,7 @@
 package minesweeper.solver;
 
-import minesweeper.gamestate.Action;
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 abstract public class BruteForceAnalysisModel {
 
@@ -32,5 +32,7 @@ abstract public class BruteForceAnalysisModel {
 	abstract protected Action getNextMove(BoardState boardState);
 	
 	abstract protected Location getExpectedMove();
+	
+	abstract protected boolean allDead();
 	
 }

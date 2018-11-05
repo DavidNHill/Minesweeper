@@ -10,11 +10,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.utility.BigDecimalCache;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
@@ -517,6 +517,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	private int cacheHit = 0;
 	private int cacheSize = 0;
 	private int cacheWinningLines = 0;
+	private boolean allDead = false;   // this is true if all the locations are dead
 	
 	// some work areas to prevent having to instantiate many 1000's of copies of them 
 	//private final boolean[] values = new boolean[9];
@@ -576,6 +577,10 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		// create the top node 
 		Node top = buildTopNode(allSolutions);
+		
+		if (top.getLivingLocations().isEmpty()) {
+			allDead = true;
+		}
 		
 		int best = 0;
 		
@@ -824,6 +829,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	private String percentage(BigDecimal prob) {
 		
 		return Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED));
+	}
+
+	@Override
+	protected boolean allDead() {
+		return allDead;
 	}
 	
 }

@@ -12,6 +12,7 @@ import java.util.Random;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Location;
 
 /**
  * A Version of Minesweeper which ensures the first click does not have any mines surrounding it

@@ -6,9 +6,8 @@
 package minesweeper.solver;
 
 import Asynchronous.Asynchronous;
-import minesweeper.gamestate.Location;
-import minesweeper.solver.constructs.HookLocation;
 import minesweeper.solver.iterator.Iterator;
+import minesweeper.structure.Location;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -24,19 +23,19 @@ public class Cruncher implements Asynchronous<CrunchResult> {
     private List<Location> square;
     private List<? extends Location> witness;
     private boolean calculateDistribution;
-    private List<HookLocation> hooks;
+    //private List<HookLocation> hooks;
     private final BruteForceAnalysisModel bfa;
     
     private CrunchResult result;
     
    
-    public Cruncher(Solver solver, List<Location> square, List<? extends Location> witness, List<HookLocation> hooks, Iterator iterator, boolean calculateDistribution, BruteForceAnalysisModel bfa) {
+    public Cruncher(Solver solver, List<Location> square, List<? extends Location> witness, Iterator iterator, boolean calculateDistribution, BruteForceAnalysisModel bfa) {
         
         this.solver = solver;
         this.iterator = iterator;
         this.square = square;
         this.witness = witness;
-        this.hooks = hooks;
+        //this.hooks = hooks;
         this.calculateDistribution = calculateDistribution;
         this.bfa = bfa;
        
@@ -46,7 +45,7 @@ public class Cruncher implements Asynchronous<CrunchResult> {
     @Override
     public void start() {
         
-        result = solver.crunch(square, witness, hooks, iterator, calculateDistribution, bfa);
+        result = solver.crunch(square, witness, iterator, calculateDistribution, bfa);
         //System.out.println("Candidates = " + result.bigGoodCandidates);
         result.setWeight(BigInteger.ONE);
         

@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Location;
 
 /**
  * A Version of Minesweeper which reads the board state from a file

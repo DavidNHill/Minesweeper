@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
 import minesweeper.solver.Solver;
+import minesweeper.structure.Location;
 
 /**
  *
@@ -23,7 +23,7 @@ public class Witness extends Location {
     
     private int webNum = 0;
 
-    private final List<Square> squares = new ArrayList<>();
+    private final List<Square> squares;
     
     private final List<Box> boxes = new ArrayList<>();
     
@@ -33,7 +33,7 @@ public class Witness extends Location {
     	super(loc.x, loc.y);
         
         this.mines = mines;
-        squares.addAll(adjSqu);
+        squares = adjSqu;
 
         this.iterations = Solver.combination(mines, squares.size()).intValue();
         
@@ -85,6 +85,11 @@ public class Witness extends Location {
             return false;
         }
         
+        // if the locations are too far apart they can't share the same squares
+        if (Math.abs(wit.x - this.x) > 2 || Math.abs(wit.y - this.y) > 2) {
+        	return false;
+        }
+        
         for (Square l1: squares) {
             boolean found = false; 
             for (Square l2: wit.getSquares()) {
@@ -103,6 +108,11 @@ public class Witness extends Location {
 
     public boolean overlap(Witness w) {
         
+        // if the locations are too far apart they can't share any of the same squares
+        if (Math.abs(w.x - this.x) > 2 || Math.abs(w.y - this.y) > 2) {
+        	return false;
+        }
+    	
         boolean result = false;
         
         top: for (Square s: w.squares) {

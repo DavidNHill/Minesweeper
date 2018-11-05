@@ -10,11 +10,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.utility.BigDecimalCache;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 public class BruteForceAnalysisOld extends BruteForceAnalysisModel{
 	
@@ -800,6 +800,12 @@ public class BruteForceAnalysisOld extends BruteForceAnalysisModel{
 	private String percentage(BigDecimal prob) {
 		
 		return Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED));
+	}
+
+	@Override
+	protected boolean allDead() {
+		// TODO Auto-generated method stub
+		return false;
 	}
 	
 }

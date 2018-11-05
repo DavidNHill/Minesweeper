@@ -5,6 +5,8 @@
 package minesweeper.gamestate;
 
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 /**
  * An abstract representation of a game of Minesweeper.

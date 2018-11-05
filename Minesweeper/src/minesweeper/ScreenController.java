@@ -44,10 +44,8 @@ import javafx.stage.FileChooser.ExtensionFilter;
 import javafx.stage.Popup;
 import minesweeper.bulk.BulkController;
 import minesweeper.coach.HelperController;
-import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
-import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNGJava;
@@ -55,6 +53,8 @@ import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 /**
  *

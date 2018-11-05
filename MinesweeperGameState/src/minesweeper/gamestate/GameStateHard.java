@@ -12,6 +12,7 @@ import java.util.Random;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Location;
 
 /**
  * A Version of Minesweeper where the first click can be a mine

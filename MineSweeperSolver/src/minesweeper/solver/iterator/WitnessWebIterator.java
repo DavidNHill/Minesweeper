@@ -8,9 +8,9 @@ package minesweeper.solver.iterator;
 import java.util.ArrayList;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
 import minesweeper.solver.WitnessWeb;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.structure.Location;
 
 /**
  *

@@ -2,11 +2,13 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package minesweeper.gamestate;
+package minesweeper.structure;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.Comparator;
+
+import minesweeper.gamestate.MoveMethod;
 
 
 /**

@@ -22,10 +22,10 @@ import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import minesweeper.Graphics;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
 import minesweeper.random.DefaultRNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
+import minesweeper.structure.Location;
 
 public class BulkController {
 

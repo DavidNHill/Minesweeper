@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.List;
 
 import Monitor.AsynchMonitor;
-import minesweeper.gamestate.Location;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.ProbabilityLocation;
 import minesweeper.solver.constructs.Square;
@@ -16,6 +15,7 @@ import minesweeper.solver.constructs.SuperLocation;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.constructs.ZeroLocation;
 import minesweeper.solver.iterator.WitnessWebIterator;
+import minesweeper.structure.Location;
 
 public class BruteForce {
 
@@ -75,7 +75,7 @@ public class BruteForce {
 
 
 		// and crunch the result if we have something to check against
-		if (web.getWitnesses().size() >= 0) {
+		if (web.getPrunedWitnesses().size() >= 0) {
 
 			iterations = web.getIterations(mines);
 
@@ -90,7 +90,7 @@ public class BruteForce {
 				//}
 				
 			
-				crunchResult  = crunchParallel(web.getSquares(), web.getWitnesses(), true, iterators);
+				crunchResult  = crunchParallel(web.getSquares(), web.getPrunedWitnesses(), true, iterators);
 
 				// if there are too many to process then don't bother 
 				if (this.bruteForceAnalysis != null && this.bruteForceAnalysis.tooMany()) {
@@ -115,7 +115,7 @@ public class BruteForce {
 				hasRun = true;
 				
 				//TODO zero additional mines calculater - do we want it?
-				if (crunchResult.bigGoodCandidates.compareTo(BigInteger.ZERO) != 0) {
+				if (crunchResult.bigGoodCandidates.signum() != 0) {
 					BigInteger hwm = BigInteger.ZERO;
 					int best = -1;
 					for (int i=0; i < crunchResult.getSquare().size(); i++) {
@@ -167,7 +167,7 @@ public class BruteForce {
 
 
 		// if there is only one cog then we can't lock it,so send back a single iterator
-		if (web.getIndependentWitnesses().size() == 1 && web.getIndependentMines() >= mines || totalIterations.compareTo(Solver.PARALLEL_MINIMUM) < 0 || web.getWitnesses().size() == 0) {
+		if (web.getIndependentWitnesses().size() == 1 && web.getIndependentMines() >= mines || totalIterations.compareTo(Solver.PARALLEL_MINIMUM) < 0 || web.getPrunedWitnesses().size() == 0) {
 			boardState.display("Only a single iterator will be used");
 			WitnessWebIterator[] result = new WitnessWebIterator[1];
 			result[0] = new WitnessWebIterator(web, mines);
@@ -203,7 +203,7 @@ public class BruteForce {
 		Cruncher[] crunchers = new Cruncher[iterator.length];
 
 		for (int i=0; i < iterator.length; i++) {
-			crunchers[i] = new Cruncher(solver, iterator[i].getLocations(), witness, null, iterator[i], calculateDistribution, bruteForceAnalysis);
+			crunchers[i] = new Cruncher(solver, iterator[i].getLocations(), witness, iterator[i], calculateDistribution, bruteForceAnalysis);
 		}
 		//Cruncher cruncher = new Cruncher(this, square, witness, hooks, iterator, calculateDistribution);
 
@@ -231,7 +231,7 @@ public class BruteForce {
 
 
 		// if there were no good candidates then there is nothing to check
-		if (output.bigGoodCandidates.compareTo(BigInteger.ZERO) == 0) {
+		if (output.bigGoodCandidates.signum() == 0) {
 			return false;
 		}
 
@@ -239,7 +239,7 @@ public class BruteForce {
 		// mine is never present
 		for (int i=0; i < output.bigTally.length; i++) {
 
-			if (output.bigTally[i].compareTo(BigInteger.ZERO) == 0) {
+			if (output.bigTally[i].signum() == 0) {
 				
 				return true;
 
@@ -414,7 +414,7 @@ public class BruteForce {
 					}
 					
 					// work out the % chance of it happening or if zero chance discard the location
-					if (count.compareTo(BigInteger.ZERO) != 0) {
+					if (count.signum() != 0) {
 						BigDecimal prob = new BigDecimal(count).divide(new BigDecimal(crunchResult.bigGoodCandidates), Solver.DP, RoundingMode.HALF_UP);
 						pl.setProbability(prob);
 						boardState.display(pl.display() + " has probability " + prob);

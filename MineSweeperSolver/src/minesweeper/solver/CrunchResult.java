@@ -7,7 +7,7 @@ package minesweeper.solver;
 import java.math.BigInteger;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 /**
  *
@@ -154,7 +154,7 @@ public class CrunchResult {
                 BigInteger max = BigInteger.ZERO;
                 int maxIndex = 0;
                 for (int j=0; j < this.bigDistribution[i].length; j++) {
-                    if (this.bigDistribution[i][j].compareTo(BigInteger.ZERO) != 0) {
+                    if (this.bigDistribution[i][j].signum() != 0) {
                         this.bigCount[i]++;
                     }
                     if (this.bigDistribution[i][j].compareTo(max) > 0) {

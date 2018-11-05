@@ -7,8 +7,7 @@ package minesweeper.solver.constructs;
 import java.util.ArrayList;
 import java.util.List;
 
-import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 /**
  *

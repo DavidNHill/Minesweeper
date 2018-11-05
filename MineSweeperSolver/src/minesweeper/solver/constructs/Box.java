@@ -3,7 +3,7 @@ package minesweeper.solver.constructs;
 import java.util.ArrayList;
 import java.util.List;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 /**
  * A Box contains all the squares that share the same witnesses. A consequence of this is that they

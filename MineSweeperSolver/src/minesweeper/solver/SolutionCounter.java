@@ -11,15 +11,12 @@ import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Witness;
 
 /**
- * This class uses a non iterative approach to calculating probabilities for each {@link minesweeper.solver.constructs.Box Box}. It is driven by a {@link minesweeper.solver.WitnessWeb witness web}.
+ * This class uses a non iterative approach to calculating the number of candidate solution in the game. It is driven by a {@link minesweeper.solver.WitnessWeb witness web}.
  * 
- * @author David
- *
  */
 public class SolutionCounter {
 
-	private int[][] SMALL_COMBINATIONS = new int[][] {new int[] {1}, new int[] {1,1}, new int[] {1,2,1}, new int[] {1,3,3,1}, new int[] {1,4,6,4,1}, new int[] {1,5,10,10,5,1}, new int[] {1,6,15,20,15,6,1}, new int[] {1,7,21,35,35,21,7,1},new int[] {1,8,28,56,70,56,28,8,1}};
-	
+	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
 	// used to hold a viable solution 
 	private class ProbabilityLine implements Comparable<ProbabilityLine> {
@@ -27,13 +24,9 @@ public class SolutionCounter {
 		private BigInteger solutionCount = BigInteger.ZERO;
 		private BigInteger[] mineBoxCount  = new BigInteger[boxCount];
 		
-		//private BigInteger[] hashCount  = new BigInteger[boxCount];
-		//private BigInteger hash = new BigInteger(20, new Random());
-		
 		{
 			for (int i=0; i < mineBoxCount.length; i++) {
 				mineBoxCount[i] = BigInteger.ZERO;
-				//hashCount[i] = BigInteger.ZERO;
 			}
 		}
 		
@@ -75,9 +68,6 @@ public class SolutionCounter {
 	//when set to true indicates that the box has been part of this analysis
 	private boolean[] mask;           
 	
-	//private List<LinkedLocation> linkedLocations = new ArrayList<>();
-	//private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
-	
 	final private BoardState solver;
 	final private WitnessWeb web;
 	final private int boxCount;
@@ -90,12 +80,12 @@ public class SolutionCounter {
 	private int recursions = 0;
 	
 	private BigInteger finalSolutionsCount;
+	private int clearCount;
 	
 	// these are the limits that can be on the edge
 	final private int minTotalMines;
 	final private int maxTotalMines;
 	
-	//final private Set<Integer> mineCounts = new HashSet<>();
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
@@ -111,7 +101,7 @@ public class SolutionCounter {
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);
 		
-		this.witnesses = web.getWitnesses();
+		this.witnesses = web.getPrunedWitnesses();
 		this.boxes = web.getBoxes();
 		
 		this.boxCount = boxes.size();
@@ -130,6 +120,12 @@ public class SolutionCounter {
 	 * Run the solution counter
 	 */
 	public void process() {
+		
+		if (!web.isWebValid()) {  // if the web is invalid then nothing we can do
+			solver.display("Web is invalid - skipping the SolutionCounter processing");
+			finalSolutionsCount = BigInteger.ZERO;
+			return;
+		}
 		
 		long startTime = System.currentTimeMillis();
 		
@@ -292,8 +288,7 @@ public class SolutionCounter {
 
 	}
 	
-	// here we expand the localised solution to one across the whole board and
-	// sum them together to create a definitive probability for each box
+	// here we calculate the total number of candidate solutions left in the game
 	private void calculateBoxProbabilities() {
 		
 		// total game tally
@@ -301,6 +296,11 @@ public class SolutionCounter {
 		
 		// outside a box tally
 		BigInteger outsideTally = BigInteger.ZERO;
+		
+		boolean[] emptyBox = new boolean[boxCount];
+		for (int i=0; i < emptyBox.length; i++) {
+			emptyBox[i] = true;
+		}						
 		
 		// calculate how many mines 
 		for (ProbabilityLine pl: heldProbs) {
@@ -318,13 +318,27 @@ public class SolutionCounter {
 				// this is all the possible ways the mines can be placed across the whole game
 				totalTally = totalTally.add(mult.multiply(pl.solutionCount));
 				
+				for (int i=0; i < emptyBox.length; i++) {
+					if (pl.mineBoxCount[i].signum() != 0) {
+						emptyBox[i] = false;
+					}
+				}				
 			}
-
 		}		
 
+		// determine how many clear squares there are
+		if (totalTally.signum() > 0) {
+			for (int i=0; i < emptyBox.length; i++) {
+				if (emptyBox[i]) {
+					 clearCount = clearCount + boxes.get(i).getSquares().size();
+				}
+			}						
+		}
+	
+		//solver.display("Game has " + clearCount + " clears available");
 		finalSolutionsCount = totalTally;
 
-		//solver.display("probability off web is " + outsideProb);
+		//solver.display("Number of solutions is " + finalSolutionsCount);
 		
 		
 	}
@@ -515,6 +529,14 @@ public class SolutionCounter {
 	 */
 	protected BigInteger getSolutionCount() {
 		return finalSolutionsCount;
+	}
+	
+	/**
+	 * The number of locations which are definitely clears
+	 * @return
+	 */
+	protected int getClearCount() {
+		return clearCount;
 	}
 	
 	/**

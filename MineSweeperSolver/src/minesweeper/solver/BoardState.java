@@ -2,129 +2,26 @@ package minesweeper.solver;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import minesweeper.gamestate.Action;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.BoardStateCache.AdjacentSquares;
 import minesweeper.solver.BoardStateCache.Cache;
 import minesweeper.solver.constructs.ChordLocation;
+import minesweeper.structure.Action;
+import minesweeper.structure.Area;
+import minesweeper.structure.Location;
 
 public class BoardState {
 
 	private final static int[] DX = {0, 1, 1, 1, 0, -1, -1, -1};
 	private final static int[] DY = {-1, -1, 0, 1, 1, 1, 0, -1};
 
-
-	/*
-	// iterator for adjacent squares
-	protected class AdjacentSquares implements Iterable<Location> {
-
-		private Location loc;
-		//private Location nextLoc;
-		//private int index = 0;
-		private final int size;
-		private List<Location> locations;
-
-		private AdjacentSquares(Location l) {
-			this(l, 1);
-		}
-		
-		AdjacentSquares(Location l, int size) {
-			this.loc = l;
-			this.size = size;
-			
-			if (size == 1) {
-				locations = new ArrayList<>(8);
-				for (int i=0; i < DX.length; i++) {
-					if (loc.x + DX[i] >= 0 && loc.x + DX[i] < myGame.getx() && loc.y + DY[i] >= 0 && loc.y + DY[i] < myGame.gety()) {
-						locations.add(new Location(loc.x + DX[i], loc.y + DY[i]));
-					}		
-					
-				}
-			} else {
-				int startX = Math.max(0, loc.x - this.size);
-				int endX = Math.min(myGame.getx() - 1, loc.x + this.size);
-				
-				int startY = Math.max(0, loc.y - this.size);
-				int endY = Math.min(myGame.gety() - 1, loc.y + this.size);
-				
-				locations = new ArrayList<>((this.size * 2 - 1) * (this.size * 2 - 1));
-				for (int i=startX; i <= endX; i++) {
-					for (int j=startY; j <= endY; j++) {
-						if (i == loc.x && j == loc.y) {
-							// don't send back the central location
-						} else {
-							locations.add(new Location(i,j));
-						}
-						
-					}
-				}				
-			}
-
-		
-		}
-
-		@Override
-		public Iterator<Location> iterator() {
-			return locations.iterator();
-			//return new AdjacentSquaresIterator(this);
-		}
-
-	}
-	*/
-
-	/*
-	private class AdjacentSquaresIterator implements Iterator<Location> {
-		
-		private AdjacentSquares source;
-		private Location nextLoc;
-		private int index = 0;
-		
-		private AdjacentSquaresIterator(AdjacentSquares source) {
-			this.source = source;
-
-			nextLoc = findNext();
-		}
-		
-		@Override
-		public boolean hasNext() {
-			return (nextLoc != null);
-		}
-
-		@Override
-		public Location next() {
-
-			Location result = nextLoc;
-			nextLoc = findNext();
-
-			return result;
-		}
-
-		private Location findNext() {
-
-			Location next;
-			if (index < source.locations.size()) {
-				 next = source.locations.get(index);
-			} else {
-				next = null;
-			}
-			
-			index++;
-			
-			return next;
-
-		}
-		
-	}
-	*/
-	
 	private AdjacentSquares[][] adjacentLocations1;
 	private AdjacentSquares[][] adjacentLocations2;
 
@@ -150,8 +47,10 @@ public class BoardState {
 	//private int clearAllValue;
 	//private List<Action> clearAllList = new ArrayList<>();
 	
-	private GameStateModel myGame;
-	private Solver solver;
+	private final GameStateModel myGame;
+	private final Solver solver;
+	private final int height;
+	private final int width;
 
 	private int totalFlags = 0;
 	private int totalFlagsConfirmed = 0;
@@ -159,18 +58,26 @@ public class BoardState {
 
 	private int[] unplayedMoves;
 
+	private int testMoveBalance = 0;
+	
+	private Set<Location> livingWitnesses = new HashSet<>();
+	
 	public BoardState(Solver solver) {
 
 		this.solver = solver;
 		this.myGame = solver.getGame();
+		this.width = myGame.getWidth();
+		this.height = myGame.getHeight();
 
 		flagConfirmed = new boolean[myGame.getWidth()][myGame.getHeight()];
 		adjFlagsConfirmed =  new int[myGame.getWidth()][myGame.getHeight()];
 		adjUnrevealed = new int[myGame.getWidth()][myGame.getHeight()];
 		revealed = new boolean[myGame.getWidth()][myGame.getHeight()];
 		board = new int[myGame.getWidth()][myGame.getHeight()];
-		//clearAll = new int[myGame.getx()][myGame.gety()];
-
+		
+		flagOnBoard = new boolean[myGame.getWidth()][myGame.getHeight()];
+		adjFlagsOnBoard = new int[myGame.getWidth()][myGame.getHeight()];
+		
 		action = new Action[myGame.getWidth()][myGame.getHeight()];
 
 		// look up the adjacent squares details
@@ -183,8 +90,8 @@ public class BoardState {
 		final int right =  myGame.getWidth() - 1;
 
 		//  set up how many adjacent locations there are to each square - they are all unrevealed to start with
-		for (int x=0; x < myGame.getWidth(); x++) {
-			for (int y=0; y < myGame.getHeight(); y++) {
+		for (int x=0; x < width; x++) {
+			for (int y=0; y < height; y++) {
 
 				int adjacent = 8;
 				// corners
@@ -208,23 +115,30 @@ public class BoardState {
 
 	public void process() {
 
-		flagOnBoard = new boolean[myGame.getWidth()][myGame.getHeight()];
-		adjFlagsOnBoard = new int[myGame.getWidth()][myGame.getHeight()];
+		//flagOnBoard = new boolean[myGame.getWidth()][myGame.getHeight()];
+		//adjFlagsOnBoard = new int[myGame.getWidth()][myGame.getHeight()];
 		totalFlags = 0;
 		totalFlagsConfirmed = 0;
 		numOfHidden = 0;
 
-		//clearAllLocation = null;
-		//clearAllValue = 1;
-		//clearAllList.clear();
-		
+		// clear down this array, which is a lot faster then defining it fresh
+		for (int i=0; i < width; i++) {
+			for (int j=0; j < height; j++) {
+				adjFlagsOnBoard[i][j] = 0;
+			}
+		}
+
 		// clear down the moves we collected last turn
 		actionList.clear();
-
+		
 		// load up what we can see on the board
-		for (int i=0; i < myGame.getWidth(); i++) {
-			for (int j=0; j < myGame.getHeight(); j++) {
-				int info = myGame.query(new Location(i, j));
+		for (int i=0; i < width; i++) {
+			for (int j=0; j < height; j++) {
+				
+				Location location = new Location(i, j);
+				
+				flagOnBoard[i][j] = false; // until proven otherwise
+				int info = myGame.query(location);
 
 				Action act = action[i][j];
 
@@ -241,7 +155,7 @@ public class BoardState {
 						
 						// inform its neighbours they have a flag on the board
 						for (int k=0; k < DX.length; k++) {
-							if (i + DX[k] >= 0 && i + DX[k] < myGame.getWidth() && j + DY[k] >= 0 && j + DY[k] < myGame.getHeight()) {
+							if (i + DX[k] >= 0 && i + DX[k] < width && j + DY[k] >= 0 && j + DY[k] < height) {
 								adjFlagsOnBoard[i + DX[k]][j + DY[k]]++;
 							}
 						}    							
@@ -264,13 +178,14 @@ public class BoardState {
 						// if this is a new unrevealed location then set it up and inform it's neighbours they have one less unrevealed adjacent location
 						if (!revealed[i][j]) {
 
+							livingWitnesses.add(location);  // add this to living witnesses
 							//display("Location (" + i + "," + j + ") is revealed");
 							
 							revealed[i][j] = true;
 							board[i][j] = info;            
 
 							for (int k=0; k < DX.length; k++) {
-								if (i + DX[k] >= 0 && i + DX[k] < myGame.getWidth() && j + DY[k] >= 0 && j + DY[k] < myGame.getHeight()) {
+								if (i + DX[k] >= 0 && i + DX[k] < width && j + DY[k] >= 0 && j + DY[k] < height) {
 									adjUnrevealed[i + DX[k]][j + DY[k]]--;
 								}
 							}    	
@@ -300,7 +215,17 @@ public class BoardState {
 
 			}
 		}
-
+		
+		List<Location> toRemove = new ArrayList<>();
+		for (Location wit: livingWitnesses) {
+			if (this.countAdjacentUnrevealed(wit) == 0) {
+				//display("Location " + wit.display() + " is now a dead witness");
+				toRemove.add(wit);
+			}
+		}
+		livingWitnesses.removeAll(toRemove);
+		
+		
 		// this sorts the moves by when they were discovered
 		Collections.sort(actionList, Action.SORT_BY_MOVE_NUMBER);
 
@@ -322,11 +247,11 @@ public class BoardState {
 	}
 
 	protected int getGameWidth() {
-		return this.myGame.getWidth();
+		return width;
 	}
 
 	protected int getGameHeight() {
-		return this.myGame.getHeight();
+		return height;
 	}
 
 	protected int getMines() {
@@ -344,6 +269,8 @@ public class BoardState {
 	 */
 	public void setAction(Action a, boolean addToList) {
 
+		//display("Setting action at " + a.display());
+		
 		if (action[a.x][a.y] != null) {
 			return;
 		}
@@ -351,6 +278,7 @@ public class BoardState {
 		action[a.x][a.y] = a;
 
 		if (solver.isFlagFree() && a.getAction() == Action.FLAG) {
+			setFlagConfirmed(a);
 			// if it is flag free and we are placing a flag then don't do it
 		} else if (isFlagOnBoard(a) && a.getAction() == Action.FLAG) {
 			// if the flag is already on the board then nothing to do
@@ -359,6 +287,9 @@ public class BoardState {
 			actionList.add(new Action(a, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 			actionList.add(a);			
 		} else {
+			if (a.getAction() == Action.FLAG) {
+				setFlagConfirmed(a);
+			}
 			actionList.add(a);
 		}
 
@@ -378,10 +309,17 @@ public class BoardState {
 		return this.actionList;
 	}
 
-	protected List<Action> getActions1() {
+	/**
+	 * This will consider chords when returning the moves to play
+	 */
+	protected List<Action> getActionsWithChords() {
 
-		List<Action> actions = new ArrayList<>();
+		// if we aren't using chords or none are available then skip all this expensive processing
+		if (!chordLocations.isEmpty() || !solver.isPlayChords()) {
+			return getActions();
+		}
 		
+		List<Action> actions = new ArrayList<>();
 		boolean[][] processed = new boolean[myGame.getWidth()][myGame.getHeight()];
 		
 		// sort the most beneficial chords to the top
@@ -486,40 +424,43 @@ public class BoardState {
 
 	}
 	
-	protected List<Location> getWitnesses1(List<? extends Location> square) {
+	/**
+	 * From the given locations, generate an area containing all the un-revealed squares around them
+	 */
+	protected Area getUnrevealedArea(List<? extends Location> witnesses) {
+		return new Area(getUnrevealedSquaresDo(witnesses));
+	}
+	
+	/**
+	 * From the given locations, generate all the un-revealed squares around them
+	 */
+	protected List<Location> getUnrevealedSquares(List<? extends Location> witnesses) {
+		return new ArrayList<Location>(getUnrevealedSquaresDo(witnesses));
+	}
+	
+	
+	private Set<Location> getUnrevealedSquaresDo(List<? extends Location> witnesses) {
 
-		List<Location> work = new ArrayList<>(100);
+		Set<Location> work = new HashSet<>(witnesses.size() * 3);       
 
-		//int n = 0;
-		for (Location loc: square) {
-
+		for (Location loc: witnesses) {
+			
 			for (Location adj: this.getAdjacentSquaresIterable(loc)) {
-				// determine the number of distinct witnesses
-				if (isRevealed(adj)) {
 
-					boolean dup = false;
-					for (Location l: work) {
-						if (adj.equals(l)) {
-							dup = true;
-							break;                        		
-						}
-					}
-					if (!dup) {
-						work.add(adj);
-					}
-
+				if (isUnrevealed(adj)) {
+					work.add(adj);
 				}            		
-
-			}            
-
+			}
+			
 		}
 
 		return work;
-
 	}
-
+	
+	
+	/*
 	// take a list of Locations and find all the un-revealed squares around them
-	protected List<Location> getUnrevealedSquares(List<? extends Location> witnesses) {
+	protected List<Location> getUnrevealedSquares1(List<? extends Location> witnesses) {
 
 		ArrayList<Location> work = new ArrayList<>();       
 
@@ -547,16 +488,17 @@ public class BoardState {
 
 		return work;
 	}
-
+	*/
+	
 	/**
 	 * Return all the unrevealed Locations on the board
 	 */
 	protected List<Location> getAllUnrevealedSquares() {
 
-		ArrayList<Location> work = new ArrayList<>(myGame.getWidth() * myGame.getHeight());       
+		ArrayList<Location> work = new ArrayList<>(width * height);       
 
-		for (int i=0; i < myGame.getWidth(); i++) {
-			for (int j=0; j < myGame.getHeight(); j++) {
+		for (int i=0; i < width; i++) {
+			for (int j=0; j < height; j++) {
 				if (isUnrevealed(i,j)) {
 					work.add(new Location(i,j));
 				}
@@ -566,12 +508,25 @@ public class BoardState {
 		return work;
 	}
 
+	protected List<Location> getAllLivingWitnesses() {
+		return new ArrayList<>(livingWitnesses);
+	}
+	
+	
 	/**
 	 * Return a list of Unrevealed Locations adjacent to this one
 	 */
 	protected List<Location> getAdjacentUnrevealedSquares(Location loc) {
 
 		return getAdjacentUnrevealedSquares(loc, 1);
+	}
+
+	/**
+	 * Return an Area of un-revealed Locations adjacent to this one
+	 */
+	protected Area getAdjacentUnrevealedArea(Location loc) {
+
+		return new Area(getAdjacentUnrevealedSquares(loc, 1));
 	}
 	
 	
@@ -647,6 +602,8 @@ public class BoardState {
 		board[l.x][l.y] = value;
 		revealed[l.x][l.y] = true;
 		
+		testMoveBalance++;
+		
 		//for (int k=0; k < DX.length; k++) {
 		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
 		//		adjUnrevealed[l.x + DX[k]][l.y + DY[k]]--;
@@ -661,6 +618,8 @@ public class BoardState {
 	protected void clearWitness(Location l) {    	 
 		board[l.x][l.y] = 0;
 		revealed[l.x][l.y] = false;
+		
+		testMoveBalance--;
 		
 		//for (int k=0; k < DX.length; k++) {
 		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
@@ -830,7 +789,7 @@ public class BoardState {
 		int result = 0;
 
 		for (int i=0; i < DX.length; i++) {
-			if (x + DX[i] >= 0 && x + DX[i] < myGame.getWidth() && y + DY[i] >= 0 && y + DY[i] < myGame.getHeight()) {
+			if (x + DX[i] >= 0 && x + DX[i] < width && y + DY[i] >= 0 && y + DY[i] < height) {
 				if (flagConfirmed[x + DX[i]][y + DY[i]] || flagOnBoard[x + DX[i]][y + DY[i]]) {
 					result++;
 				}
@@ -892,8 +851,8 @@ public class BoardState {
 	// check for flags which can be determined to be wrong
 	protected boolean validateData() {
 
-		for (int i=0; i < myGame.getWidth(); i++) {
-			for (int j=0; j < myGame.getHeight(); j++) {
+		for (int i=0; i < width; i++) {
+			for (int j=0; j < height; j++) {
 
 				// if there is an unconfirmed flag on the board but the solver
 				// thinks it is clear then the flag is wrong
@@ -963,6 +922,9 @@ public class BoardState {
 		
 	}
 
+	public int getTestMoveBalance() {
+		return this.testMoveBalance;
+	}
 	
 	protected void display(String text) {
 		solver.display(text);

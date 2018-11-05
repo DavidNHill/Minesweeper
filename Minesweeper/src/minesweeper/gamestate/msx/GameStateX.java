@@ -2,8 +2,8 @@ package minesweeper.gamestate.msx;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
-import minesweeper.gamestate.Location;
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Location;
 
 public class GameStateX extends GameStateModelViewer {
 

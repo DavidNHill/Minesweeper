@@ -5,7 +5,7 @@
  */
 package minesweeper.solver;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 /**
  *

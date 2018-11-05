@@ -2,7 +2,7 @@ package minesweeper.solver.constructs;
 
 import java.util.Comparator;
 
-import minesweeper.gamestate.Location;
+import minesweeper.structure.Location;
 
 public class ChordLocation extends Location {
 

@@ -6,18 +6,17 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 
-import minesweeper.gamestate.Location;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.structure.Area;
+import minesweeper.structure.Location;
 
 /**
  * This class uses a non iterative approach to calculating probabilities for each {@link minesweeper.solver.constructs.Box Box}. It is driven by a {@link minesweeper.solver.WitnessWeb witness web}.
@@ -27,7 +26,7 @@ import minesweeper.solver.constructs.Witness;
  */
 public class ProbabilityEngine {
 
-	private int[][] SMALL_COMBINATIONS = new int[][] {new int[] {1}, new int[] {1,1}, new int[] {1,2,1}, new int[] {1,3,3,1}, new int[] {1,4,6,4,1}, new int[] {1,5,10,10,5,1}, new int[] {1,6,15,20,15,6,1}, new int[] {1,7,21,35,35,21,7,1},new int[] {1,8,28,56,70,56,28,8,1}};
+	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
 	
 	// used to hold a viable solution 
@@ -101,6 +100,7 @@ public class ProbabilityEngine {
 	final private List<Box> boxes;
 	final private int minesLeft;                 // number of mines undiscovered in the game
 	final private int squaresLeft;               // number of squares undiscovered in the game and off the web
+	final private Area deadLocations;
 	
 	private int independentGroups = 0;
 	private int recursions = 0;
@@ -115,19 +115,20 @@ public class ProbabilityEngine {
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
-	public ProbabilityEngine(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft) {
+	public ProbabilityEngine(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft, Area deadLocations) {
 		
 		this.solver = solver;
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
+		this.deadLocations = deadLocations;
 		
 		this.minTotalMines = minesLeft - this.squaresLeft;  //we can't use so few mines that we can't fit the remainder elsewhere on the board
 		this.maxTotalMines = minesLeft;    // we can't use more mines than are left in the game
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);
 		
-		this.witnesses = web.getWitnesses();
+		this.witnesses = web.getPrunedWitnesses();
 		this.boxes = web.getBoxes();
 		
 		this.boxCount = boxes.size();
@@ -252,6 +253,8 @@ public class ProbabilityEngine {
 			result.add(npl);
 		//}	
 		
+		//solver.display(target.size() + " Probability Lines compressed to " + result.size()); 
+			
 		return result;
 		
 	}
@@ -271,7 +274,7 @@ public class ProbabilityEngine {
 			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
 	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
 				
-				if (pl.mineBoxCount[i].compareTo(BigInteger.ZERO) == 0) {
+				if (pl.mineBoxCount[i].signum() == 0) {
 					npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash.multiply(BigInteger.valueOf(boxes.get(i).getSquares().size())));   // treat no mines as -1 rather than zero
 				} else {
 					npl.hashCount[i] = npl.hashCount[i].add(pl.mineBoxCount[i].multiply(pl.hash));
@@ -418,7 +421,7 @@ public class ProbabilityEngine {
 		
 		
 		for (int i=0; i < boxProb.length; i++) {
-			if (totalTally.compareTo(BigInteger.ZERO) != 0) {
+			if (totalTally.signum() != 0) {
 				boxProb[i] = BigDecimal.ONE.subtract(new BigDecimal(tally[i]).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP));
 			} else {
 				boxProb[i] = BigDecimal.ZERO;
@@ -434,8 +437,8 @@ public class ProbabilityEngine {
 				
 				//if (hashTally[i].compareTo(hashTally[j]) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
 				if (hash1.compareTo(hash2) == 0) {
-					addLinkedLocation(linkedLocations, boxes.get(i));
-					addLinkedLocation(linkedLocations, boxes.get(j));
+					addLinkedLocation(linkedLocations, boxes.get(i), boxes.get(j));
+					addLinkedLocation(linkedLocations, boxes.get(j), boxes.get(i));
 					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i]);
 				}
 				
@@ -443,8 +446,8 @@ public class ProbabilityEngine {
 				//if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
 				if (hash1.compareTo(hash2.negate()) == 0) {
 					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is contra linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i] + " " + boxProb[j]);
-					addLinkedLocation(contraLinkedLocations, boxes.get(i));
-					addLinkedLocation(contraLinkedLocations, boxes.get(j));					
+					addLinkedLocation(contraLinkedLocations, boxes.get(i), boxes.get(j));
+					addLinkedLocation(contraLinkedLocations, boxes.get(j), boxes.get(i));					
 				}
 			}
 		}
@@ -453,7 +456,7 @@ public class ProbabilityEngine {
 		Collections.sort(linkedLocations, LinkedLocation.SORT_BY_LINKS_DESC);
 		
 		// avoid divide by zero
-		if (squaresLeft != 0 && totalTally.compareTo(BigInteger.ZERO) != 0) {
+		if (squaresLeft != 0 && totalTally.signum() != 0) {
 			offEdgeProbability = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(squaresLeft), Solver.DP, RoundingMode.HALF_UP));
 		} else {
 			offEdgeProbability = BigDecimal.ZERO;
@@ -465,16 +468,41 @@ public class ProbabilityEngine {
 		BigDecimal hwm = offEdgeProbability;
 		
 		offEdgeBest = true;
-		for (BigDecimal bd: boxProb) {
-			if (hwm.compareTo(bd) <= 0) {
-				offEdgeBest = false;
-				hwm = bd;
+		
+		for (Box b: boxes) {
+			boolean living = false;
+			for (Square squ: b.getSquares()) {
+				if (!deadLocations.contains(squ)) {
+					living = true;
+					break;
+				}
 			}
-			hwm = hwm.max(bd);
+			BigDecimal prob = boxProb[b.getUID()];
+			if (living || prob.compareTo(BigDecimal.ONE) == 0) {   // if living or 100% safe then consider this probability
+				
+				if (hwm.compareTo(prob) <= 0) {
+					offEdgeBest = false;
+					hwm = prob;
+				}				
+			}
 		}
 		
+		//for (BigDecimal bd: boxProb) {
+		//	if (hwm.compareTo(bd) <= 0) {
+		//		offEdgeBest = false;
+		//		hwm = bd;
+		//	}
+		//	hwm = hwm.max(bd);
+		//}
+		
 		bestProbability = hwm;
-		cutoffProbability = bestProbability.multiply(Solver.PROB_ENGINE_TOLERENCE);
+		
+		if (bestProbability.compareTo(BigDecimal.ONE) == 0) {
+			cutoffProbability = BigDecimal.ONE;
+		} else {
+			cutoffProbability = bestProbability.multiply(Solver.PROB_ENGINE_TOLERENCE);
+		}
+		
 		
 		//solver.display("probability off web is " + outsideProb);
 		
@@ -482,31 +510,20 @@ public class ProbabilityEngine {
 	}
 	
 	
-	private void addLinkedLocation(List<LinkedLocation> list, Box box) {
+	private void addLinkedLocation(List<LinkedLocation> list, Box box, Box linkTo) {
 		
 		top:for (Square s: box.getSquares()) {
 			
 			for (LinkedLocation ll: list) {
 				if (s.equals(ll)) {
-					ll.incrementLinks();
+					ll.incrementLinks(linkTo.getSquares());
 					continue top;
 				}
 			}		
 			
-			list.add(new LinkedLocation(s.x, s.y));
+			list.add(new LinkedLocation(s.x, s.y, linkTo.getSquares()));
 		}
 		
-		/*
-		Square s = box.getSquares().get(0);
-		for (LinkedLocation ll: list) {
-			if (s.equals(ll)) {
-				ll.incrementLinks();
-				return;
-			}
-		}
-		*/
-		
-
 	}
 	
 	
@@ -703,17 +720,25 @@ public class ProbabilityEngine {
 	 * The probability of a mine being in a square not considered by this process
 	 * @return
 	 */
-	protected BigDecimal getOutsideProb() {
+	protected BigDecimal getOffEdgeProb() {
 		return offEdgeProbability;
+	}
+	
+	/**
+	 * The probability of a mine being in a square not considered by this process
+	 * @return
+	 */
+	protected BigDecimal getBestOnEdgeProb() {
+		return bestProbability;
 	}
 	
 	/**
 	 * Moves with probability above this are candidate moves
 	 * @return
 	 */
-	protected BigDecimal geCutoffProb() {
-		return cutoffProbability;
-	}
+	//protected BigDecimal geCutoffProb() {
+	//	return cutoffProbability;
+	//}
 	
 	protected boolean isBestGuessOffEdge() {
 		return this.offEdgeBest;
@@ -737,11 +762,13 @@ public class ProbabilityEngine {
 		
 		// if the outside probability is the best then return an empty list
 		BigDecimal test;
-		if (offEdgeBest) {
-			solver.display("Best probability is off the edge " + bestProbability + " but will look for options on the edge only slightly worse");
-			//test = bestProbability.multiply(Solver.EDGE_TOLERENCE);
-			test = bestProbability.multiply(freshhold);
-		} else if (bestProbability.compareTo(BigDecimal.ONE) == 0){  // if we have a probability of one then don't allow lesser probs to get a look in
+		//if (offEdgeBest) {
+		//	solver.display("Best probability is off the edge " + bestProbability + " but will look for options on the edge only slightly worse");
+		//	//test = bestProbability.multiply(Solver.EDGE_TOLERENCE);
+		//	test = bestProbability.multiply(freshhold);
+		//} else 
+		
+		if (bestProbability.compareTo(BigDecimal.ONE) == 0){  // if we have a probability of one then don't allow lesser probs to get a look in
 			test = bestProbability;
 		} else {
 			test = bestProbability.multiply(freshhold);
@@ -752,10 +779,17 @@ public class ProbabilityEngine {
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].compareTo(test) >= 0) {
 				for (Square squ: boxes.get(i).getSquares()) {
-					best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], solver.countAdjacentUnrevealed(squ), solver.countAdjacentConfirmedFlags(squ)));
+					if (!deadLocations.contains(squ) || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
+						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], solver.countAdjacentUnrevealed(squ), solver.countAdjacentConfirmedFlags(squ)));
+					} else {
+						solver.display("Location " + squ.display() + " is ignored because it is dead");
+					}
 				}
 			}
 		}
+		
+		// sort in to best order
+		best.sort(CandidateLocation.SORT_BY_PROB_FLAG_FREE);
 		
 		return best;
 		
@@ -787,6 +821,22 @@ public class ProbabilityEngine {
 	
 	protected List<LinkedLocation> getLinkedLocations() {
 		return this.linkedLocations;
+	}
+	
+	/**
+	 * If this tile is a linked Location return the number of links it has, otherwise return 0
+	 * @param tile
+	 * @return
+	 */
+	protected LinkedLocation getLinkedLocation(Location tile) {
+		for (LinkedLocation ll: linkedLocations) {
+			if (ll.equals(tile)) {
+				return ll;
+			}
+		}
+		
+		return null;
+		
 	}
 	
 	protected List<LinkedLocation> getContraLinkedLocations() {

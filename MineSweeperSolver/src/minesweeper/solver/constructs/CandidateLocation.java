@@ -3,10 +3,10 @@ package minesweeper.solver.constructs;
 import java.math.BigDecimal;
 import java.util.Comparator;
 
-import minesweeper.gamestate.Action;
-import minesweeper.gamestate.Location;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.Solver;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 public class CandidateLocation extends Location {
 	
 	private final BigDecimal prob;
@@ -59,8 +59,12 @@ public class CandidateLocation extends Location {
 		
         String comment = description;
         
-        return new Action(this, Action.CLEAR, method, comment, prob);		
-		
+        if (prob.compareTo(BigDecimal.ZERO) == 0) {  // the best move is to place a flag
+        	return new Action(this, Action.FLAG, method, comment, BigDecimal.ONE);	
+        } else {
+        	return new Action(this, Action.CLEAR, method, comment, prob);	
+        }
+
 	}
 	
 	/**

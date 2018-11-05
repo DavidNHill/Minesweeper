@@ -1,6 +1,7 @@
 package minesweeper.gamestate;
 
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Location;
 
 /**
  * This contains a method to allow the viewer to see where the mines are
