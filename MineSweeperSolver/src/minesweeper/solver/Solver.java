@@ -19,17 +19,8 @@ import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.coach.CoachModel;
 import minesweeper.solver.coach.CoachSilent;
 import minesweeper.solver.constructs.CandidateLocation;
-import minesweeper.solver.constructs.LinkedLocation;
-import minesweeper.solver.constructs.SubLocation;
-import minesweeper.solver.constructs.SuperLocation;
-import minesweeper.solver.filter.ContraLinkedFilter;
-import minesweeper.solver.filter.Filter;
-import minesweeper.solver.filter.LinkedFilter;
-import minesweeper.solver.filter.MinMaxFilter;
-import minesweeper.solver.filter.NullFilter;
-import minesweeper.solver.filter.SolveLastFilter;
-import minesweeper.solver.filter.SubSquareFilter;
-import minesweeper.solver.filter.SuperSquareFilter;
+import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.constructs.WitnessData;
 import minesweeper.solver.iterator.Iterator;
 import minesweeper.solver.iterator.SequentialIterator;
 import minesweeper.solver.utility.Binomial;
@@ -61,6 +52,7 @@ public class Solver implements Asynchronous<Action[]> {
 
     }
     
+    /*
     private class FilterTransport{
     	
     	//private Filter hookFilter = NULL_FILTER;
@@ -74,6 +66,7 @@ public class Solver implements Asynchronous<Action[]> {
     	private ProbabilityEngine probabilityEngine;
     	
     }
+    */
     
     private class LoopCheck implements Runnable {
 
@@ -82,10 +75,15 @@ public class Solver implements Asynchronous<Action[]> {
 		@Override
 		public void run() {
 			
-			try {
-				Thread.sleep(2000);
-			} catch (InterruptedException e) {
-			}
+			int countDown = 100;
+			
+		    while (countDown > 0 && !finished) {
+				try {
+					Thread.sleep(20);
+				} catch (InterruptedException e) {
+				}		    	
+				countDown--;
+		    }
 			
 			if (!finished) {
 				System.out.println(myGame.showGameKey() + " might be looping");
@@ -93,20 +91,25 @@ public class Solver implements Asynchronous<Action[]> {
 			
 		}
 		
+		public void finishedOkay() {
+			finished = true;
+		}
+		
+		
     }
     
   
-    protected final static int DP = 20;
+    public final static int DP = 20;
     
     public final static BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 
     
-    private final static Filter NULL_FILTER = new NullFilter();
+    //private final static Filter NULL_FILTER = new NullFilter();
     
  
     final static BigDecimal EQUAL_TOLERENCE = new BigDecimal("1.00");
     final static BigDecimal PROB_ENGINE_TOLERENCE = new BigDecimal("0.96"); // was 0.96    -- consider tiles on the edge with a threshold of this from the best value
-    final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.98");  // was 0.96 --- consider off edge tiles which if they are above the threshold of the best on edge tile
+    final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.97");  // was 0.97 --- consider off edge tiles which if they are above the threshold of the best on edge tile
     //final static boolean USE_OFF_EDGE_HOOKS = true;
     final static boolean PRUNE_BF_ANALYSIS = true;
     
@@ -145,14 +148,15 @@ public class Solver implements Asynchronous<Action[]> {
     private BruteForce bf;
     
     private BruteForceAnalysisModel bruteForceAnalysis;
+    private EvaluateLocations evaluateLocations;
     
     private BigDecimal offContourBigProb;
     private WitnessWeb wholeEdge; 
     //private List<HookLocation> goodHooksOffEdge = new ArrayList<>();
     //private List<HookLocation> goodHooksOnEdge = new ArrayList<>();
     
-    private List<SubLocation> subSquares = new ArrayList<>();
-    private List<SuperLocation> superSquares = new ArrayList<>();
+    //private List<SubLocation> subSquares = new ArrayList<>();
+    //private List<SuperLocation> superSquares = new ArrayList<>();
     final private int[][] boardCheck;  // this is used in the determine zones processing - a lot more efficient to clear it down then redefine it each time
     
     private List<Location> bfdaStartLocations = null;
@@ -161,6 +165,12 @@ public class Solver implements Asynchronous<Action[]> {
     private List<Location> allWitnesses;
     //List<Location> allWitnessedSquares = boardState.getUnrevealedSquares(allWitnesses);
     private Area allWitnessedSquares;
+    private Area deadLocations;
+    
+    
+    // work areas 
+    private boolean[] workRestNotFlags;
+    private boolean[] workRestNotClear;
     
     
     private Location overriddenStartLocation;
@@ -296,8 +306,9 @@ public class Solver implements Asynchronous<Action[]> {
         	answer = newProcess();
         }
         
-        check.finished = true;
-        checkThread.interrupt();
+        //check.finished = true;
+        //checkThread.interrupt();
+        check.finishedOkay();
         
     }
 
@@ -310,6 +321,30 @@ public class Solver implements Asynchronous<Action[]> {
         return answer.result;
     }    
     // end of Asynchronous methods
+    
+    /**
+     * Return a list of Tiles which were considered when picking a guess
+     * @return
+     */
+    public List<EvaluatedLocation> getEvaluatedLocations() {
+    	if (evaluateLocations == null) {
+    		return null;
+    	} else {
+    		return evaluateLocations.getEvaluatedLocations();
+    	}
+    }
+    
+    /**
+     * Return an Area containing locations which are determined to be dead
+     * @return
+     */
+    public Area getDeadLocations() {
+    	if (deadLocations == null) {
+    		return null;
+    	} else {
+    		return deadLocations;
+    	}
+    }
     
     /**
      * True indicates the solver shouldn't place flags
@@ -406,6 +441,8 @@ public class Solver implements Asynchronous<Action[]> {
         coachDisplay.clearScreen();
         pe = null;
         bf = null;
+        evaluateLocations = null;
+        deadLocations = null;
         
         //topLine("The Minesweeper Coach's analysis indicates that...");
                
@@ -579,6 +616,7 @@ public class Solver implements Asynchronous<Action[]> {
     	//determineSubSquares();
     	
 
+        /*
         // look for small, self contained areas and try to solve these first
         if (zones != null && zones.size() > 1) {  // if there is only one zone then leave it for the brute force analysis
             newLine("----------- Zonal Analysis -----------");
@@ -595,22 +633,30 @@ public class Solver implements Asynchronous<Action[]> {
             	return fm;
             }
         }
+        */
         
         // If no trivial, local, forced 50-50s or zonal then use the probability engine
    	
-    	display("----- Starting probability engine -----");
+
 
     	// find (some) dead locations on the board - these can be ignored when looking for a good guess
-        //Area deadLocations = findDeadLocations(allWitnesses);
-        
-        Area deadLocations = findDeadLocations(wholeEdge.getPrunedWitnesses());
+        deadLocations = findDeadLocations(wholeEdge.getPrunedWitnesses());
+        //deadLocations = Area.EMPTY_AREA;
+        display("There are " + deadLocations.size() + " dead locations found by inspection");
+        if (deadLocations.size() != 0) {
+        	newLine("There are " + deadLocations.size() + " dead locations found by inspection");
+        }
         //for (Location loc: deadLocations.getLocations()) {
         //	display("Location " + loc.display() + " is dead");
         //}
 
+    	display("----- Starting probability engine -----");
     	
     	pe = new ProbabilityEngine(boardState, wholeEdge, unrevealed, minesLeft, deadLocations);
     	pe.process();
+    	
+    	//This doesn't work !! 
+    	//pe.getDeadLocations();
     	
     	offContourBigProb = pe.getOffEdgeProb();
     	
@@ -621,7 +667,7 @@ public class Solver implements Asynchronous<Action[]> {
     	}
  
     	// if all the locations are dead then just use any one
-        if (deadLocations.size() == allWitnessedSquares.size()) {
+        if (deadLocations.size() == allWitnessedSquares.size() && deadLocations.size() != 0) {
         	display("All locations are dead");
         	deadLocations = Area.EMPTY_AREA;
         	
@@ -654,7 +700,7 @@ public class Solver implements Asynchronous<Action[]> {
         List<Location> allUnrevealedSquares = null;
         
     	//  evaluate positions
-    	EvaluateLocations evaluate = new EvaluateLocations(this, boardState, wholeEdge, pe);
+    	evaluateLocations = new EvaluateLocations(this, boardState, wholeEdge, pe);
         
     	BigDecimal offEdgeCutoff = pe.getBestOnEdgeProb().multiply(Solver.OFF_EDGE_TOLERENCE);
     	
@@ -665,7 +711,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     	
     	// set up the filter transported used to evaluate the candidate moves
-        FilterTransport ft = new FilterTransport();
+        //FilterTransport ft = new FilterTransport();
 
         /*
     	ft.subFilter = new SubSquareFilter(subSquares);
@@ -685,6 +731,9 @@ public class Solver implements Asynchronous<Action[]> {
         newLine("There are " + pe.getIndependentGroups() + " independent edges on the board");
         newLine("Probability Engine processing took " + pe.getDuration() + " milliseconds");
 
+    	if (pe.getSolutionCount().bitLength() < 30) {
+    		newLine("There are " + pe.getSolutionCount() + " candidate solutions remaining");
+    	}
 
         if (bestCandidates.isEmpty()) {
         	newLine("The probability engine found no candidate moves on the edge");
@@ -695,11 +744,11 @@ public class Solver implements Asynchronous<Action[]> {
         
         // do brute force if the number of candidate solutions is not greater than the allowable maximum
     	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS)) <= 0);
-    	boolean certaintyFound = pe.foundCertainty();
-    	
+    	boolean certainClearFound = pe.foundCertainty();
+    	boolean certainFlagFound = !pe.getMines().isEmpty();
       
         // Probability engine says there are few enough candidate solutions to do a Brute force deep analysis - so lets try
-        if (doBruteForce && !certaintyFound) {
+        if (doBruteForce && !certainClearFound) {
             display("----- Brute Force starting -----");
             newLine("----------- Brute Force Analysis -----------");
             
@@ -801,45 +850,57 @@ public class Solver implements Asynchronous<Action[]> {
         // if we haven't got a move from the BFDA
         if (!fm.moveFound) {
 
-        	if (addOffEdgeOptions) { // evaluate the off edge moves
+        	if (addOffEdgeOptions && !certainClearFound) { // evaluate the off edge moves
         		display("Adding the off edge super locations to the candidate moves");
         		
         		if (allUnrevealedSquares == null) {   // defer this until we need it, can be expensive
         			allUnrevealedSquares = boardState.getAllUnrevealedSquares();
         		}
             	
-            	evaluate.addOffEgdeCandidates(allUnrevealedSquares);
+            	evaluateLocations.addOffEgdeCandidates(allUnrevealedSquares);
             	display("About to evaluate best candidates -->");
-            	evaluate.evaluateLocations(bestCandidates);
+            	evaluateLocations.evaluateLocations(bestCandidates);
             	display("<-- Done");  
             	
-            	evaluate.showResults();
+            	evaluateLocations.showResults();
             	
-        		Action[] moves = evaluate.bestMove();
+        		Action[] moves = evaluateLocations.bestMove();
         		fm = new FinalMoves(moves);
             	
-        	} else if (bestCandidates.size() == 1 || (certaintyFound && !bestCandidates.isEmpty()) ) { // if there is only one candidate solution or there are certainties then use the first one
-    			
-        		Action move = bestCandidates.get(0).buildAction(MoveMethod.PROBABILITY_ENGINE);
-    			
-        		if (move.getAction() == Action.FLAG) {
-        			boardState.setFlagConfirmed(move);
+        	} else if (bestCandidates.size() == 1 || certainClearFound ) { // if there is only one solution or the solutions are certainties
+ 
+        		// register all the moves
+        		for (CandidateLocation cl: bestCandidates) {
+        			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
+            		//if (move.getAction() == Action.FLAG) {
+            		//	boardState.setFlagConfirmed(move);
+            		//}
+        	    	// let the boardState decide what to do with this action
+        			boardState.setAction(move);        			
+        			
         		}
-        		
-    	    	// let the boardState decide what to do with this action
-    			boardState.setAction(move);
-    	    	
+     	    	
+        		// if we have a certain clear then also register all the mines
+        		if (certainClearFound) {
+            		display("Found " + pe.getMines().size() + " mines using the probability engine");
+            		for (Location loc: pe.getMines()) {
+            	    	// let the boardState decide what to do with this action
+            			boardState.setAction(new Action(loc, Action.FLAG, MoveMethod.PROBABILITY_ENGINE, "",  BigDecimal.ONE));     			
+            		}
+            		        			
+        		}
+
     	        Action[] moves = boardState.getActions().toArray(new Action[0]);
     			fm = new FinalMoves(moves);
     			
-    		} else {  
+    		} else {    // evaluate which of the best candidates to choose
         		display("About to evaluate best candidates -->");
-        		evaluate.evaluateLocations(bestCandidates);
+        		evaluateLocations.evaluateLocations(bestCandidates);
         		display("<-- Done");     
         		
-        		evaluate.showResults();
+        		evaluateLocations.showResults();
         		
-        		Action[] moves = evaluate.bestMove();
+        		Action[] moves = evaluateLocations.bestMove();
         		fm = new FinalMoves(moves);
         		
     		} 
@@ -873,7 +934,6 @@ public class Solver implements Asynchronous<Action[]> {
     	// 
     	for (Location loc: witnesses) {
     		
-    		
     		if (boardState.countAdjacentUnrevealed(loc) == boardState.getWitnessValue(loc) - boardState.countAdjacentConfirmedFlags(loc) + 1) {
     			//display("Considering witness " + loc.display());
     			Area area = boardState.getAdjacentUnrevealedArea(loc);
@@ -886,7 +946,21 @@ public class Solver implements Asynchronous<Action[]> {
     				}
     			}
     		}
- 
+    		
+			//display("Considering witness " + loc.display());
+			Area area = boardState.getAdjacentUnrevealedArea(loc);
+			for (Location l: area.getLocations()) {
+				Area testArea =  boardState.getAdjacentUnrevealedArea(l);  // get the surrounding locations 
+				if (testArea.size() == 0) {  // entirely surrounded - must be dead
+					dead.add(l);
+				} else if (testArea.size() == area.size() - 1 && area.supersetOf(testArea)) {  
+					dead.add(l);
+				} else {
+					//display(l.display() + " not a subset of " + loc.display());
+				}
+			}
+    		
+    		
     	}    	
     	
     	
@@ -920,7 +994,7 @@ public class Solver implements Asynchronous<Action[]> {
 			                count++;
 
 		                    boardState.setAction(new Action(l, Action.FLAG, MoveMethod.TRIVIAL, "",  BigDecimal.ONE));
-			                boardState.setFlagConfirmed(l);
+			                //boardState.setFlagConfirmed(l);
 			            }
 						
 					}
@@ -973,17 +1047,11 @@ public class Solver implements Asynchronous<Action[]> {
 
     	 List<Location> square;
     	 List<Location> witness;
-    	 //List<HookLocation> hooks;
-
-    	 //goodHooksOffEdge.clear();
-    	 //goodHooksOnEdge.clear();
 
     	 for (Location loc: witnesses) {
 
     		 int flags = boardState.countAdjacentConfirmedFlags(loc);
     		 int free = boardState.countAdjacentUnrevealed(loc); 
-
-    		 //square = new Location[free];
 
     		 // if there are still some flags to find and there are 
     		 // too many places for it to be obvious ...
@@ -1000,29 +1068,11 @@ public class Solver implements Asynchronous<Action[]> {
 
     				 //display(i + " " + j + " board " + board[i][j] + " flags = " + flags + " free = " + free);
 
-    				 // hooks = getPossibleHooks(loc.x,loc.y);
-    				 //hooks = null;
 
     				 CrunchResult output = crunch(square, witness, new SequentialIterator(boardState.getWitnessValue(loc) - flags, square.size()), false, null);
     				 count = count + checkBigTally(output, MoveMethod.LOCAL, "");
-    				 count = count + checkWitnesses(output, MoveMethod.LOCAL, "");
+    				 count = count + checkWitnesses(output, MoveMethod.LOCAL, "");  
 
-
-    				 /*
-    				 if (hooks != null) {
-        				 for (HookLocation hl: hooks) {
-        					 if (hl.getState() == HookLocation.OKAY && hl.getValue() > 0) {
-        						 if (wholeEdge.isOnWeb(hl)) {
-        							 //addHook(hl, goodHooksOnEdge);
-         						 } else {
-        							 addHook(hl, goodHooksOffEdge);
-        						 }    								 
-        					 } else {
-        						 //display(hl.display() + " has failed to be a hook");
-        					 }
-        				 }    					 
-    				 }
-    				 */
     			 }                            
 
     		 }                                        
@@ -1069,9 +1119,7 @@ public class Solver implements Asynchronous<Action[]> {
 				 
 				 CrunchResult output = crunch(square, witnesses, new SequentialIterator(boardState.getWitnessValue(superLocation) - boardState.countAdjacentConfirmedFlags(superLocation), square.size()), false, null);
 
-				 // undo the move
-				 //boardState.clearWitness(superLocation);
-				 
+
 				 if (output.bigGoodCandidates.signum() > 0) {
 					 for (int i=0; i < output.bigTally.length; i++) {
 						 if (output.bigTally[i].signum() == 0) {
@@ -1101,51 +1149,6 @@ public class Solver implements Asynchronous<Action[]> {
      	 
      }
      
-     /*
-     private void validateLocations(List<CandidateLocation> candidates, List<Location> allWitnesses) {
-    	 
-     	List<SuperLocation> toRemove = new ArrayList<>();
-     	for (SuperLocation sl: superSquares) {
-     		for (Location loc: candidates) {
-     			if (sl.equals(loc)) {
-        				BigInteger sol = validateLocationUsingSolutionCounter(sl, sl.getValue(), allWitnesses).getSolutionCount();
-        				
-        				if (sol.compareTo(BigInteger.ZERO) != 0) {
-            				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-            				sl.setProbability(prob);    
-            				display(sl.display() + " probability " + sl.getProbability());           					
-        				} else {
-        					toRemove.add(sl);
-        					display(sl.display() + " probability zero - will be removed"); 
-        				}
-
-     			}
-     		}
-      	}
-     	superSquares.removeAll(toRemove);
-     	
-     	List<SubLocation> toRemove1 = new ArrayList<>();
-     	for (SubLocation sl: subSquares) {
-     		for (Location loc: candidates) {
-     			if (sl.equals(loc)) {
-        				BigInteger sol = validateLocationUsingSolutionCounter(sl, sl.getValue(), allWitnesses).getSolutionCount();
-        				
-        				if (sol.compareTo(BigInteger.ZERO) != 0) {
-            				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-            				sl.setProbability(prob);    
-            				display(sl.display() + " probability " + sl.getProbability());           					
-        				} else {
-        					toRemove1.add(sl);
-        					display(sl.display() + " probability zero - will be removed"); 
-        				}
-
-     			}
-     		}
-      	}
-     	subSquares.removeAll(toRemove1);
-
-     }
-     */
      
      /**
       * Checks whether this location can have the value using a probability engine check
@@ -1190,72 +1193,7 @@ public class Solver implements Asynchronous<Action[]> {
 
      }
 
-     /*
-     private void addHook(HookLocation hl, List<HookLocation> list) {
-    	 
-		if (!validateLocation(hl, hl.getValue())) {
-			display(hl.display() + " has failed validation");
-			return;
-		}
-    	 
-    	 // if they share the same location then merge the two hooks
-    	 for (HookLocation l: list) {
-    		 if (l.equals(hl)) {
-    			 l.merge(hl);
-    			 return;
-    		 }
-    	 }
-    	 // otherwise create a new entry
-    	 list.add(hl);
-    	 
-     }
-     */
-    /*
-    private List<HookLocation> getPossibleHooks(int x1, int y1) {
-        
-        List<HookLocation> list = new ArrayList<>();
-        
-        int x = x1 + 2;
-        int y = y1;
-        if (x < myGame.getWidth() && boardState.isUnrevealed(x,y)) {
-            HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
-            //if (!wholeWeb.isOnWeb(l)) {
-                list.add(l);
-            //}
-        }
-        
-        x = x1 - 2;
-        y = y1;
-        if (x > 0 && boardState.isUnrevealed(x,y)) {
-        	HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
-            //if (!wholeWeb.isOnWeb(l)) {
-                list.add(l);
-            //}
-        }        
-        
-        x = x1;
-        y = y1 + 2;
-        if (y < myGame.getHeight() && boardState.isUnrevealed(x,y)) {
-        	HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
-            //if (!wholeWeb.isOnWeb(l)) {
-                list.add(l);
-            //}
-        }
-        
-        x = x1;
-        y = y1 - 2;
-        if (y > 0 && boardState.isUnrevealed(x,y)) {
-        	HookLocation l = new HookLocation(x, y, boardState.countAdjacentConfirmedFlags(x, y), boardState.countAdjacentUnrevealed(x, y));
-            //if (!wholeWeb.isOnWeb(l)) {
-                list.add(l);
-            //}
-        }
-        
-        return list;
-        
-    }
-    */
-    
+     
     // this logic looks for positions where 2 squares will always reduce to either a 50-50% or 100% safe. In these instances we
     // may as well guess now. This has benefits for speed and also to reduce the solution space to a point where brute force methods
     // can be used
@@ -1343,7 +1281,7 @@ public class Solver implements Asynchronous<Action[]> {
     	
     }
     
-    
+    /*
     // look for small-ish zones which can be processed
     private FinalMoves zonalAnalysis(List<Zone> targetZones) {
         
@@ -1473,37 +1411,11 @@ public class Solver implements Asynchronous<Action[]> {
     	
         display("Zonal Analysis crunch mines = " + start + " solutions found = " + bf.getSolutionCount());
         
-        /*
-        if (bf.getSolutionCount().compareTo(BigInteger.ZERO) != 0) {
-        	if (bf.getSolutionCount().compareTo(BigInteger.ONE) != 0) {
-        		solveLast = false;
-        	}
-            if (result == null) {
-                result = bf;
-            } else {
-                result = null;
-                break;
-            }
-        } else {
-            if (result != null) {
-                break;
-            }
-        }       		
- 
-        
-        // this happens if there are two solutions with different numbers of mine and they both have a solution count of 1.
-        // i.e. The zone can be decided with 100% accuracy if we know how many mines go in it, which we might do if we wait until the end
-        if (result == null && solveLast) {
-        	z.setSolveLast(true);
-        	display("Zone has been set to 'solve last' because solution count is 1 for all values of mine examined");
-        	//display(this.myGame.showGameKey() + ": Zone has been set to 'solve last' because solution count is 1 for at least 1 value of mine examined");
-        }
-        */
-        
+     
         return bf;
         
     }
-    
+	*/
     
     protected CrunchResult crunch(final List<Location> square, final List<? extends Location> witness, Iterator iterator, boolean calculateDistribution, BruteForceAnalysisModel bfa) {
         
@@ -1519,18 +1431,9 @@ public class Solver implements Asynchronous<Action[]> {
                 }
             }
         }
-
-        //if (possibleHooks == null) {
-        //    possibleHooks = new ArrayList<>();
-        //}
-        
        
         BigInteger bign = BigInteger.ZERO;
         
-        //BigInteger[] bigTally = new BigInteger[square.size()];
-        //for (int i = 0; i < bigTally.length; i++) {
-        //    bigTally[i] = BigInteger.ZERO;
-        //}
         
         // determine the witness type
         int[] witnessGood1 = generateWitnessType(witness, square);
@@ -1561,15 +1464,17 @@ public class Solver implements Asynchronous<Action[]> {
         int[] tally = new int[square.size()];
         int candidates = 0;
         
+        // define work areas
+        workRestNotFlags = new boolean[witnessData.length];
+        workRestNotClear = new boolean[witnessData.length];
+        
         while (sample != null) {
            
             if (checkSample(sample, square, witnessData, bigDistribution, bfa)) {
                 for (int i=0; i < sample.length; i++) {
                 	tally[sample[i]]++;
-                    //bigTally[sample[i]] = bigTally[sample[i]].add(BigInteger.ONE);
                 }   
                 candidates++;
-                //bign = bign.add(BigInteger.ONE);
             }
             
             sample = iterator.getSample();
@@ -1578,9 +1483,7 @@ public class Solver implements Asynchronous<Action[]> {
         
         BigInteger[] bigTally = new BigInteger[square.size()];
         for (int i = 0; i < bigTally.length; i++) {
-            //bigTally[i] = new BigInteger(String.valueOf(tally[i]));
             bigTally[i] = BigInteger.valueOf(tally[i]);
-            
         }
         
         bign = BigInteger.valueOf(candidates);
@@ -1591,15 +1494,12 @@ public class Solver implements Asynchronous<Action[]> {
         output.setSquare(square);
         output.bigDistribution = bigDistribution;
         
-        if (bigDistribution != null) {
-            
-            output.calculateMinMax();
-            
-        }
+        //if (bigDistribution != null) {
+        //   output.calculateMinMax();
+        //}
 
         //output.witness = witness;
         
-        //output.hookMines = null;
         output.originalNumMines = iterator.getBalls();
         output.bigGoodCandidates = bign;
         output.bigTally = bigTally;
@@ -1632,8 +1532,14 @@ public class Solver implements Asynchronous<Action[]> {
         display(s);
         */
 
-        boolean[] workRestNotFlags = new boolean[witnessData.length];
-        boolean[] workRestNotClear = new boolean[witnessData.length];
+        //boolean[] workRestNotFlags = new boolean[witnessData.length];
+        //boolean[] workRestNotClear = new boolean[witnessData.length];
+
+    	for (int i=0; i < witnessData.length; i++) {
+    		workRestNotFlags[i] = false;
+    		workRestNotClear[i] = false;
+    	}
+        
         
         // get the location of the mines
         Location[] mine = new Location[sample.length];
@@ -1725,7 +1631,7 @@ public class Solver implements Asynchronous<Action[]> {
         }
 
         //if it is a good solution then calculate the distribution if required
-        if (bigDistribution != null) {
+        if (bfa != null && !bfa.tooMany()) {
         	byte[] solution = new byte[square.size()];
         	
             for (int i=0; i < square.size(); i++) {
@@ -1748,15 +1654,18 @@ public class Solver implements Asynchronous<Action[]> {
                         }
                     }            
                     solution[i] = flags2;
-                    bigDistribution[i][flags2] = bigDistribution[i][flags2].add(BigInteger.ONE);
+                    if (bigDistribution != null) {
+                    	bigDistribution[i][flags2] = bigDistribution[i][flags2].add(BigInteger.ONE);
+                    }
+
                 } else {
                 	solution[i] = GameStateModel.MINE;
                 }
 
             }
-            if (bfa != null && !bfa.tooMany()) {
+            //if (bfa != null && !bfa.tooMany()) {
             	bfa.addSolution(solution);
-            }
+            //}
         }
 
         return true;
@@ -1821,7 +1730,7 @@ public class Solver implements Asynchronous<Action[]> {
                     //String comment = METHOD[method];
                     
                     boardState.setAction(new Action(l, Action.FLAG, method, comment, BigDecimal.ONE));
-                    boardState.setFlagConfirmed(l);
+                    //boardState.setFlagConfirmed(l);
                     
                 }
 
@@ -1846,6 +1755,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
+    /*
     private FinalMoves determineBestGuess(MoveMethod methodGuess, MoveMethod methodCertain, CrunchResult crunchResult) {
 
     	//display("Crunch Results passed to determine best guess = " + output.length);
@@ -1916,13 +1826,9 @@ public class Solver implements Asynchronous<Action[]> {
         return refineBestGuess(methodGuess, methodCertain, best, crunchResult.bigGoodCandidates, ft);
         
     }    
+    */
     
-    
-    //private Action[] refineBestGuess(Moves working, int method, List<CandidateLocation> best, BigInteger solutionsCount) {
-    //	return  refineBestGuess(working, method, best, solutionsCount, new NullFilter());
-    //}
-    
-    
+    /*
     private FinalMoves refineBestGuess(MoveMethod methodGuess, MoveMethod methodCertain, List<CandidateLocation> best, BigInteger solutionsCount, FilterTransport ft) {
     	
     	Collections.sort(best, CandidateLocation.SORT_BY_PROB_FLAG_FREE);  // this is better then prob, free, flag
@@ -1985,12 +1891,10 @@ public class Solver implements Asynchronous<Action[]> {
 
        	//best = ft.contraLinkedFilter.filter(best);
 
-    	/*
-       	if (!ft.minMaxFilter.didFilter() && best.size() > 1) {
-       		//best = ft.minMaxFilter.filter(best, MinMaxFilter.FIFTY_FIFTY);
-       		best = ft.minMaxFilter.filter(best, 3);   // 3 seems to be best based on a small sample
-       	}
-       	*/
+       	//if (!ft.minMaxFilter.didFilter() && best.size() > 1) {
+       	//	//best = ft.minMaxFilter.filter(best, MinMaxFilter.FIFTY_FIFTY);
+       	//	best = ft.minMaxFilter.filter(best, 3);   // 3 seems to be best based on a small sample
+       	//}
        	
      	//HookFilter hookFilter = new HookFilter(goodHooksOnEdge, goodHooksOffEdge);
     	//best = ft.hookFilter.filter(best);
@@ -2000,12 +1904,12 @@ public class Solver implements Asynchronous<Action[]> {
     	// look for guesses which have a high probability of already being satisfied by their adjacent flags
        	//best = ft.zeroFilter.filter(best);
        	
-    	/*
+ 
        	// if the wins only filter worked then no point doing it again. This really only tidies up the display. 
-       	if (!ft.minMaxFilter.didFilter() && best.size() > 1) {
-       		best = ft.minMaxFilter.filter(best); // pick the guess which most reduces the solution space
-       	}
-    	*/
+       	//if (!ft.minMaxFilter.didFilter() && best.size() > 1) {
+       	//	best = ft.minMaxFilter.filter(best); // pick the guess which most reduces the solution space
+       	//}
+
     	
         // Use the first on the list after all the above filtering
     	CandidateLocation bestLoc = best.get(0);
@@ -2050,20 +1954,7 @@ public class Solver implements Asynchronous<Action[]> {
            			}
            		}
            	}      	
-           	/*
-           	if (ft.hookFilter.didFilter()) {
-           		for (HookLocation sl: goodHooksOnEdge) {
-           			if (sl.equals(bestLoc)) {
-           				display(sl.display() + " has probability " + sl.getProbabilityString());
-           			}
-           		}
-           		for (HookLocation sl: goodHooksOffEdge) {
-           			if (sl.equals(bestLoc)) {
-           				display(sl.display() + " has probability " + sl.getProbabilityString());
-           			}
-           		}
-           	} 
-           	*/   		
+
     	}
 
     	Action action = bestLoc.buildAction(methodGuess);
@@ -2078,7 +1969,7 @@ public class Solver implements Asynchronous<Action[]> {
         return new FinalMoves(result);
     	
     }
-    
+    */
     
     // search all the crunch result for this location and display the distribution details for it
     private void displayDistribution(Location loc, CrunchResult... results) {
@@ -2101,7 +1992,7 @@ public class Solver implements Asynchronous<Action[]> {
     }
     
     // in some cases we learn more about the other witnesses during the crunch
-    // this only happens for less obvious analysis. Contour analysis picks up all 100% moves regardless.
+    // this only happens for local search. 
     private int checkWitnesses(CrunchResult output, MoveMethod method, String comment) {
         
         int result = 0;
@@ -2110,11 +2001,11 @@ public class Solver implements Asynchronous<Action[]> {
         for (int i=0; i < output.witnessRestFlags.length; i++) {
             if (output.witnessGood[i] != 0) {
                 if (output.witnessRestFlags[i]) {
-                	//display("CheckWitnesses has found a FLAG " + output.witness[i].display());
+                	//display("**** CheckWitnesses has found a FLAG " + output.witness[i].display());
                     result = result + restKnown(output.witness[i], output.getSquare(), Action.FLAG, method, comment);
                 }                
                 if (output.witnessRestClear[i]) {
-                	//display("CheckWitnesses has found a CLEAR " + output.witness[i].display());
+                	//display("**** CheckWitnesses has found a CLEAR " + output.witness[i].display());
                     result = result + restKnown(output.witness[i], output.getSquare(), Action.CLEAR, method, comment);
                 }                
             }
@@ -2150,7 +2041,7 @@ public class Solver implements Asynchronous<Action[]> {
                 	Action act;
                     if (action == Action.FLAG) {
                     	act = new Action(l, Action.FLAG, method, comment, BigDecimal.ONE);
-                    	boardState.setFlagConfirmed(act);
+                    	//boardState.setFlagConfirmed(act);
                     } else {
                     	act = new Action(l, Action.CLEAR, method, comment, BigDecimal.ONE);
                     }
@@ -2352,6 +2243,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
+    /*
     private void determineSubSquares() {
         
         subSquares.clear();;
@@ -2396,9 +2288,11 @@ public class Solver implements Asynchronous<Action[]> {
         //}
         
      }
+    */
     
     // if the unrevealed squares around location l are also in the superset
     // then create a SubSquare and add it to the result list
+    /*
     private void findSubSquare(Location l, List<Location> superset, int minesNeeded) {
         
     	boolean doSubSquare = true;
@@ -2494,7 +2388,7 @@ public class Solver implements Asynchronous<Action[]> {
         
         
     }
-    
+    */
 
 
     

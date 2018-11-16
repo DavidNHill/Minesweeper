@@ -6,9 +6,11 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
@@ -92,8 +94,9 @@ public class ProbabilityEngine {
 	
 	private List<LinkedLocation> linkedLocations = new ArrayList<>();
 	private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
+	private List<Location> mines = new ArrayList<>();  // certain mines we have found 
 	
-	final private BoardState solver;
+	final private BoardState boardState;
 	final private WitnessWeb web;
 	final private int boxCount;
 	final private List<Witness> witnesses;
@@ -115,9 +118,9 @@ public class ProbabilityEngine {
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
-	public ProbabilityEngine(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft, Area deadLocations) {
+	public ProbabilityEngine(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft, Area deadLocations) {
 		
-		this.solver = solver;
+		this.boardState = boardState;
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
@@ -400,7 +403,7 @@ public class ProbabilityEngine {
 			if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
 				
 				if (mineCounts.put(pl.mineCount, pl.solutionCount) != null) {
-					System.out.println("Duplicate mines in probabiluity Engine");
+					System.out.println("Duplicate mines in probability Engine");
 				}
 					
 				
@@ -422,7 +425,15 @@ public class ProbabilityEngine {
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (totalTally.signum() != 0) {
-				boxProb[i] = BigDecimal.ONE.subtract(new BigDecimal(tally[i]).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP));
+				if (tally[i].compareTo(totalTally) == 0) {  // a mine
+					boxProb[i] = BigDecimal.ZERO;
+					for (Square squ: boxes.get(i).getSquares()) {  // add the squares in the box to the list of mines
+						mines.add(squ);
+					}					
+				} else {
+					boxProb[i] = BigDecimal.ONE.subtract(new BigDecimal(tally[i]).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP));
+				}
+				
 			} else {
 				boxProb[i] = BigDecimal.ZERO;
 			}
@@ -557,7 +568,7 @@ public class ProbabilityEngine {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			solver.display("Probability Engine recursision = " + recursions);
+			boardState.display("Probability Engine recursision = " + recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();
@@ -774,15 +785,15 @@ public class ProbabilityEngine {
 			test = bestProbability.multiply(freshhold);
 		}
 
-		solver.display("Best probability is " + bestProbability + " freshhold is " + test);
+		boardState.display("Best probability is " + bestProbability + " freshhold is " + test);
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].compareTo(test) >= 0) {
 				for (Square squ: boxes.get(i).getSquares()) {
 					if (!deadLocations.contains(squ) || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
-						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], solver.countAdjacentUnrevealed(squ), solver.countAdjacentConfirmedFlags(squ)));
+						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ)));
 					} else {
-						solver.display("Location " + squ.display() + " is ignored because it is dead");
+						boardState.display("Location " + squ.display() + " is ignored because it is dead");
 					}
 				}
 			}
@@ -794,6 +805,107 @@ public class ProbabilityEngine {
 		return best;
 		
 	}
+	
+	
+	protected Area getDeadLocations() {
+		
+		Set<Location> result = new HashSet<>();
+		
+		// for each square on the edge
+		for (Location loc: web.getSquares()) {
+			
+			List<Box> boxes = getAdjacentBoxes(loc);
+			
+			if (boxes == null) {  // this happens when the square isn't fully surrounded by boxes
+				continue;
+			}
+			
+			boolean dead = true;
+			BigInteger constMines = null;
+
+			// For each distinct number of mines see if the number of surrounding mines is always the same 
+			for (ProbabilityLine pl: heldProbs) {
+				
+				if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
+					
+					BigInteger lineTotal = BigInteger.ZERO;
+					
+					for (Box box: boxes) {
+						lineTotal = lineTotal.add(pl.mineBoxCount[box.getUID()]);
+					}
+
+					BigInteger adjMines = lineTotal.divide(pl.solutionCount);
+					boardState.display(loc.display() + " line Total " + lineTotal + " solutionCount " + pl.solutionCount + " adjMines " + adjMines);
+					
+					if (constMines == null) {
+						constMines = adjMines;
+					} else if (adjMines.compareTo(constMines) != 0) {
+						boardState.display(loc.display() + " not dead");
+						dead = false;
+						break;
+					}
+				}
+
+			}		
+
+			if (dead) {
+				boardState.display(loc.display() + " is dead");
+				result.add(loc);
+			}
+			
+		}
+		
+		return new Area(result);
+		
+	}
+	
+	private List<Box> getAdjacentBoxes(Location loc) {
+		
+		List<Box> result = new ArrayList<>();
+		
+		int sizeOfBoxes = 0;
+		
+		// get each adjacent location
+		for (Location adjLoc: boardState.getAdjacentUnrevealedSquares(loc)) {
+			
+			// find the box it is in
+			boolean boxFound = false;
+			for (Box box: web.getBoxes()) {
+				if (box.contains(adjLoc)) {
+					boxFound = true;
+					// is the box already included?
+					boolean found = false;
+					for (Box oldBox: result) {
+						if (box.getUID() == oldBox.getUID()) {
+							found = true;
+							break;
+						}
+					}
+					// if not add it
+					if (!found) {
+						result.add(box);
+						sizeOfBoxes = box.getSquares().size();
+					}
+				}
+			}
+			
+			// if a box can't be found for the adjacent square then the location can't be dead
+			if (!boxFound) {
+				return null;
+			}
+			
+		}		
+		
+		// if the area in the boxes does not agree with the area around the target location then the boxes overspill the area
+		if (boardState.countAdjacentUnrevealed(loc) != sizeOfBoxes) {
+			return null;
+		}
+		
+		
+		return result;
+		
+	}
+	
 	
 	/**
 	 * The number of ways the mines can be placed in the game position
@@ -837,6 +949,13 @@ public class ProbabilityEngine {
 		
 		return null;
 		
+	}
+	
+	/**
+	 * Returns a list of the locations of certain mines
+	 */
+	protected List<Location> getMines() {
+		return this.mines;
 	}
 	
 	protected List<LinkedLocation> getContraLinkedLocations() {

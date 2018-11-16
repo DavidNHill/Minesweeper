@@ -4,22 +4,18 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import Monitor.AsynchMonitor;
 import minesweeper.solver.constructs.CandidateLocation;
-import minesweeper.solver.constructs.ProbabilityLocation;
 import minesweeper.solver.constructs.Square;
-import minesweeper.solver.constructs.SuperLocation;
 import minesweeper.solver.constructs.Witness;
-import minesweeper.solver.constructs.ZeroLocation;
 import minesweeper.solver.iterator.WitnessWebIterator;
 import minesweeper.structure.Location;
 
 public class BruteForce {
 
-	private final static BigDecimal ZERO_THRESHOLD = new BigDecimal("0.25");
+	//private final static BigDecimal ZERO_THRESHOLD = new BigDecimal("0.25");
 	
 	
 	private final WitnessWeb web;
@@ -35,7 +31,7 @@ public class BruteForce {
 	private boolean hasRun = false;
 	private boolean certainClear = false;
 	
-	private final List<SuperLocation> zeroLocations = new ArrayList<>();
+	//private final List<SuperLocation> zeroLocations = new ArrayList<>();
 	
 	private final List<CandidateLocation> results = new ArrayList<>();
 	
@@ -73,6 +69,7 @@ public class BruteForce {
 			return;
 		}
 
+		
 
 		// and crunch the result if we have something to check against
 		if (web.getPrunedWitnesses().size() >= 0) {
@@ -115,6 +112,7 @@ public class BruteForce {
 				hasRun = true;
 				
 				//TODO zero additional mines calculater - do we want it?
+				/*
 				if (crunchResult.bigGoodCandidates.signum() != 0) {
 					BigInteger hwm = BigInteger.ZERO;
 					int best = -1;
@@ -142,7 +140,7 @@ public class BruteForce {
 						boardState.display("Location " + crunchResult.getSquare().get(best).display() + " is a 'zero additional mines' with probability " + prob);
 					}
 				}
-
+				*/
 
 			} else {
 				boardState.display("Brute Force too large with " + iterations + " iterations");
@@ -203,7 +201,7 @@ public class BruteForce {
 		Cruncher[] crunchers = new Cruncher[iterator.length];
 
 		for (int i=0; i < iterator.length; i++) {
-			crunchers[i] = new Cruncher(solver, iterator[i].getLocations(), witness, iterator[i], calculateDistribution, bruteForceAnalysis);
+			crunchers[i] = new Cruncher(boardState, iterator[i].getLocations(), witness, iterator[i], false, bruteForceAnalysis);
 		}
 		//Cruncher cruncher = new Cruncher(this, square, witness, hooks, iterator, calculateDistribution);
 
@@ -291,6 +289,7 @@ public class BruteForce {
 	}
 	*/
 	
+	/*
 	public  List<CandidateLocation> getBestSolutions(BigDecimal freshhold) {
 
 		if (crunchResult == null) {
@@ -351,7 +350,8 @@ public class BruteForce {
 
 		return results;
 	}
-
+	*/
+	
 	public boolean hasRun() {
 		return this.hasRun;
 	}
@@ -376,14 +376,7 @@ public class BruteForce {
 		return this.iterations;
 	}
 	
-	/**
-	 * This is a list of locations and the probability that they don't have any undiscovered mines adjacent to them.
-	 * The list is restricted to probabilities >= to the constant ZERO_THRESHOLD.
-	 */
-	public List<SuperLocation> getZeroLocations() {
-		return this.zeroLocations;
-	}
-	
+
 	public BruteForceAnalysisModel getBruteForceAnalysis() {
 		return bruteForceAnalysis;
 	}
@@ -392,6 +385,7 @@ public class BruteForce {
 	 * Set the probability for the probabilityLocation being satisfied
 	 * @param list
 	 */
+	/*
 	public <T extends ProbabilityLocation> List<T> setProbabilities(List<T> list) {
 		
 		if (!hasRun) {
@@ -430,6 +424,7 @@ public class BruteForce {
 		return output;
 
 	}
+	*/
 	
 	/**
 	 * Returns the probability that this square is not a mine

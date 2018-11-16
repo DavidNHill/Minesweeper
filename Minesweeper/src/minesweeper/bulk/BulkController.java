@@ -226,7 +226,7 @@ public class BulkController {
             	double prog = (double) steps / (double) maxSteps;
             	progressRun.setProgress(prog);
             	
-            	progressRunLabel.setText(steps + "/" + maxSteps);
+            	progressRunLabel.setText(steps + "(" + wins + ") /" + maxSteps);
             	
             	double winPerc = (double) wins / (double) steps;
             	

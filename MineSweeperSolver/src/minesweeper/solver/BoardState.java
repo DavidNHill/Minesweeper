@@ -277,8 +277,11 @@ public class BoardState {
 
 		action[a.x][a.y] = a;
 
-		if (solver.isFlagFree() && a.getAction() == Action.FLAG) {
+		if (a.getAction() == Action.FLAG) {
 			setFlagConfirmed(a);
+		}
+		
+		if (solver.isFlagFree() && a.getAction() == Action.FLAG) {
 			// if it is flag free and we are placing a flag then don't do it
 		} else if (isFlagOnBoard(a) && a.getAction() == Action.FLAG) {
 			// if the flag is already on the board then nothing to do
@@ -287,9 +290,9 @@ public class BoardState {
 			actionList.add(new Action(a, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 			actionList.add(a);			
 		} else {
-			if (a.getAction() == Action.FLAG) {
-				setFlagConfirmed(a);
-			}
+			//if (a.getAction() == Action.FLAG) {
+			//	setFlagConfirmed(a);
+			//}
 			actionList.add(a);
 		}
 
@@ -315,7 +318,7 @@ public class BoardState {
 	protected List<Action> getActionsWithChords() {
 
 		// if we aren't using chords or none are available then skip all this expensive processing
-		if (!chordLocations.isEmpty() || !solver.isPlayChords()) {
+		if (chordLocations.isEmpty() || !solver.isPlayChords()) {
 			return getActions();
 		}
 		
@@ -682,7 +685,7 @@ public class BoardState {
 		flagOnBoard[x][y] = true;
 	}
 
-	protected void setFlagConfirmed(Location loc) {
+	private void setFlagConfirmed(Location loc) {
 
 		if (isConfirmedFlag(loc)) {
 			return;

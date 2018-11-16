@@ -12,12 +12,14 @@ import java.util.List;
 
 import Monitor.AsynchMonitor;
 import javafx.application.Platform;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.binding.NumberBinding;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
@@ -37,6 +39,8 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.StrokeType;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
@@ -53,7 +57,9 @@ import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 /**
@@ -145,9 +151,10 @@ public class ScreenController {
     
     Animator animator;
     
-    private double combProb = 1;
+    private BigDecimal combProb = BigDecimal.ONE;
     
     private int difficulty = DIFFICULTY_EXPERT;
+    private RadioMenuItem lastValidDifficulty;
     private File fileSelected = null;
     
     private GameType gameType = GameType.STANDARD;
@@ -156,6 +163,8 @@ public class ScreenController {
     private Text popupText = new Text();
 
     private FileChooser fileChooser = new FileChooser();
+    
+    private final List<Node> heatMapNodes = new ArrayList<>();
     
     //TODO finish this ...
     private EventHandler<MouseEvent> me = new EventHandler<MouseEvent>() {
@@ -204,19 +213,79 @@ public class ScreenController {
     	
     };
     
+	private class Indicator extends Rectangle {
+		
+		//private final Action action; 
+		
+		public Indicator(DoubleBinding xBind, DoubleBinding yBind, DoubleBinding widthBind, DoubleBinding heightBind, Action action) {
+			super();
+
+    		heightProperty().bind(heightBind);
+    		widthProperty().bind(widthBind);
+    		xProperty().bind(xBind);
+    		yProperty().bind(yBind);   
+    		setMouseTransparent(true);    
+			
+			if (action.getAction() == Action.CLEAR) {
+				this.setFill(Color.GREEN);
+				if (!action.isCertainty()) {
+					this.setStroke(Color.DARKRED);
+					this.setStrokeWidth(5);
+					this.setStrokeType(StrokeType.INSIDE);
+				}
+				this.setOpacity(0.5d);
+			} else if (action.getAction() == Action.FLAG) {
+				this.setFill(Color.RED);
+				this.setOpacity(0.5d);
+			} if (action.getAction() == Action.CLEARALL) {
+				this.setFill(Color.BLUE);
+				this.setOpacity(0.5d);
+			}
+			
+		}
+
+	}
+    
+	private class Placeholder extends Rectangle {
+		
+		public Placeholder(DoubleBinding xBind, DoubleBinding yBind, DoubleBinding widthBind, DoubleBinding heightBind, Color colour) {
+			super();
+
+    		heightProperty().bind(heightBind);
+    		widthProperty().bind(widthBind);
+    		xProperty().bind(xBind);
+    		yProperty().bind(yBind);    
+    		setMouseTransparent(true);    
+
+    		this.setFill(colour);
+			this.setOpacity(0.5d);
+
+			
+		}
+
+	}
+	
     @FXML
     private void handleDifficulty(ActionEvent event) {
         
     	int prevDiff = difficulty;
     	
         if (easyMode.isSelected()) {
+        	lastValidDifficulty = easyMode;
             difficulty = DIFFICULTY_BEGINNER;
+            newGame();
         } else if (mediumMode.isSelected()) {
+        	lastValidDifficulty = mediumMode;
             difficulty = DIFFICULTY_ADVANCED;
+            newGame();
         } else if (hardMode.isSelected()) {
+        	lastValidDifficulty = hardMode;
             difficulty = DIFFICULTY_EXPERT;
+            newGame();
         } else if (msxMode.isSelected()) {
+        	lastValidDifficulty = fromFile;
             difficulty = DEFER_TO_MINESWEEPERX;
+            newGame();
         } else if (customMode.isSelected()) {
             difficulty = DIFFICULTY_CUSTOM;
         } else if (fromFile.isSelected()) {
@@ -231,8 +300,10 @@ public class ScreenController {
         	fileSelected = fileChooser.showOpenDialog(Minesweeper.getStage());
         	
         	if (fileSelected == null) {
+        		lastValidDifficulty.setSelected(true);
         		difficulty = prevDiff;
         	} else {
+        		lastValidDifficulty = fromFile;
         		newGame();
         	}
         	
@@ -249,8 +320,10 @@ public class ScreenController {
             System.out.println("At custom menu finish");
             
             if (custom.wasCancelled()) {
+            	lastValidDifficulty.setSelected(true);
             	difficulty = prevDiff;
             } else {
+            	lastValidDifficulty = customMode;
             	newGame();
             } 
             
@@ -399,6 +472,10 @@ public class ScreenController {
         }
 		*/
         
+        if (!automate) {
+        	createHeatMap(move);
+        }
+        
         highlightMove(0);
 
         window.setCursor(Cursor.DEFAULT);
@@ -484,7 +561,7 @@ public class ScreenController {
     @FXML
     private void probHeatMapToggled(ActionEvent event) {
         
-    	
+    	createHeatMap(move);
     	
     }   
     
@@ -534,7 +611,12 @@ public class ScreenController {
     	fileChooser.setSelectedExtensionFilter(ef2);        
         fileChooser.setInitialDirectory(new File(System.getProperty("user.dir")));
     	
-    	
+        probHeatMap.setDisable(false);
+        probHeatMap.setSelected(true);
+        showMove.setSelected(false);
+        
+        lastValidDifficulty = hardMode;
+        
         animator = new Animator(this);
         animator.start();
         
@@ -610,15 +692,16 @@ public class ScreenController {
             	automateButton.setText("Automate");
             	window.setCursor(Cursor.WAIT);
                 highlightMove(nextMove);
+                createHeatMap(move);
                 return;
             }
             
             // play the move
             success = doMove(move[nextMove]);
 
-            if (move[nextMove].getProb() > 0 && move[nextMove].getProb() < 1) {
+            if (move[nextMove].getBigProb().signum() > 0 && move[nextMove].getBigProb().compareTo(BigDecimal.ONE) < 0) {
                 System.out.println(move[nextMove].asString());
-                combProb = combProb * move[nextMove].getProb();
+                combProb = combProb.multiply(move[nextMove].getBigProb());
                 System.out.println("Combined probability is " + combProb);
             }
             
@@ -727,7 +810,7 @@ public class ScreenController {
     */
     private ImageView refreshScreen() {
 
-        long startTime = System.currentTimeMillis();
+        //long startTime = System.currentTimeMillis();
         
         ImageView result = new ImageView();
         result.setPreserveRatio(false);
@@ -757,7 +840,7 @@ public class ScreenController {
             }
         }
  
-        long duration = System.currentTimeMillis() - startTime;
+        //long duration = System.currentTimeMillis() - startTime;
         
         result.setImage(scr);
         
@@ -768,39 +851,107 @@ public class ScreenController {
         return result;
         
     }
-    /*
-    private void update(Location m) {
-        
-        int result = Minesweeper.getGame().query(m);
-        
-        System.out.println("result from query is " + result);
-        
-        PixelReader pr;
-        
-        if (result == GameState.MINE) {
-            pr = Graphics.getMineBang().getPixelReader();
-        } else {
-            pr = Graphics.getNumber(result).getPixelReader();
-        }
 
-        addImage(scr.getPixelWriter(), m.x * IMAGE_SIZE, m.y * IMAGE_SIZE, pr);
-        
-        System.out.println("error flag is " + scr.isError());
-         
+    private void createHeatMap(Action[] moves) {
+
+    	// clear the old data
+    	myPane.getChildren().removeAll(heatMapNodes);
+    	heatMapNodes.clear();
+    	
+    	// are we doing heat maps?
+    	if (!probHeatMap.isSelected()) {
+    		return;
+    	}
+    	
+    	GameStateModel gs = Minesweeper.getGame();
+    	
+    	//display.fitHeightProperty().bind(myPane.heightProperty().divide(gs.getHeight()));
+    	
+    	DoubleBinding heightBind = myPane.heightProperty().divide(gs.getHeight());
+    	DoubleBinding widthBind = myPane.widthProperty().divide(gs.getWidth());
+    	
+    	for (Action a: moves) {
+   		
+        	DoubleBinding yBind = myPane.heightProperty().multiply(a.y).divide(gs.getHeight());
+        	DoubleBinding xBind = myPane.widthProperty().multiply(a.x).divide(gs.getWidth());
+    		
+    		Indicator indicator = new Indicator(xBind, yBind, widthBind, heightBind, a);
+    		indicator.setMouseTransparent(true);
+    		
+    		heatMapNodes.add(indicator);
+    	}
+    	
+    	List<EvaluatedLocation> els = solver.getEvaluatedLocations();
+    	if (els != null) {
+        	for (EvaluatedLocation el: els) {
+        		
+        		// don't show evaluated positions which are actually chosen to be played
+        		boolean ignore = false;
+        		for (Action a: moves) {
+        			if (el.equals(a)) {
+        				ignore = true;
+        			}
+        		}
+        		
+        		if (!ignore) {
+                	DoubleBinding yBind = myPane.heightProperty().multiply(el.y).divide(gs.getHeight());
+                	DoubleBinding xBind = myPane.widthProperty().multiply(el.x).divide(gs.getWidth());
+            		
+            		Placeholder indicator = new Placeholder(xBind, yBind, widthBind, heightBind, Color.ORANGE);
+            		heatMapNodes.add(indicator);       			
+        		}
+
+        		
+        	}    		
+    	}
+    	
+    	Area dead = solver.getDeadLocations();
+    	if (dead != null) {
+        	for (Location loc: dead.getLocations()) {
+        		
+        		// don't show evaluated positions which are actually chosen to be played
+        		boolean ignore = false;
+        		for (Action a: moves) {
+        			if (loc.equals(a)) {
+        				ignore = true;
+        			}
+        		}
+        		
+        		if (!ignore) {
+                	DoubleBinding yBind = myPane.heightProperty().multiply(loc.y).divide(gs.getHeight());
+                	DoubleBinding xBind = myPane.widthProperty().multiply(loc.x).divide(gs.getWidth());
+            		
+            		Placeholder indicator = new Placeholder(xBind, yBind, widthBind, heightBind, Color.BLACK);
+            		heatMapNodes.add(indicator);       			
+        		}
+
+        		
+        	}    		
+    	}
+    	
+    	myPane.getChildren().addAll(heatMapNodes);
+    	
+    	
+    	
     }
-    */
+    
     private void updateScreen() {
         
         ImageView temp = refreshScreen();
         
         myPane.getChildren().add(temp);
         myPane.getChildren().remove(display);
-       
+        
         display = temp;
 
         display.setOnMouseMoved(me);
         display.setOnMouseEntered(me);
         display.setOnMouseExited(me);
+        
+        //if (solver != null) {
+        //   createHeatMap(move);       	
+        //}
+
         
         //highlightMove();
         
@@ -980,7 +1131,7 @@ public class ScreenController {
         // don't play the opening move if the game is loaded from a file
         solver.setPlayOpening(difficulty != DIFFICULTY_FILE);
         
-        combProb = 1;
+        combProb = BigDecimal.ONE;
  
         // forget any moves we have stored up
         move = new Action[0];

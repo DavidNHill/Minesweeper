@@ -25,13 +25,14 @@ public class Action extends Location {
     
     private final static String[] ACTION = {"", "Clear", "Clear around", "Place flag"};
     private final static BigDecimal MINUS_ONE = new BigDecimal("-1");
+    private final static BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
     
     static long globalUID = 0;
     
     private final long myUID;
     //private final Location l;
     private final int action;
-    private final double prob;
+    //private final double prob;
     private final BigDecimal bigProb;
     
     private final boolean certainty;
@@ -60,7 +61,7 @@ public class Action extends Location {
         this.action = a;
         this.comment = comment;
         this.bigProb = bigProb;
-        this.prob = this.bigProb.doubleValue();
+        //this.prob = this.bigProb.doubleValue();
         this.moveMethod = moveMethod;
         //this.type = type;
         
@@ -84,10 +85,10 @@ public class Action extends Location {
     /**
      * Consider moving to getBigProb which returns the big decimal version of the probability
      */
-    @Deprecated
-    public double getProb() {
-       return prob;
-    }
+    //@Deprecated
+    //public double getProb() {
+    //   return prob;
+    //}
     
     /**
      * Returns true when this action is 100% certain
@@ -114,8 +115,8 @@ public class Action extends Location {
         
         //String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description; 
         
-        if (prob > 0 && prob < 1) {
-            result = result + " with a probability of " + FORMAT_2DP.format(prob * 100) + "%";
+        if (bigProb.compareTo(BigDecimal.ONE) < 0) {
+            result = result + " with a probability of " + FORMAT_2DP.format(bigProb.multiply(ONE_HUNDRED)) + "%";
         }
         
         return result;

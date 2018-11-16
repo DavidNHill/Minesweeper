@@ -1,9 +1,11 @@
 package minesweeper.solver.constructs;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
@@ -14,15 +16,17 @@ public class EvaluatedLocation extends Location {
 	private String description = "";
 	private BigDecimal expectedClears;
 	private final int fixedClears;  //number of tiles which are clears regardless of what value is revealed
-	
+	private final boolean isCorner;
 
-	public EvaluatedLocation(int x, int y, BigDecimal clearProbability, BigDecimal progressProbability, BigDecimal expectedClears, int fixedClears) {
+	public EvaluatedLocation(int x, int y, BigDecimal clearProbability, BigDecimal progressProbability, BigDecimal expectedClears, int fixedClears, boolean isCorner) {
 		super(x,y);
 		
 		this.clearProbability = clearProbability;
+		//this.progressProbability = progressProbability.divide(clearProbability, Solver.DP, RoundingMode.HALF_UP);
 		this.progressProbability = progressProbability;
 		this.expectedClears = expectedClears;
 		this.fixedClears = fixedClears;
+		this.isCorner = isCorner;
 		
 	}
 	
@@ -55,7 +59,7 @@ public class EvaluatedLocation extends Location {
 	/**
 	 * This sorts by ...
 	 */
-	static public final Comparator<EvaluatedLocation> SORT_BY_EXPECTED_CLEARS  = new Comparator<EvaluatedLocation>() {
+	static public final Comparator<EvaluatedLocation> SORT_BY_FIXED_CLEARS_PROGRESS  = new Comparator<EvaluatedLocation>() {
 		@Override
 		public int compare(EvaluatedLocation o1, EvaluatedLocation o2) {
 			
@@ -83,5 +87,55 @@ public class EvaluatedLocation extends Location {
 		}
 	};
 	
+	static public final Comparator<EvaluatedLocation> SORT_BY_PROGRESS_PROBABILITY  = new Comparator<EvaluatedLocation>() {
+		@Override
+		public int compare(EvaluatedLocation o1, EvaluatedLocation o2) {
+			
+
+			int c = 0;
+			
+			c = -o1.progressProbability.compareTo(o2.progressProbability);  // highest probability of making progress first
+
+			if (c == 0) {
+				c = -o1.expectedClears.compareTo(o2.expectedClears);  // then highest expected number of clears
+			}
+			
+			// avoid playing at a corner if tied
+			if (c == 0) {
+				if (o1.isCorner && !o2.isCorner) {
+					c = 1;
+				} else if (!o1.isCorner && o2.isCorner) {
+					c = -1;
+				}
+			}
+			return c;
+		
+		}
+	};
+	
+	/**
+	 * This sorts by ...
+	 */
+	static public final Comparator<EvaluatedLocation> SORT_BY_LINKED_EXPECTED_CLEARS  = new Comparator<EvaluatedLocation>() {
+		@Override
+		public int compare(EvaluatedLocation o1, EvaluatedLocation o2) {
+			
+			int c = 0;
+			
+			if (o1.fixedClears == 0 && o2.fixedClears > 0) {
+				c = 1;
+			} else if (o1.fixedClears > 0 && o2.fixedClears == 0) {
+				c = -1;
+			}
+
+			if (c == 0) {
+				c = -o1.expectedClears.compareTo(o2.expectedClears);
+			}
+			
+			
+			return c;
+		
+		}
+	};
 	
 }

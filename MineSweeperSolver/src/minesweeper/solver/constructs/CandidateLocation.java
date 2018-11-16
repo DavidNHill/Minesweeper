@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.Comparator;
 
 import minesweeper.gamestate.MoveMethod;
-import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 public class CandidateLocation extends Location {

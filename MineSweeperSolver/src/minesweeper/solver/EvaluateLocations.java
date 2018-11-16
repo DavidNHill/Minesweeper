@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -17,22 +18,18 @@ import minesweeper.structure.Location;
 
 public class EvaluateLocations {
 
+	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_PROGRESS_PROBABILITY;  // this works well
+	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_LINKED_EXPECTED_CLEARS;   // trying this
+	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_FIXED_CLEARS_PROGRESS;      // trying this
+	
+	
 	private final static int[][] OFFSETS = {{2, 0}, {-2, 0}, {0, 2}, {0, -2}};
 
-	private class Probability {
-		
-		private int value;
-		private int size;
-		private BigInteger solutionCount;
-		
-	}
-	
 	
 	private final BoardState boardState;
 	private final WitnessWeb wholeEdge;
 	private final ProbabilityEngine pe;
 	private final Solver solver;
-	private List<Probability> scored = new ArrayList<>();
 
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
 
@@ -99,7 +96,9 @@ public class EvaluateLocations {
 
     				//BigDecimal progressProb = prob.divide(probThisTile, Solver.DP, RoundingMode.HALF_UP); // probability given we survive
 
-    				EvaluatedLocation evalTile = new EvaluatedLocation(tile.x, tile.y, probThisTile, prob, expectedClears, 0);
+
+    				
+    				EvaluatedLocation evalTile = new EvaluatedLocation(tile.x, tile.y, probThisTile, prob, expectedClears, 0, isCorner(tile));
 
     				evaluated.add(evalTile);
 
@@ -123,9 +122,6 @@ public class EvaluateLocations {
 		for (Location tile: tiles) {
 			evaluateLocation(tile);
 		}
-
-
-
 
 	}
 
@@ -223,7 +219,8 @@ public class EvaluateLocations {
 
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		//BigDecimal expectedClears = BigDecimal.valueOf(1 + linkedTiles).multiply(probThisTile); 
-		BigDecimal expectedClears = BigDecimal.ZERO; 
+		//BigDecimal expectedClears = BigDecimal.ZERO; 
+		BigDecimal expectedClears = probThisTile; 
 
 		//boardState.display(tile.display() + " has " + linkedTiles + " linked tiles");
 
@@ -239,12 +236,13 @@ public class EvaluateLocations {
 				clears = counter.getClearCount();
 
 				if (sol.signum() != 0 && clears > linkedTiles) {
+				//if (sol.signum() != 0) {
 
 					BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 					boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
 
 					// expected clears is the sum of the number of mines cleared * the probability of clearing them
-					expectedClears = expectedClears.add(BigDecimal.valueOf(clears - linkedTiles).multiply(prob));    // don't count the linked Tiles twice
+					expectedClears = expectedClears.add(BigDecimal.valueOf(clears - linkedTiles).multiply(prob));    
 
 					progressProb = progressProb.add(prob);
 				} else {
@@ -265,14 +263,13 @@ public class EvaluateLocations {
 		}
 
 		if (linkedTiles > 0) {
-			//progressProb = BigDecimal.ONE;
 			progressProb = probThisTile;
 		}
 
 
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles);
+			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile));
 			
 			if (linkedLocation != null) {
 				boardState.display("Considering with " + linkedLocation.getLinkedLocations().size() + " linked locations");
@@ -327,7 +324,8 @@ public class EvaluateLocations {
 
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		//BigDecimal expectedClears = BigDecimal.valueOf(1 + linkedTiles).multiply(probThisTile); 
-		BigDecimal expectedClears = BigDecimal.ZERO; 
+		//BigDecimal expectedClears = BigDecimal.ZERO; 
+		BigDecimal expectedClears = probThisTile; 
 
 		//boardState.display(tile.display() + " has " + linkedTiles + " linked tiles");
 
@@ -340,7 +338,7 @@ public class EvaluateLocations {
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getClearCount();
 
-			if (sol.signum() != 0) {
+			if (sol.signum() != 0 && clears > linkedTiles) {
 
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 				boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
@@ -353,20 +351,21 @@ public class EvaluateLocations {
 				}
 
 			} else {
-				boardState.display(tile.display() + " with value " + i + " with probability zero");
+				if (sol.signum() == 0) {
+					boardState.display(tile.display() + " with value " + i + " with probability zero");
+				} else {
+					boardState.display(tile.display() + " with value " + i + " only has linked clears");
+				}
 			}
 
 		}
 
-		/*
 		if (linkedTiles > 0) {
-			//progressProb = BigDecimal.ONE;
 			progressProb = probThisTile;
 		}
-		 */
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles);
+		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile));
 		//}
 
 
@@ -396,23 +395,31 @@ public class EvaluateLocations {
 
 	public void showResults() {
 
-		evaluated.sort(EvaluatedLocation.SORT_BY_EXPECTED_CLEARS);
+		evaluated.sort(SORT_ORDER);
 
 		boardState.display("--- evaluated locations ---");
 		for (EvaluatedLocation el: evaluated) {
 			boardState.display(el.display());
 		}
 
-
 	}
 
+	
+	private boolean isCorner(Location tile) {
+		if ((tile.x == 0 || tile.x == boardState.getGameWidth() - 1) && (tile.y == 0 || tile.y == boardState.getGameHeight() - 1)) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+	
 	public Action[] bestMove() {
 
 		if (evaluated.isEmpty()) {
 			return new Action[0];
 		}
 
-		evaluated.sort(EvaluatedLocation.SORT_BY_EXPECTED_CLEARS);
+		evaluated.sort(SORT_ORDER);
 
 		EvaluatedLocation evalLoc = evaluated.get(0);
 
@@ -429,5 +436,9 @@ public class EvaluateLocations {
 
 	}
 
+	public List<EvaluatedLocation> getEvaluatedLocations() {
+		return evaluated;
+	}
+	
 
 }

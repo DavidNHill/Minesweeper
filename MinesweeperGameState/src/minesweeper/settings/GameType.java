@@ -5,20 +5,20 @@ public enum GameType {
 	/**
 	 * Game starts with a guaranteed zero
 	 */
-	EASY("Easy"),
+	EASY("Zero"),
 	
 	/**
 	 * Game starts with a guaranteed safe position (which could be a zero)
 	 */	
-	STANDARD("Standard"),
+	STANDARD("Safe"),
 	
 	/**
 	 * No guaranteed safe start (could be a mine)
 	 */
-	HARD("Hard");
+	HARD("Unsafe");
 	
 	
-	public String name;
+	public final String name;
 	
 	private GameType(String name) {
 		this.name = name;

@@ -20,7 +20,6 @@ import minesweeper.settings.GameType;
 import minesweeper.gamestate.GameStateHard;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
-import minesweeper.solver.OpeningLocation;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
@@ -67,7 +66,7 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 1965065593;
+		seed = 926358205;
 			
 		// start (3,2)
 		//Seed 1652664258 played 100000 games Wins=88880 (88.880%) after 40412(25413,14999) guesses(winning, losing), fairness ratio=0.01630, duration = 200178 milliseconds
@@ -87,8 +86,8 @@ public class MinesweeperBulk {
 
 		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(6,6,5);
-		GameType gameType = GameType.STANDARD;
+		//GameSettings gameSettings = GameSettings.create(4,4,5);
+		GameType gameType = GameType.EASY;
 		
 		while (played < MAX) {
 

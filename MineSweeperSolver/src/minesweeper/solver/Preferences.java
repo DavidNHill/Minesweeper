@@ -83,8 +83,8 @@ abstract public class Preferences {
 		public void setVariables() {
 		   	
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
-			BRUTE_FORCE_ANALYSIS_MAX_NODES = 100000;
-	    	BRUTE_FORCE_MAX = new BigInteger("1000000"); // 1 million
+			BRUTE_FORCE_ANALYSIS_MAX_NODES = 150000;
+	    	BRUTE_FORCE_MAX = new BigInteger("5000000"); // 5 million
 	    	USE_MIN_MAX = true;
 	    	
 		}

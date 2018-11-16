@@ -58,7 +58,7 @@ public class WitnessWeb {
         // create witnesses for all the Witness locations provided
         // and attach adjacent Squares
         List<Square> adjSqu;
-        for (Location wit: allWit) {
+        for (Location wit: originalWitnesses) {
             // calculate how many mines are left to find
             //int mines = gs.query(wit) - solver.countConfirmedFlags(wit);
             int mines = boardState.getWitnessValue(wit) - boardState.countAdjacentConfirmedFlags(wit);

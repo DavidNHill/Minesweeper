@@ -51,8 +51,8 @@ public class CrunchResult {
          * The largest number of candidate solutions within the bigDistribution for this square. This is the maximum number of solutions that can
          * remain if we choose to guess here.
          */
-        private BigInteger[] bigMax;  // the maximum count for each square
-        private int[] bigMaxIndex;
+        //private BigInteger[] bigMax;  // the maximum count for each square
+        //private int[] bigMaxIndex;
         
         /**
          * Number of different values this square can have
@@ -117,7 +117,7 @@ public class CrunchResult {
             result.bigGoodCandidates = candidates;
             result.bigDistribution = distribution;
             
-            result.calculateMinMax();
+            //result.calculateMinMax();
             
             
             // merge the witness information
@@ -140,6 +140,7 @@ public class CrunchResult {
 
         }
         
+        /*
         protected void calculateMinMax() {
             
             if (this.bigDistribution == null) {
@@ -173,7 +174,8 @@ public class CrunchResult {
             
             
         }
-
+		*/
+        
 		public List<Location> getSquare() {
 			return square;
 		}
@@ -182,13 +184,13 @@ public class CrunchResult {
 			this.square = square;
 		}
 
-		public BigInteger[] getBigMax() {
-			return bigMax;
-		}
+		//public BigInteger[] getBigMax() {
+		//	return bigMax;
+		//}
 
-		public void setBigMax(BigInteger[] bigMax) {
-			this.bigMax = bigMax;
-		}
+		//public void setBigMax(BigInteger[] bigMax) {
+		//	this.bigMax = bigMax;
+		//}
 
 		public BigInteger getWeight() {
 			return weight;
@@ -206,15 +208,15 @@ public class CrunchResult {
 			this.bigCount = bigCount;
 		}
 
-		public int[] getBigMaxIndex() {
-			return bigMaxIndex;
-		}
+		//public int[] getBigMaxIndex() {
+		//	return bigMaxIndex;
+		//}
 
-		public void setBigMaxIndex(int[] bigMaxIndex) {
-			this.bigMaxIndex = bigMaxIndex;
-		}
+		//public void setBigMaxIndex(int[] bigMaxIndex) {
+		//	this.bigMaxIndex = bigMaxIndex;
+		//}
         
-		public int getMaxCount() {
-			return this.maxBigCount;
-		}
+		//public int getMaxCount() {
+		//	return this.maxBigCount;
+		//}
 }

@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package minesweeper.solver;
+package minesweeper.solver.constructs;
 
 import minesweeper.structure.Location;
 
