@@ -1,0 +1,9 @@
+package minesweeper.explorer.main
+
+import javafx.scene.layout.AnchorPane
+
+component MainScreen {
+	AnchorPane {
+		//TODO Add Nodes
+	}
+}

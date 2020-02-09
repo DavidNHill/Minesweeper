@@ -133,6 +133,7 @@ public class ScreenController {
     //private static final Preferences preferences = Preferences.NO_BRUTE_FORCE;
     //private static final Preferences preferences = Preferences.MAX_ANALYSIS; 
     private static final Preferences preferences = Preferences.LARGE_ANALYSIS; 
+    //private static final Preferences preferences = Preferences.VERY_LARGE_ANALYSIS; 
     private Solver solver;
     
     private WritableImage scr;
@@ -166,7 +167,6 @@ public class ScreenController {
     
     private final List<Node> heatMapNodes = new ArrayList<>();
     
-    //TODO finish this ...
     private EventHandler<MouseEvent> me = new EventHandler<MouseEvent>() {
 
 		@Override
@@ -413,7 +413,7 @@ public class ScreenController {
         // rotate the button
         //new Rotator((Node) event.getSource()).start();
         
-    	Button button = (Button) event.getSource();
+    	//Button button = (Button) event.getSource();
     	
         automate = !automate;
         
@@ -443,7 +443,12 @@ public class ScreenController {
         if (event.isPrimaryButtonDown() && event.isSecondaryButtonDown()) {
             action = new Action(m, Action.CLEARALL);
         } else if (event.isPrimaryButtonDown()) {
-            action = new Action(m, Action.CLEAR);
+        	if (solver.getGame().query(m) > 0) {
+        		action = new Action(m, Action.CLEARALL);  // modern chording
+        	} else {
+        		action = new Action(m, Action.CLEAR);
+        	}
+ 
         } else if (event.isSecondaryButtonDown()) {
             action = new Action(m, Action.FLAG);
         }
@@ -458,20 +463,7 @@ public class ScreenController {
 
         move = getMoves();
         
-        /*
-        boolean loop = true;
-        while (loop) {
-        	move = getMoves();
-        	loop = false;
-            for (Action a: move) {
-            	if (a.getMoveMethod() == MoveMethod.TRIVIAL) {
-            		doMove(a);
-            		loop = true;
-            	}
-            }        	
-        }
-		*/
-        
+
         if (!automate) {
         	createHeatMap(move);
         }
@@ -607,7 +599,8 @@ public class ScreenController {
     	ExtensionFilter ef1 = new ExtensionFilter("All files", "*.*");
     	ExtensionFilter ef2 = new ExtensionFilter("Minesweeper board", "*.mine");
     	ExtensionFilter ef3 = new ExtensionFilter("Minesweeper board", "*.board");
-    	fileChooser.getExtensionFilters().addAll(ef1, ef2, ef3);
+    	ExtensionFilter ef4 = new ExtensionFilter("Minesweeper board", "*.mbf");
+    	fileChooser.getExtensionFilters().addAll(ef1, ef2, ef3, ef4);
     	fileChooser.setSelectedExtensionFilter(ef2);        
         fileChooser.setInitialDirectory(new File(System.getProperty("user.dir")));
     	

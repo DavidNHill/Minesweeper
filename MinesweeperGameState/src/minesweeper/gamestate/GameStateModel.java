@@ -310,7 +310,7 @@ abstract public class GameStateModel {
     
     
     // set up the board with the mines
-    void start(Location m) {
+    protected void start(Location m) {
         
         gameState = GameStateModel.STARTED;
         

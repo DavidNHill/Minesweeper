@@ -17,6 +17,8 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.iterator.Iterator;
+import minesweeper.solver.iterator.SequentialIterator;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
@@ -30,6 +32,7 @@ public class ProbabilityEngine {
 
 	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
+	private static final boolean CHECK_FOR_DEAD_LOCATIONS = true;
 	
 	// used to hold a viable solution 
 	private class ProbabilityLine implements Comparable<ProbabilityLine> {
@@ -77,6 +80,20 @@ public class ProbabilityEngine {
 	
 	}
 	
+	// information about the boxes surrounding a dead candidate
+	private class DeadCandidate {
+		
+		private Location candidate;
+		private Box myBox;
+		private boolean isAlive = false;
+		private List<Box> goodBoxes = new ArrayList<>();
+		private List<Box> badBoxes = new ArrayList<>();
+		
+		private boolean firstCheck = true;
+		private BigInteger total;
+	
+	}
+	
 	private long duration;
 	
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
@@ -96,6 +113,12 @@ public class ProbabilityEngine {
 	private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
 	private List<Location> mines = new ArrayList<>();  // certain mines we have found 
 	
+	// list of locations which are potentially dead
+	private List<DeadCandidate> deadCandidates = new ArrayList<>();
+	
+	// Edges which can be processed independently converted to Cruncher class, ready to be processed
+	private List<Cruncher> isolatedEdges = new ArrayList<>();
+	
 	final private BoardState boardState;
 	final private WitnessWeb web;
 	final private int boxCount;
@@ -103,7 +126,7 @@ public class ProbabilityEngine {
 	final private List<Box> boxes;
 	final private int minesLeft;                 // number of mines undiscovered in the game
 	final private int squaresLeft;               // number of squares undiscovered in the game and off the web
-	final private Area deadLocations;
+	private Area deadLocations;
 	
 	private int independentGroups = 0;
 	private int recursions = 0;
@@ -118,18 +141,20 @@ public class ProbabilityEngine {
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
-	public ProbabilityEngine(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft, Area deadLocations) {
+	public ProbabilityEngine(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
 		
 		this.boardState = boardState;
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
-		this.deadLocations = deadLocations;
+		this.deadLocations = Area.EMPTY_AREA;
 		
 		this.minTotalMines = minesLeft - this.squaresLeft;  //we can't use so few mines that we can't fit the remainder elsewhere on the board
 		this.maxTotalMines = minesLeft;    // we can't use more mines than are left in the game
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);
+		
+		web.generateBoxes();
 		
 		this.witnesses = web.getPrunedWitnesses();
 		this.boxes = web.getBoxes();
@@ -153,6 +178,11 @@ public class ProbabilityEngine {
 	public void process() {
 		
 		long startTime = System.currentTimeMillis();
+		
+		if (CHECK_FOR_DEAD_LOCATIONS) {
+			determineCandidateDeadLocations();			
+		}
+
 		
 		// create an initial solution of no mines anywhere
 		ProbabilityLine held = new ProbabilityLine();
@@ -299,9 +329,18 @@ public class ProbabilityEngine {
 		//	return;
 		//} 
 		
+		//if (CHECK_FOR_DEAD_LOCATIONS) {
+		//	checkCandidateDeadLocations();			
+		//}
+	
 		// crunch the new ones down to one line per mine count
 		List<ProbabilityLine> crunched = crunchByMineCount(workingProbs);
 
+		if (crunched.size() == 1) {
+			checkEdgeIsIsolated();
+		}
+
+		
 		//solver.display("New data has " + crunched.size() + " entries");
 		
 		for (ProbabilityLine pl: crunched) {
@@ -422,6 +461,7 @@ public class ProbabilityEngine {
 
 		}		
 		
+		boardState.display("Total Candidate solutions " + totalTally);
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (totalTally.signum() != 0) {
@@ -439,23 +479,37 @@ public class ProbabilityEngine {
 			}
 		}
 
+		/*
+		// add the dead locations we found 
+		if (CHECK_FOR_DEAD_LOCATIONS) {
+			Set<Location> newDead = new HashSet<>();
+			for (DeadCandidate dc: deadCandidates) {
+				if (!dc.isAlive && boxProb[dc.myBox.getUID()].signum() != 0) {
+					newDead.add(dc.candidate);
+				}
+			}
+			deadLocations = deadLocations.merge(new Area(newDead));
+			
+		}
+		*/
+		
 		for (int i=0; i < hashTally.length; i++) {
 			//solver.display(boxes.get(i).getSquares().size() + " " + boxes.get(i).getSquares().get(0).display() + " " + hashTally[i].toString());
 			for (int j=i+1; j < hashTally.length; j++) {
 				
-				BigInteger hash1 = hashTally[i].divide(BigInteger.valueOf(boxes.get(i).getSquares().size()));
-				BigInteger hash2 = hashTally[j].divide(BigInteger.valueOf(boxes.get(j).getSquares().size()));
+				//BigInteger hash1 = hashTally[i].divide(BigInteger.valueOf(boxes.get(i).getSquares().size()));
+				//BigInteger hash2 = hashTally[j].divide(BigInteger.valueOf(boxes.get(j).getSquares().size()));
 				
-				//if (hashTally[i].compareTo(hashTally[j]) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
-				if (hash1.compareTo(hash2) == 0) {
+				if (hashTally[i].compareTo(hashTally[j]) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
+				//if (hash1.compareTo(hash2) == 0) {
 					addLinkedLocation(linkedLocations, boxes.get(i), boxes.get(j));
 					addLinkedLocation(linkedLocations, boxes.get(j), boxes.get(i));
 					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i]);
 				}
 				
 				// if one hasTally is the negative of the other then   i flag <=> j clear
-				//if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
-				if (hash1.compareTo(hash2.negate()) == 0) {
+				if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
+				//if (hash1.compareTo(hash2.negate()) == 0) {
 					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is contra linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i] + " " + boxProb[j]);
 					addLinkedLocation(contraLinkedLocations, boxes.get(i), boxes.get(j));
 					addLinkedLocation(contraLinkedLocations, boxes.get(j), boxes.get(i));					
@@ -568,7 +622,7 @@ public class ProbabilityEngine {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			boardState.display("Probability Engine recursision = " + recursions);
+			boardState.display("Probability Engine recursion = " + recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();
@@ -696,20 +750,27 @@ public class ProbabilityEngine {
 		
 		// since we have calculated all the mines in an independent set of witnesses we can crunch them down and store them for later
 		
+		// before we crunch everything down check for dead tiles
+		if (CHECK_FOR_DEAD_LOCATIONS) {
+			checkCandidateDeadLocations();
+			checkEdgeIsDead();
+		}
+		
+		
 		// get an unprocessed witness
 		NextWitness nw =  findFirstWitness();
 		
 		// only crunch it down for non-trivial probability lines unless it is the last set - this is an efficiency decision
-		if (workingProbs.size() > 1 || nw == null) {
-			storeProbabilities();
-			
-			// reset the working array so we can start building up one for the new set of witnesses
-			workingProbs.clear();
-			workingProbs.add(new ProbabilityLine());
-			
-			// reset the mask indicating that no boxes have been processed 
-			mask = new boolean[boxCount]; 
-		}
+		//if (workingProbs.size() > 1 || nw == null) {
+		storeProbabilities();
+		
+		// reset the working array so we can start building up one for the new set of witnesses
+		workingProbs.clear();
+		workingProbs.add(new ProbabilityLine());
+		
+		// reset the mask indicating that no boxes have been processed 
+		mask = new boolean[boxCount]; 
+		//}
 
 		// return the next witness to process
 		return nw;
@@ -736,7 +797,7 @@ public class ProbabilityEngine {
 	}
 	
 	/**
-	 * The probability of a mine being in a square not considered by this process
+	 * The probability of the safest witnessed tile
 	 * @return
 	 */
 	protected BigDecimal getBestOnEdgeProb() {
@@ -807,12 +868,212 @@ public class ProbabilityEngine {
 	}
 	
 	
-	protected Area getDeadLocations() {
+	private void checkCandidateDeadLocations() {
 		
-		Set<Location> result = new HashSet<>();
+		boolean completeScan;
+		if (squaresLeft == 0) {
+			completeScan = true;   // this indicates that every box has been considered in one sweep (only 1 independent edge)
+			for (int i=0; i < mask.length; i++) {
+				if (!mask[i]) {
+					completeScan = false;
+					break;
+				}
+			}
+			if (completeScan) {
+				boardState.display("This is a complete scan");
+			} else {
+				boardState.display("This is not a complete scan");
+			}			
+		} else {
+			completeScan = false;
+			boardState.display("This is not a complete scan because there are squares off the edge");
+		}
+
+		
+		for (DeadCandidate dc: deadCandidates) {
+			
+			if (dc.isAlive) {  // if this location isn't dead then no need to check any more
+				continue;
+			}
+			
+			// only do the check if all the boxes have been analysed in this probability iteration
+			int boxesInScope = 0;
+			for (Box b: dc.goodBoxes) {
+				if (mask[b.getUID()]) {
+					boxesInScope++;
+				}
+			}
+			for (Box b: dc.badBoxes) {
+				if (mask[b.getUID()]) {
+					boxesInScope++;
+				}
+			}
+			if (boxesInScope == 0) {
+				continue;
+			} else if (boxesInScope != dc.goodBoxes.size() + dc.badBoxes.size()) {
+				boardState.display("Location " + dc.candidate.display() + " has some boxes in scope and some out of scope so assumed alive");
+				dc.isAlive = true;
+				continue;
+			}
+			
+			
+			boolean okay = true;
+			int mineCount = 0;
+			line: for (ProbabilityLine pl: workingProbs) {
+
+				if (completeScan && pl.mineCount != minesLeft) {
+					continue;
+				}
+				
+				// ignore probability lines where the candidate is a mine
+				if (pl.mineBoxCount[dc.myBox.getUID()].compareTo(BigInteger.valueOf(dc.myBox.getSquares().size())) == 0) {
+					mineCount++;
+					continue line;
+				}
+				
+				
+				// all the bad boxes must be zero
+				for (Box b: dc.badBoxes) {
+					
+                    int requiredMines;
+                    if (b.getUID() == dc.myBox.getUID()) {
+                        requiredMines = b.getSquares().size() - 1;
+                    } else {
+                        requiredMines = b.getSquares().size();
+                    }
+					
+					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].intValue() != requiredMines) {
+						boardState.display("Location " + dc.candidate.display() + " is not dead because a bad box is neither empty nor full of mines");
+						okay = false;
+						break line;
+					}
+				}
+				
+				BigInteger tally = BigInteger.ZERO;
+				// the number of mines in the good boxes must always be the same
+				for (Box b: dc.goodBoxes) {
+					tally = tally.add(pl.mineBoxCount[b.getUID()]);
+				}
+				//boardState.display("Location " + dc.candidate.display() + " has mine tally " + tally);
+				if (dc.firstCheck) {
+					dc.total = tally;
+					dc.firstCheck = false;
+				} else {
+					if (dc.total.compareTo(tally) != 0) {
+						boardState.display("Location " + dc.candidate.display() + " is not dead because the sum of mines in good boxes is not constant. Was "
+					                       + dc.total + " now " + tally + ". Mines in probability line " + pl.mineCount);
+						okay = false;
+						break;
+					}
+				}
+			}
+			
+			// if a check failed or this tile is a mine for every solution then it is alive
+			if (!okay || mineCount == this.workingProbs.size()) {
+				dc.isAlive = true;
+			} else {
+				// add the dead locations we found 
+				Set<Location> newDead = new HashSet<>();
+				newDead.add(dc.candidate);
+				deadLocations = deadLocations.merge(new Area(newDead));
+				boardState.display(dc.candidate.display() + " is dead");
+			}
+			
+		}
+		
+	}
+
+	// an edge is dead if every tile on the edge is dead
+	private boolean checkEdgeIsDead() {
+		
+		// For each box on this edge check each of the tiles in it, if any are alive then the edge is alive
+        for (int i = 0; i < this.mask.length; i++) {
+            if (this.mask[i]) {   
+            	for (Square tile: boxes.get(i).getSquares()) {
+            		if (!deadLocations.contains(tile)) {
+            			return false;
+            		}
+            	}
+            }
+        }
+
+        boardState.display("The following area is dead - all guesses in the area are equal");
+        for (int i = 0; i < this.mask.length; i++) {
+            if (this.mask[i]) {   
+            	for (Square tile: boxes.get(i).getSquares()) {
+            		boardState.display("Location " + tile.display());
+            		boardState.addIsolatedDeadTile(tile);
+            	}
+            }
+        }        
+		
+		return true;
+	}
+	
+	// an edge is isolated if every tile on it is completely surrounded by boxes also on the same egde
+	private boolean checkEdgeIsIsolated() {
+		
+		Set<Location> edgeTiles = new HashSet<>();
+		Set<Location> edgeWitnesses = new HashSet<>();
+		
+		boolean everything = true;
+		
+		// load each tile on this edge into a set
+        for (int i = 0; i < this.mask.length; i++) {
+            if (this.mask[i]) {  
+            	edgeTiles.addAll(boxes.get(i).getSquares());
+            	edgeWitnesses.addAll(boxes.get(i).getWitnesses());
+            	//for (Square tile: boxes.get(i).getSquares()) {
+            	//	edgeTiles.add(tile);
+            	//}
+            } else {
+            	everything = false;
+            }
+        }
+
+        // if this edge is everything then it isn't an isolated edge
+        if (everything) {
+        	return false;
+        }
+        
+        
+		// check whether every tile adjacent to the tiles on the edge is itself on the edge
+        for (int i = 0; i < this.mask.length; i++) {
+            if (this.mask[i]) {   
+            	for (Square tile: boxes.get(i).getSquares()) {
+            		if (!edgeTiles.containsAll(boardState.getAdjacentUnrevealedSquares(tile))) {
+            			return false;
+            		}
+            		//for (Location adjLoc: boardState.getAdjacentUnrevealedSquares(tile)) {
+            		//	if (!edgeTiles.contains(adjLoc)) {
+            		//		return false;
+            		//	}
+            		//}
+            	}
+            }
+        }
+
+        boardState.display("*** Isolated Edge found ***");
+        
+        List<Location> tiles = new ArrayList<>(edgeTiles);
+        List<Location> witnesses = new ArrayList<>(edgeWitnesses);
+        int mines = workingProbs.get(0).mineCount;
+        
+        Iterator iterator = new SequentialIterator(mines, tiles.size());
+        
+        BruteForceAnalysisModel bfa = new BruteForceAnalysis(boardState.getSolver(), tiles, 1000000, "Isolated Edge", null);
+        
+        Cruncher cruncher = new Cruncher(boardState, tiles, witnesses, iterator, false, bfa);
+        
+        isolatedEdges.add(cruncher);
+        
+		return true;
+	}
+	
+	private void determineCandidateDeadLocations() {
 		
 		// for each square on the edge
-		for (Location loc: web.getSquares()) {
+		for (Square loc: web.getSquares()) {
 			
 			List<Box> boxes = getAdjacentBoxes(loc);
 			
@@ -820,50 +1081,53 @@ public class ProbabilityEngine {
 				continue;
 			}
 			
-			boolean dead = true;
-			BigInteger constMines = null;
-
-			// For each distinct number of mines see if the number of surrounding mines is always the same 
-			for (ProbabilityLine pl: heldProbs) {
+			DeadCandidate dc = new DeadCandidate();
+			dc.candidate = loc;
+			dc.myBox = getBox(loc);
+			
+			for (Box box: boxes) {
 				
-				if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
-					
-					BigInteger lineTotal = BigInteger.ZERO;
-					
-					for (Box box: boxes) {
-						lineTotal = lineTotal.add(pl.mineBoxCount[box.getUID()]);
-					}
-
-					BigInteger adjMines = lineTotal.divide(pl.solutionCount);
-					boardState.display(loc.display() + " line Total " + lineTotal + " solutionCount " + pl.solutionCount + " adjMines " + adjMines);
-					
-					if (constMines == null) {
-						constMines = adjMines;
-					} else if (adjMines.compareTo(constMines) != 0) {
-						boardState.display(loc.display() + " not dead");
-						dead = false;
+				boolean good = true;
+				for (Square square: box.getSquares()) {
+					if (!square.isAdjacent(loc) && !square.equals(loc)) {
+						good = false;
 						break;
 					}
 				}
-
-			}		
-
-			if (dead) {
-				boardState.display(loc.display() + " is dead");
-				result.add(loc);
+				if (good) {
+					dc.goodBoxes.add(box); //  a good adjacent box is where all its Tiles are adjacent to the candidate
+				} else {
+					dc.badBoxes.add(box);  // otherwise it is a bad box
+				}
+				
 			}
 			
+			deadCandidates.add(dc);
+			
+		}
+
+		for (DeadCandidate dc: deadCandidates) {
+			boardState.display(dc.candidate.display() + " is candidate dead with " + dc.goodBoxes.size() + " good boxes and " + dc.badBoxes.size() + " bad boxes");
 		}
 		
-		return new Area(result);
+	}
+	
+	private Box getBox(Location l) {
 		
+		for (Box b: boxes) {
+			if (b.contains(l)) {
+				return b;
+			}
+		}
+		
+		return null;
 	}
 	
 	private List<Box> getAdjacentBoxes(Location loc) {
 		
 		List<Box> result = new ArrayList<>();
 		
-		int sizeOfBoxes = 0;
+		//int sizeOfBoxes = 0;
 		
 		// get each adjacent location
 		for (Location adjLoc: boardState.getAdjacentUnrevealedSquares(loc)) {
@@ -884,7 +1148,7 @@ public class ProbabilityEngine {
 					// if not add it
 					if (!found) {
 						result.add(box);
-						sizeOfBoxes = box.getSquares().size();
+						//sizeOfBoxes = box.getSquares().size();
 					}
 				}
 			}
@@ -897,9 +1161,9 @@ public class ProbabilityEngine {
 		}		
 		
 		// if the area in the boxes does not agree with the area around the target location then the boxes overspill the area
-		if (boardState.countAdjacentUnrevealed(loc) != sizeOfBoxes) {
-			return null;
-		}
+		//if (boardState.countAdjacentUnrevealed(loc) != sizeOfBoxes) {
+		//	return null;
+		//}
 		
 		
 		return result;
@@ -933,6 +1197,15 @@ public class ProbabilityEngine {
 	
 	protected List<LinkedLocation> getLinkedLocations() {
 		return this.linkedLocations;
+	}
+	
+	// get the dead locations provided to the probability engine with any new ones dicovered
+	protected Area getDeadLocations() {
+		return this.deadLocations;
+	}
+	
+	protected List<Cruncher> getIsolatedEdges() {
+		return isolatedEdges;
 	}
 	
 	/**

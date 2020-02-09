@@ -51,7 +51,7 @@ public class Cruncher implements Asynchronous<CrunchResult> {
     @Override
     public void start() {
         
-        result = crunch(square, witness, iterator, calculateDistribution, bfa);
+        result = crunch();
         //System.out.println("Candidates = " + result.bigGoodCandidates);
         result.setWeight(BigInteger.ONE);
         
@@ -69,7 +69,7 @@ public class Cruncher implements Asynchronous<CrunchResult> {
     }
 
     
-    protected CrunchResult crunch(final List<Location> square, final List<? extends Location> witness, Iterator iterator, boolean calculateDistribution, BruteForceAnalysisModel bfa) {
+    private CrunchResult crunch() {
         
         //display("crunching " + iterator.numberBalls + " Mines in " + square.length + " Squares with " + witness.length + " witnesses");
 
@@ -291,6 +291,9 @@ public class Cruncher implements Asynchronous<CrunchResult> {
         
     }
     
+    protected BruteForceAnalysisModel getBFA() {
+    	return bfa;
+    }
     
     // a witness is a 'good' witness if all its adjacent free squares are also
     // contained in the set of squares being analysed. A 'good' witness must

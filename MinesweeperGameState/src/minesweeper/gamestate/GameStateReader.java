@@ -52,6 +52,11 @@ public class GameStateReader extends GameStateModelViewer {
     
     public final static GameStateModelViewer load(File file) throws Exception {
     	
+    	if (file.getName().toUpperCase().endsWith(".MBF")) {
+    		return loadMBF(file);
+    	}
+    	
+    	
     	int width;
     	int height;
     	int mines;
@@ -163,6 +168,76 @@ public class GameStateReader extends GameStateModelViewer {
 			result.partialGame = false;
 		}
 		
+    	result.file = file;
+		
+    	result.start(new Location(0,0));
+    	
+		return result;
+		
+    }
+    
+    public final static GameStateModelViewer loadMBF(File file) throws Exception {
+    	
+    	System.out.println("Loading MBF file");
+    	
+    	int width;
+    	int height;
+    	int mines;
+   	
+    	GameStateReader result;
+
+    	byte[] data = new byte[70000];
+    	
+		try (FileInputStream fis = new FileInputStream(file)){
+			
+			int size = 0;
+			int length = 0;
+			while (length != -1) {
+				size = size + length;
+				length = fis.read(data, size, 1024);
+				System.out.println("Read " + length + " bytes");
+			}
+			System.out.println("Loaded " + size + " bytes in total");
+			
+			if (size == 0) {
+				throw new Exception("File is empty!");
+			}
+			
+			
+			try {
+				width = data[0];
+				height = data[1];
+				mines = data[2] * 256 + data[3];
+				System.out.println("Width " + width+ " height " + height + " mines " + mines);
+			} catch (Exception e) { 
+				throw new Exception("Unable to parse the board values");
+			}
+
+			result = new GameStateReader(GameSettings.create(width, height, mines));
+
+			for (int i=4; i < size; i+=2) {
+				int x = data[i];
+				int y = data[i+1];
+				
+				//System.out.println("mine at (" + x + "," + y + ")");
+                result.board[x][y] = GameStateModel.MINE;
+                
+                // tell all the surrounding squares they are next to a mine
+                for (int j=0; j < DX.length; j++) {
+                    if (x + DX[j] >= 0 && x + DX[j] < result.width && y + DY[j] >= 0 && y + DY[j] < result.height) {
+                        if (result.board[x+DX[j]][y+DY[j]] != GameStateModel.MINE) {
+                            result.board[x+DX[j]][y+DY[j]]++;
+                        }
+                    }
+                }
+
+			}
+
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw e;
+		}	
+    	
     	result.file = file;
 		
     	result.start(new Location(0,0));

@@ -69,7 +69,8 @@ public class BruteForce {
 			return;
 		}
 
-		
+		// now doing this logic 'just in time' rather than always at witness web generation 
+		web.generateIndependentWitnesses();
 
 		// and crunch the result if we have something to check against
 		if (web.getPrunedWitnesses().size() >= 0) {

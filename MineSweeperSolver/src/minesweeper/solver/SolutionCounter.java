@@ -101,6 +101,8 @@ public class SolutionCounter {
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);
 		
+		web.generateBoxes();
+		
 		this.witnesses = web.getPrunedWitnesses();
 		this.boxes = web.getBoxes();
 		
@@ -374,7 +376,7 @@ public class SolutionCounter {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			solver.display("Probability Engine recursision = " + recursions);
+			solver.display("Solution counter recursion = " + recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();

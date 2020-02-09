@@ -58,7 +58,7 @@ public class Binomial {
 		
 		if (n <= lookupLimit && binomialLookup[n][choose] != null) {
 			return binomialLookup[n][choose];
-		} else if (choose < 150) {
+		} else if (choose < 125) {
 			return combination(choose, n);
 		} else {
 			return combinationLarge(choose, n);

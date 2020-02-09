@@ -291,7 +291,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		private int getWinningLines(LivingLocation move) {
 
 			//if we can never exceed the cutoff then no point continuing
-			if (this.getSolutionSize() - move.mineCount <= this.winningLines) {
+			if (Solver.PRUNE_BF_ANALYSIS && this.getSolutionSize() - move.mineCount <= this.winningLines) {
 				move.pruned = true;
 				return 0;
 			}
@@ -695,6 +695,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				alive.maxSolutions = maxSolutions;
 				alive.zeroSolutions = valueCount[0];
 				living.add(alive);
+			} else {
+				solver.display(locations.get(i).display() + " is dead with value " + minValue);
 			}
 			
 		}

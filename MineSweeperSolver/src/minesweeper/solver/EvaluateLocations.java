@@ -25,6 +25,7 @@ public class EvaluateLocations {
 	
 	private final static int[][] OFFSETS = {{2, 0}, {-2, 0}, {0, 2}, {0, -2}};
 
+	//private final static int[][] OFFSETS = {{2, -1}, {2, 0}, {2, 1}, {-2, -1}, {-2, 0}, {-2, 1}, {-1, 2}, {0, 2}, {1, 2}, {-1, -2}, {0, -2}, {1, -2}};
 	
 	private final BoardState boardState;
 	private final WitnessWeb wholeEdge;
@@ -96,9 +97,9 @@ public class EvaluateLocations {
 
     				//BigDecimal progressProb = prob.divide(probThisTile, Solver.DP, RoundingMode.HALF_UP); // probability given we survive
 
-
+    				BigDecimal totalClears = expectedClears.add(probThisTile);
     				
-    				EvaluatedLocation evalTile = new EvaluatedLocation(tile.x, tile.y, probThisTile, prob, expectedClears, 0, isCorner(tile));
+    				EvaluatedLocation evalTile = new EvaluatedLocation(tile.x, tile.y, probThisTile, prob, totalClears, 0, isCorner(tile));
 
     				evaluated.add(evalTile);
 
@@ -130,8 +131,8 @@ public class EvaluateLocations {
 	 */
 	public void evaluateLocation(Location tile) {
 
-		EvaluatedLocation evalTile = doEvaluateTile(tile);
-		//EvaluatedLocation evalTile = doFullEvaluateTile(tile);
+		//EvaluatedLocation evalTile = doEvaluateTile(tile);
+		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
 
 		if (evalTile != null) {
 			evaluated.add(evalTile);
@@ -226,18 +227,20 @@ public class EvaluateLocations {
 
 		BigDecimal progressProb = BigDecimal.ZERO;
 
+		boolean found = false;
+		
 		for (int i = minMines; i < maxMines + 1; i++) {
 			//int clears = solver.validateLocationUsingLocalCheck(tile, i);
-			int clears = 1;
-			if (clears > 0) {
+			//if (clears > 0) {
 
 				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, i);
 				BigInteger sol = counter.getSolutionCount();
-				clears = counter.getClearCount();
+				int clears = counter.getClearCount();
 
 				if (sol.signum() != 0 && clears > linkedTiles) {
 				//if (sol.signum() != 0) {
-
+					
+					found = true;
 					BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 					boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
 
@@ -248,23 +251,24 @@ public class EvaluateLocations {
 				} else {
 					if (sol.signum() == 0) {
 						boardState.display(tile.display() + " with value " + i + " with probability zero");
-						if (i == minMines && i == maxMines) {  // if we are only checking one value and it has no chance then try one more
+						if (!found && i == maxMines && maxMines != 8) {  // if we haven't found a possible match yet keep going
 							maxMines++;
 						}
 					} else {
+						found = true;
 						boardState.display(tile.display() + " with value " + i + " only has linked clears");
 					}
 					
 				}
 
-			} else {
-				boardState.display(tile.display() + " with value " + i + " fails local check");
-			}
+			//} else {
+			//	boardState.display(tile.display() + " with value " + i + " fails local check");
+			//}
 		}
 
-		if (linkedTiles > 0) {
-			progressProb = probThisTile;
-		}
+		//if (linkedTiles > 0) {
+		//	progressProb = probThisTile;
+		//}
 
 
 
@@ -360,9 +364,9 @@ public class EvaluateLocations {
 
 		}
 
-		if (linkedTiles > 0) {
-			progressProb = probThisTile;
-		}
+		//if (linkedTiles > 0) {
+		//	progressProb = probThisTile;
+		//}
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
 		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile));

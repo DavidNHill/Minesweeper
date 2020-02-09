@@ -88,6 +88,9 @@ public class WitnessWeb {
 
         // after this we should have a web of witnesses and Squares
 
+        //generateIndependentWitnesses();
+        
+        /*
         remainingSquares = this.squares.size();
         
         // find a set of witnesses which don't share any squares (there can be many of these, but we just want one to use with the brute force iterator)
@@ -106,7 +109,7 @@ public class WitnessWeb {
                 independentWitness.add(w);
             }
         }
-       
+        */
         //System.out.println("Independent iterations = " + independentIterations);
         //System.out.println("remaining Squares = " + remainingSquares);
         
@@ -117,6 +120,7 @@ public class WitnessWeb {
         */
         
         // determine how many subwebs we have
+        /*
         webNum = 0;
         for (Square squ: squares) {
             if (squ.getWebNum() == 0) {
@@ -131,7 +135,11 @@ public class WitnessWeb {
         } else {
             boardState.display("There are " + prunedWitnesses.size() + " witnesses (" + pruned + " were pruned) and " + squares.size() + " squares");
         }
-
+		*/
+        
+        //generateBoxes();
+        
+        /*
         int boxCount = 0;
         // put each square in a box
         for (Square squ: squares) {
@@ -157,7 +165,8 @@ public class WitnessWeb {
     		b.calculate(minesLeft);
     		//b.display();
     	}
-    	
+    	*/
+        
     	long nanoEnd = System.nanoTime();
         
     	boardState.display("Created witness web in " + (nanoEnd - nanoStart) + " nano-seconds");
@@ -207,6 +216,66 @@ public class WitnessWeb {
         prunedWitnesses.add(wit);
         
     }
+    
+    /**
+     * Generate boxes of tiles which all share the same witnesses. These are used in the probability engine and must have the same probability.
+     */
+    public void generateBoxes() {
+    	
+        int boxCount = 0;
+        // put each square in a box
+        for (Square squ: squares) {
+        	boolean found = false;
+        	// see if the square fits an existing box
+        	for (Box b: boxes) {
+        		if (b.fitsBox(squ)) {
+        			b.addSquare(squ);
+        			found = true;
+        			break;
+        		}
+        	}
+        	// if not create a new box for it
+        	if (!found) {
+        		boxes.add(new Box(squ, boxCount));
+        		boxCount++;
+        	}
+        }
+        
+        
+        int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+    	for (Box b: boxes) {
+    		b.calculate(minesLeft);
+    		//b.display();
+    	}
+    	
+    }
+
+    /**
+     * Generate independent witnesses which can be used by the brute force iteration processing
+     */
+    public void generateIndependentWitnesses() {
+    	
+        remainingSquares = this.squares.size();
+        
+        // find a set of witnesses which don't share any squares (there can be many of these, but we just want one to use with the brute force iterator)
+        for (Witness w: prunedWitnesses) {
+            boolean okay = true;
+            for (Witness iw: independentWitness) {
+                if (w.overlap(iw)) {
+                    okay = false;
+                    break;
+                }
+            }
+            if (okay) {
+                remainingSquares = remainingSquares - w.getSquares().size();
+                independentIterations = independentIterations.multiply(Solver.combination(w.getMines(), w.getSquares().size()));
+                independentMines = independentMines + w.getMines();
+                independentWitness.add(w);
+            }
+        }
+    	
+    }
+    
     
     /**
      * Returns the number of mines around the independent witnesses. The number of mines in any solution can't be less than this.

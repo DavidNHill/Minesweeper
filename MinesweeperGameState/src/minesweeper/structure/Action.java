@@ -30,9 +30,7 @@ public class Action extends Location {
     static long globalUID = 0;
     
     private final long myUID;
-    //private final Location l;
     private final int action;
-    //private final double prob;
     private final BigDecimal bigProb;
     
     private final boolean certainty;
@@ -57,13 +55,10 @@ public class Action extends Location {
     public Action(Location l, int a, MoveMethod moveMethod, String comment, BigDecimal bigProb, long uid) {
         super(l.x, l.y);
         
-        //this.l = l;
         this.action = a;
         this.comment = comment;
         this.bigProb = bigProb;
-        //this.prob = this.bigProb.doubleValue();
         this.moveMethod = moveMethod;
-        //this.type = type;
         
         this.myUID = uid;
         if (bigProb.compareTo(BigDecimal.ONE) == 0) {
@@ -78,18 +73,6 @@ public class Action extends Location {
         return this.action;
     }
     
-    //public Location getLocation() {
-    //    return this.l;
-    //}    
-    
-    /**
-     * Consider moving to getBigProb which returns the big decimal version of the probability
-     */
-    //@Deprecated
-    //public double getProb() {
-    //   return prob;
-    //}
-    
     /**
      * Returns true when this action is 100% certain
      */
@@ -101,10 +84,6 @@ public class Action extends Location {
         return bigProb;
     }
     
-    //public int getType() {
-    //	return this.type;
-    //}
-    
     public MoveMethod getMoveMethod() {
     	return this.moveMethod;
     }
@@ -112,8 +91,6 @@ public class Action extends Location {
     public String asString() {
         
         String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description + " " + comment; 
-        
-        //String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description; 
         
         if (bigProb.compareTo(BigDecimal.ONE) < 0) {
             result = result + " with a probability of " + FORMAT_2DP.format(bigProb.multiply(ONE_HUNDRED)) + "%";

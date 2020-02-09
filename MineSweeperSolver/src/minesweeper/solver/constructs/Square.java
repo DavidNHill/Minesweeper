@@ -19,7 +19,7 @@ public class Square extends Location {
     
     private int webNum = 0;
     
-    
+   
     public Square(Location loc) {
     	super(loc.x, loc.y);
 
@@ -41,5 +41,5 @@ public class Square extends Location {
     public void setWebNum(int webNum) {
         this.webNum = webNum;
     }    
-
+    
 }

@@ -35,7 +35,7 @@ import minesweeper.structure.Location;
 public class Solver implements Asynchronous<Action[]> {
 
 
-	public final static String VERSION = "1.03";
+	public final static String VERSION = "1.04";
 	
 	
     // used to hold valid moves which are about to be passed out of the solver
@@ -107,11 +107,12 @@ public class Solver implements Asynchronous<Action[]> {
     //private final static Filter NULL_FILTER = new NullFilter();
     
  
-    final static BigDecimal EQUAL_TOLERENCE = new BigDecimal("1.00");
+    //final static BigDecimal EQUAL_TOLERENCE = new BigDecimal("1.00");
     final static BigDecimal PROB_ENGINE_TOLERENCE = new BigDecimal("0.96"); // was 0.96    -- consider tiles on the edge with a threshold of this from the best value
     final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.97");  // was 0.97 --- consider off edge tiles which if they are above the threshold of the best on edge tile
     //final static boolean USE_OFF_EDGE_HOOKS = true;
     final static boolean PRUNE_BF_ANALYSIS = true;
+    final static boolean CHECK_FOR_50_50 = true;
     
     // won't play the book opening on start if false
     //protected final static boolean PLAY_OPENING = true;
@@ -554,8 +555,6 @@ public class Solver implements Asynchronous<Action[]> {
         wholeEdge = new WitnessWeb(boardState, allWitnesses, allWitnessedSquares.getLocations());
         
         
-        int zonal = 0;
-        
         
         int obvious = findTrivialActions(wholeEdge.getPrunedWitnesses());
         
@@ -584,13 +583,23 @@ public class Solver implements Asynchronous<Action[]> {
         result = fm.result;
         
         
+        if (obvious + lessObvious == 0 && boardState.getIsolatedDeadTileCount() != 0) {
+    		newLine("--------- Unavoidable Guess ---------");
+    		newLine("An unavoidable guess has been found - playing now to save time");
+        	Location isolatedDeadTile = boardState.getIsolatedDeadTile();
+        	display("Guessing in an isolated dead zone at " + isolatedDeadTile.display());
+			boardState.setAction(new Action(isolatedDeadTile, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Isolated Dead Tile",  BigDecimal.valueOf(0.5)));  // this probability might be wrong	
+			Action[] moves = boardState.getActions().toArray(new Action[0]);
+			fm = new FinalMoves(moves);
+        }
+        
         //display("There are " + goodHooksOnEdge.size() + " hooks on the edge");
         //display("There are " + goodHooksOffEdge.size() + " hooks off the edge");
 
         
         // look for a 50-50 guess which can't be avoided
         FinalMoves findFifty = null; 
-        if (obvious + lessObvious == 0 && !fm.moveFound) {
+        if (obvious + lessObvious == 0 && !fm.moveFound && CHECK_FOR_50_50) {
         	findFifty = findFiftyFifty();
         	if (findFifty.moveFound) {
         		newLine("--------- Unavoidable Guess ---------");
@@ -612,51 +621,28 @@ public class Solver implements Asynchronous<Action[]> {
         	return fm;
         }
         
-    	// if the 100% checking hasn't turned up anything get the sub & super squares
-    	//determineSubSquares();
-    	
-
-        /*
-        // look for small, self contained areas and try to solve these first
-        if (zones != null && zones.size() > 1) {  // if there is only one zone then leave it for the brute force analysis
-            newLine("----------- Zonal Analysis -----------");
-            newLine("There are " + zones.size() + " zones on this board");
-            fm = zonalAnalysis(zones);
-            result = fm.result;
-            zonal = result.length;
-            if (zonal == 1 && !result[0].isCertainty()) {
-                newLine("One of the zones can never be solved, so guess now");
-            } else if (zonal > 1 || zonal == 1 && result[0].isCertainty()) {
-                newLine("There are " + zonal + " moves found by checking the zone");
-            } 
-            if (fm.moveFound) {
-            	return fm;
-            }
-        }
-        */
-        
-        // If no trivial, local, forced 50-50s or zonal then use the probability engine
-   	
+        // If no trivial, local, or unavoidable guess then use the probability engine
 
 
     	// find (some) dead locations on the board - these can be ignored when looking for a good guess
-        deadLocations = findDeadLocations(wholeEdge.getPrunedWitnesses());
-        //deadLocations = Area.EMPTY_AREA;
-        display("There are " + deadLocations.size() + " dead locations found by inspection");
-        if (deadLocations.size() != 0) {
-        	newLine("There are " + deadLocations.size() + " dead locations found by inspection");
-        }
+        //deadLocations = findDeadLocations(wholeEdge.getPrunedWitnesses());  // this is now done by the probability engine
+        deadLocations = Area.EMPTY_AREA;
+
+        //display("There are " + deadLocations.size() + " dead locations found by inspection");
+        //if (deadLocations.size() != 0) {
+        //	newLine("There are " + deadLocations.size() + " dead locations found by inspection");
+        //}
         //for (Location loc: deadLocations.getLocations()) {
         //	display("Location " + loc.display() + " is dead");
         //}
 
     	display("----- Starting probability engine -----");
     	
-    	pe = new ProbabilityEngine(boardState, wholeEdge, unrevealed, minesLeft, deadLocations);
+    	pe = new ProbabilityEngine(boardState, wholeEdge, unrevealed, minesLeft);
     	pe.process();
     	
-    	//This doesn't work !! 
-    	//pe.getDeadLocations();
+    	// get the new deadLocations with any found by the probability engine 
+    	deadLocations = pe.getDeadLocations();
     	
     	offContourBigProb = pe.getOffEdgeProb();
     	
@@ -709,21 +695,6 @@ public class Solver implements Asynchronous<Action[]> {
     	// are clears off the edge within the permitted cut-off?
     	boolean addOffEdgeOptions = (offContourBigProb.compareTo(offEdgeCutoff) > 0);
         
-    	
-    	// set up the filter transported used to evaluate the candidate moves
-        //FilterTransport ft = new FilterTransport();
-
-        /*
-    	ft.subFilter = new SubSquareFilter(subSquares);
-    	ft.superFilter = new SuperSquareFilter(superSquares);
-    	//ft.hookFilter = new HookFilter(goodHooksOnEdge, goodHooksOffEdge);
-    	ft.solveLastFilter = new SolveLastFilter(zones);
-    	
-    	ft.probabilityEngine = pe;
-        ft.linkedFilter = new LinkedFilter(pe.getLinkedLocations());
-        ft.contraLinkedFilter = new ContraLinkedFilter(pe.getContraLinkedLocations());
-        */
-        
         display("Probability Engine processing took " + pe.getDuration() + " milliseconds");
     	display("----- Probability engine finished -----");
     	
@@ -731,10 +702,60 @@ public class Solver implements Asynchronous<Action[]> {
         newLine("There are " + pe.getIndependentGroups() + " independent edges on the board");
         newLine("Probability Engine processing took " + pe.getDuration() + " milliseconds");
 
-    	if (pe.getSolutionCount().bitLength() < 30) {
+    	if (pe.getSolutionCount().bitLength() < 40) {
     		newLine("There are " + pe.getSolutionCount() + " candidate solutions remaining");
     	}
 
+    	// if there are no certain moves then play any isolated dead tiles we have found
+        if (!pe.foundCertainty() && boardState.getIsolatedDeadTileCount() != 0) {
+        	Location isolatedDeadTile = boardState.getIsolatedDeadTile();
+        	display("After probability engine: Guessing in an isolated dead zone at " + isolatedDeadTile.display());
+    		newLine("--------- Unavoidable Guess ---------");
+    		newLine("An unavoidable guess has been found - playing now to save time");
+			boardState.setAction(new Action(isolatedDeadTile, Action.CLEAR, MoveMethod.GUESS, "Isolated Dead Tile",  pe.getProbability(isolatedDeadTile))); 
+			Action[] moves = boardState.getActions().toArray(new Action[0]);
+			fm = new FinalMoves(moves);
+			return fm;
+        }
+    	
+    	// if there are no certain moves then process any Isolated non-dead edges we have found
+        if (!pe.foundCertainty() && !pe.getIsolatedEdges().isEmpty()) {
+        	display("Processing an Isolated non-dead edge ");
+    		newLine("--------- Isolated Area ---------");
+    		newLine("An isolated area has been found which can be processed separately");
+    		
+    		Cruncher cruncher = pe.getIsolatedEdges().get(0);
+    		
+            // determine all possible solutions
+            cruncher.start();
+            
+            // determine best way to solver them
+            BruteForceAnalysisModel bfa = cruncher.getBFA();
+            bfa.process();
+            
+    		// if after trying to process the data we can't complete then abandon it
+    		if (!bfa.isComplete()) {
+    			displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bruteForceAnalysis.getNodeCount() + " steps");
+    			bfa = null;
+
+    		} else { // otherwise try and get the best long term move
+    			
+    			bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
+    			
+    			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
+    			Action move = bruteForceAnalysis.getNextMove(boardState);
+    			if (move != null) {
+    				display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
+    				//newLine("Brute Force Analysis move is " + move.asString());
+    				fm = new FinalMoves(move);
+    				return fm;
+    			} else {
+    				display(myGame.showGameKey() + " Brute Force Analysis: no move found!");
+    			}
+    		}
+            
+        }        
+        
         if (bestCandidates.isEmpty()) {
         	newLine("The probability engine found no candidate moves on the edge");
         	newLine("Probability off the edge is " + Action.FORMAT_2DP.format(offContourBigProb.multiply(ONE_HUNDRED)) + "%");
@@ -801,9 +822,9 @@ public class Solver implements Asynchronous<Action[]> {
             			bruteForceAnalysis = null;
 
             		} else { // otherwise try and get the best long term move
-            			if (bruteForceAnalysis.isShallow()) {
-            				newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
-            			}
+            			//if (bruteForceAnalysis.isShallow()) {
+            			//	newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
+            			//}
             			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
             			Action move = bruteForceAnalysis.getNextMove(boardState);
             			if (move != null) {
@@ -947,7 +968,7 @@ public class Solver implements Asynchronous<Action[]> {
     			}
     		}
     		
-			//display("Considering witness " + loc.display());
+			//look for area where the adjacent tile's adjacent tiles are also adjacent to the witness
 			Area area = boardState.getAdjacentUnrevealedArea(loc);
 			for (Location l: area.getLocations()) {
 				Area testArea =  boardState.getAdjacentUnrevealedArea(l);  // get the surrounding locations 
@@ -956,6 +977,17 @@ public class Solver implements Asynchronous<Action[]> {
 				} else if (testArea.size() == area.size() - 1 && area.supersetOf(testArea)) {  
 					dead.add(l);
 				} else {
+					Area areaWitnesses = boardState.getWitnessesArea(area.getLocations());
+					for (Location wit: areaWitnesses.getLocations()) {  // are the remaining squares a duplicate of another witness
+						if (boardState.countAdjacentUnrevealed(wit) == testArea.size()) {
+							Area witArea = boardState.getAdjacentUnrevealedArea(wit);
+							if (witArea.supersetOf(testArea)) {
+								dead.add(l);
+								break;
+							}
+							
+						}
+					}
 					//display(l.display() + " not a subset of " + loc.display());
 				}
 			}
@@ -1216,7 +1248,7 @@ public class Solver implements Asynchronous<Action[]> {
 				
 				
 				if (isOnlyOne(i, j-1) || isOnlyOne(i + 1, j-1) || isOnlyOne(i, j+1) || isOnlyOne(i + 1, j + 1)) {
-					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
 					fm = new FinalMoves(a);
 					return fm;
 				} 
@@ -1238,7 +1270,7 @@ public class Solver implements Asynchronous<Action[]> {
 				
 				
 				if (isOnlyOne(i - 1, j) || isOnlyOne(i + 1, j) || isOnlyOne(i - 1, j + 1) || isOnlyOne(i + 1, j + 1)) {
-					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
+					Action a = new Action(new Location(i, j), Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5d));  // this probability is wrong
 					fm = new FinalMoves(a);
 					return fm;
 				} 
@@ -1721,29 +1753,19 @@ public class Solver implements Asynchronous<Action[]> {
             
             if (output.bigTally[i].compareTo(output.bigGoodCandidates) == 0) {
             	Location l = output.getSquare().get(i);
-                //int x = output.getSquare()[i].x;
-                //int y = output.getSquare()[i].y;
+
                 if (!boardState.alreadyActioned(l)) {
                     result++;
 
-                    //int index = method;
-                    //String comment = METHOD[method];
-                    
                     boardState.setAction(new Action(l, Action.FLAG, method, comment, BigDecimal.ONE));
-                    //boardState.setFlagConfirmed(l);
                     
                 }
 
             } else if (output.bigTally[i].signum() == 0) {
             	Location l = output.getSquare().get(i);
-                //int x = output.getSquare()[i].x;
-                //int y = output.getSquare()[i].y;
                 if (!boardState.alreadyActioned(l)) {
                     result++;
 
-                    //int index = method>>8;
-                    //String comment = METHOD[index];
-                    
                     boardState.setAction(new Action(l, Action.CLEAR, method, comment, BigDecimal.ONE));
                     //display("clear found at " + x + " " + y);
                 }                
@@ -2068,6 +2090,8 @@ public class Solver implements Asynchronous<Action[]> {
         
     	Action action = null;
         
+    	display("Picking a guess");
+    	
     	// get the starting move if we are at the start of the game
     	if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
     		if (overriddenStartLocation != null) {

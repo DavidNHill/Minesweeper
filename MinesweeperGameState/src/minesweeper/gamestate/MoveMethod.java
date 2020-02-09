@@ -10,7 +10,8 @@ public enum MoveMethod {
 	PROBABILITY_ENGINE("Probability Engine"),
 	BRUTE_FORCE("Brute Force"),
 	BRUTE_FORCE_DEEP_ANALYSIS("Brute Force Deep Analysis"),
-	GUESS("Guess");
+	GUESS("Guess"),
+	UNAVOIDABLE_GUESS("Unavoidable Guess");
 	
 	public final String description;
 	

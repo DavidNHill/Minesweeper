@@ -12,7 +12,7 @@ import minesweeper.structure.Location;
 public class EvaluatedLocation extends Location {
 	
 	private final BigDecimal clearProbability;
-	private final BigDecimal progressProbability;
+	private BigDecimal progressProbability;
 	private String description = "";
 	private BigDecimal expectedClears;
 	private final int fixedClears;  //number of tiles which are clears regardless of what value is revealed
@@ -23,6 +23,7 @@ public class EvaluatedLocation extends Location {
 		
 		this.clearProbability = clearProbability;
 		//this.progressProbability = progressProbability.divide(clearProbability, Solver.DP, RoundingMode.HALF_UP);
+		//this.progressProbability = progressProbability.multiply(clearProbability);
 		this.progressProbability = progressProbability;
 		this.expectedClears = expectedClears;
 		this.fixedClears = fixedClears;
@@ -31,6 +32,18 @@ public class EvaluatedLocation extends Location {
 	}
 	
 	public void merge(EvaluatedLocation link) {
+		
+		expectedClears = this.expectedClears.add(link.expectedClears);
+		
+		BigDecimal pp1 = BigDecimal.ONE.subtract(this.progressProbability);
+		BigDecimal pp2 = BigDecimal.ONE.subtract(link.progressProbability);
+		
+		this.progressProbability = BigDecimal.ONE.subtract(pp1.multiply(pp2));
+		
+		
+	}
+	
+	public void mergeOld(EvaluatedLocation link) {
 		
 		expectedClears = this.expectedClears.add(link.expectedClears);
 		

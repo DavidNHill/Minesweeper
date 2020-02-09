@@ -61,6 +61,7 @@ public class BoardState {
 	private int testMoveBalance = 0;
 	
 	private Set<Location> livingWitnesses = new HashSet<>();
+	private Set<Location> isolatedDeadTiles = new HashSet<>();
 	
 	public BoardState(Solver solver) {
 
@@ -178,6 +179,8 @@ public class BoardState {
 						// if this is a new unrevealed location then set it up and inform it's neighbours they have one less unrevealed adjacent location
 						if (!revealed[i][j]) {
 
+							isolatedDeadTiles.remove(location);   // remove 
+							
 							livingWitnesses.add(location);  // add this to living witnesses
 							//display("Location (" + i + "," + j + ") is revealed");
 							
@@ -405,13 +408,39 @@ public class BoardState {
 	//protected int getActionsCount() {
 	//	return this.actionList.size();
 	//}
+	
+	/**
+	 * Add a isolated dead tile
+	 */
+	protected void addIsolatedDeadTile(Location loc) {
+		isolatedDeadTiles.add(loc);
+	}
+	
+	public int getIsolatedDeadTileCount() {
+		return this.isolatedDeadTiles.size();
+	}
+	
+	/**
+	 * Returns and removes the first Isolated Dead Tile in the set
+	 */
+	public Location getIsolatedDeadTile() {
+		for (Location loc: isolatedDeadTiles) {
+			//isolatedDeadTiles.remove(loc);
+			return loc;
+		}
+		return null;
+	}
 
+	protected List<Location> getWitnesses(Collection<? extends Location> square) {
+		return new ArrayList<Location>(getWitnessesArea(square).getLocations());
+	}
+	
 	/**
 	 * From the given locations, generate all the revealed squares that can witness these locations
 	 */
-	protected List<Location> getWitnesses(List<? extends Location> square) {
+	protected Area getWitnessesArea(Collection<? extends Location> square) {
 
-		Set<Location> work = new HashSet<>(100);
+		Set<Location> work = new HashSet<>(10);
 
 		for (Location loc: square) {
 
@@ -423,7 +452,7 @@ public class BoardState {
 			}            
 		}
 
-		return new ArrayList<Location>(work);
+		return new Area(work);
 
 	}
 	
@@ -694,6 +723,8 @@ public class BoardState {
 		totalFlagsConfirmed++;
 		flagConfirmed[loc.x][loc.y] = true;
 
+		isolatedDeadTiles.remove(loc);   // remove a tile which is definitely a mine from the Isolated Dead Tiles set
+		
 		// if the flag isn't already on the board then this is also another on the total of all flags
 		if (!flagOnBoard[loc.x][loc.y]) {
 			totalFlags++;
@@ -933,5 +964,8 @@ public class BoardState {
 		solver.display(text);
 	}
 
+	protected Solver getSolver() {
+		return solver;
+	}
 
 }
