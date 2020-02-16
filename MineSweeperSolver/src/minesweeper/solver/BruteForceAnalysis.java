@@ -14,6 +14,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.utility.BigDecimalCache;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 public class BruteForceAnalysis extends BruteForceAnalysisModel{
@@ -518,6 +519,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	private int cacheSize = 0;
 	private int cacheWinningLines = 0;
 	private boolean allDead = false;   // this is true if all the locations are dead
+	private Area deadLocations = Area.EMPTY_AREA;
 	
 	// some work areas to prevent having to instantiate many 1000's of copies of them 
 	//private final boolean[] values = new boolean[9];
@@ -647,6 +649,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	 */
 	private Node buildTopNode(SolutionTable solutionTable) {
 		
+		List<Location> deadLocations = new ArrayList<>();
+		
 		Node result = new Node();
 		
 		result.startLocation = 0;
@@ -697,6 +701,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				living.add(alive);
 			} else {
 				solver.display(locations.get(i).display() + " is dead with value " + minValue);
+				deadLocations.add(locations.get(i));
 			}
 			
 		}
@@ -704,6 +709,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		Collections.sort(living);
 		
 		result.livingLocations = living;
+		
+		this.deadLocations = new Area(deadLocations);
 		
 		return result;
 	}
@@ -836,6 +843,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	@Override
 	protected boolean allDead() {
 		return allDead;
+	}
+
+	@Override
+	Area getDeadLocations() {
+		return deadLocations;
 	}
 	
 }

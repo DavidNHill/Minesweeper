@@ -62,6 +62,11 @@ public class Graphics {
     private static Image[] led = new Image[10];
     private static Image[] smallLED = new Image[10];
 
+    public static final Image ICON;
+    static {
+    	ICON = clean("resources/images/flagged.png", 24, 24);
+    }
+    
     private GraphicsSet[] graphicsSets;
     
     public Graphics() {

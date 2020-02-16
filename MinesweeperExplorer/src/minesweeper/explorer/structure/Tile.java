@@ -5,9 +5,9 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import minesweeper.explorer.main.Graphics;
 import minesweeper.explorer.main.Graphics.GraphicsSet;
 import minesweeper.explorer.structure.Board.AdjacentDetails;
+import minesweeper.structure.Location;
 
 public class Tile extends ImageView {
 
@@ -22,25 +22,20 @@ public class Tile extends ImageView {
 			
 			//System.out.println("Click detected on tile " + tile.asText());
 			
-			if (event.getButton() == MouseButton.PRIMARY) {
-				if (tile.isMine()) {
-					tile.board.RemoveMine(tile);
+			if (event.getButton() == MouseButton.SECONDARY) {
+				if (tile.isFlagged()) {
+					tile.board.RemoveFlag(tile);
 				} else {
-					tile.board.setAsMine(tile , true);
+					tile.board.setFlag(tile , true);
 				}
 				
 			}
+			
+			if (event.getButton() == MouseButton.PRIMARY) {
 
-			if (event.getButton() == MouseButton.SECONDARY) {
+				if (tile.isFlagged()) {   // if flagged do nothing
 
-				if (tile.isFlagged()) {   // if flagged remove it
-					tile.setFlagged(false);
-				} else if (tile.isMine()){  // if mine flag it
-					tile.setFlagged(true);
-				} else if (tile.isCovered()){  // if covered mine and flag
-					tile.board.setAsMine(tile, false);
-					tile.setFlagged(true);
-				} else {    // otherwise toggle between covered and uncovered
+				} else {  // otherwise toggle between covered and uncovered
 					tile.setCovered(!tile.isCovered());
 				}
 				
@@ -73,14 +68,14 @@ public class Tile extends ImageView {
 		
 	};
 	
-	
 	private final int x;
 	private final int y;
 	private final Board board;
+	private final Location location;
 	
 	private GraphicsSet graphicsSet;
 	private boolean covered;
-	private boolean mine;
+	//private boolean mine;
 	private boolean flagged;
 	
 	private int value;
@@ -90,6 +85,7 @@ public class Tile extends ImageView {
 		this.board = board;
 		this.x = x;
 		this.y = y;
+		this.location = new Location(x, y);
 		
 		this.graphicsSet = graphicsSet;
 		
@@ -99,15 +95,15 @@ public class Tile extends ImageView {
 		
 		this.setOnMouseClicked(CLICKED);
 		this.setOnScroll(SCROLLED);
-
+		
 	}
 
 	private void doDraw() {
 		
 		if (flagged) {
 			this.setImage(graphicsSet.getFlag());
-		} else if (mine) {
-			this.setImage(graphicsSet.getMine());
+		//} else if (mine) {
+		//	this.setImage(graphicsSet.getMine());
 		} else if (covered) {
 			this.setImage(graphicsSet.getHidden());
 		} else {
@@ -120,7 +116,7 @@ public class Tile extends ImageView {
 	
 	public void reset() {
 		covered = false;
-		mine = false;
+		//mine = false;
 		flagged = false;
 		value = 0;
 		doDraw();
@@ -137,6 +133,7 @@ public class Tile extends ImageView {
 		doDraw();
 	}
 
+	/*
 	public boolean isMine() {
 		return mine;
 	}
@@ -145,7 +142,8 @@ public class Tile extends ImageView {
 		this.mine = mine;
 		doDraw();
 	}
-
+	*/
+	
 	public boolean isFlagged() {
 		return flagged;
 	}
@@ -164,8 +162,8 @@ public class Tile extends ImageView {
 		
 		AdjacentDetails adjDetails = board.getAdjacentDetails(this);
 		
-		int minValue = adjDetails.mines;
-		int maxValue = adjDetails.mines + adjDetails.notMines;
+		int minValue = adjDetails.flags;
+		int maxValue = adjDetails.flags + adjDetails.notflags;
 		int range = maxValue - minValue;
 		
 		//System.out.println("Min = " + minValue + " max = " + maxValue);
@@ -173,6 +171,7 @@ public class Tile extends ImageView {
 		int newValue;
 		
 		if (this.covered) {
+			this.covered = false;
 			if (delta < 0) {
 				newValue = maxValue;
 			} else {
@@ -202,7 +201,7 @@ public class Tile extends ImageView {
 	public void setValue(int value) {
 		
 		// don't set a value for tiles which are mines or flagged
-		if (this.flagged || this.mine) {
+		if (this.flagged) {
 			return;
 		}
 		
@@ -219,7 +218,7 @@ public class Tile extends ImageView {
 		}
 		*/
 		
-		this.covered = false;
+		//this.covered = false;
 		this.value = value;
 		doDraw();
 	}
@@ -235,6 +234,10 @@ public class Tile extends ImageView {
 	
 	public int getTileY() {
 		return this.y;
+	}
+	
+	public Location getLocation() {
+		return this.location;
 	}
 	
 }

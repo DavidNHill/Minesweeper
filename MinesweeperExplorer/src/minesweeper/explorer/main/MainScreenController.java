@@ -1,15 +1,16 @@
 package minesweeper.explorer.main;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import javafx.beans.binding.DoubleBinding;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
+import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
 import minesweeper.explorer.gamestate.GameStateExplorer;
@@ -20,9 +21,15 @@ import minesweeper.explorer.structure.LedDigits;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
+import minesweeper.structure.Location;
 
 public class MainScreenController {
+	
+	public final static DecimalFormat EXPONENT_DISPLAY = new DecimalFormat("##0.###E0");
+	public final static DecimalFormat NUMBER_DISPLAY = new DecimalFormat("#,##0");
 	
 	private class Indicator extends Rectangle {
 		
@@ -48,13 +55,25 @@ public class MainScreenController {
 			}
 			
 		}
+		
+		public Indicator(Location action, Paint colour) {
+			super(action.x * 24, action.y * 24, 24d, 24d);
+
+    		setMouseTransparent(true);    
+			
+    		this.setFill(colour);
+    		this.setOpacity(0.5d);
+		}
 	}
 	
 	@FXML private AnchorPane boardDisplayArea;
 	@FXML private AnchorPane header;
 	@FXML private Label messageLine;
+	@FXML private Label solutionLine;
 	@FXML private Button buttonExplore;
+	@FXML private Button buttonCheckFlags;
 	
+	private TileValuesController tileValueController;
 	private GraphicsSet graphicsSet;
 	private Expander boardExpander = new Expander(0, 0, 6, Color.BLACK);
 	private Board currentBoard;
@@ -62,10 +81,11 @@ public class MainScreenController {
 	private LedDigits minesPlaced;
 	private List<Indicator> indicators = new ArrayList<>();
 
-	
 	@FXML
 	void initialize() {
 		System.out.println("Entered Main Screen Controller initialize method");
+		
+		tileValueController = TileValuesController.launch(null);
 
 	}
 	
@@ -112,6 +132,29 @@ public class MainScreenController {
 	}
 	
 	@FXML 
+	public void checkFlagsButtonPressed() {
+		System.out.println("Check flags button pressed");
+
+		currentBoard.setGameInformation(null);
+		GameStateModel gs = null;
+		try {
+			gs = GameStateExplorer.build(currentBoard, mineCount.getValue());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+		try {
+			currentBoard.setGameInformation(solver.runProbabiltyEngine());
+		} catch (Exception e) {
+			e.printStackTrace();
+			setSolutionLine("Unable to process:" + e.getMessage());
+		}
+		
+		
+	}
+	
+	@FXML 
 	public void exploreButtonPressed() {
 		System.out.println("Explore button pressed");
 		
@@ -139,6 +182,47 @@ public class MainScreenController {
 			for (Action action: actions) {
 				indicators.add(new Indicator(action));
 			}
+			
+	    	List<EvaluatedLocation> els = solver.getEvaluatedLocations();
+	    	if (els != null) {
+	        	for (EvaluatedLocation el: els) {
+	        		
+	        		// don't show evaluated positions which are actually chosen to be played
+	        		boolean ignore = false;
+	        		for (Action action: actions) {
+	        			if (el.equals(action)) {
+	        				ignore = true;
+	        			}
+	        		}
+	        		
+	        		if (!ignore) {
+	        			indicators.add(new Indicator(el, Color.ORANGE));
+	        		}
+
+	        		
+	        	}    		
+	    	}
+			
+	    	Area dead = solver.getDeadLocations();
+	    	if (dead != null) {
+	        	for (Location loc: dead.getLocations()) {
+	        		
+	        		// don't show evaluated positions which are actually chosen to be played
+	        		boolean ignore = false;
+	        		for (Action action: actions) {
+	        			if (loc.equals(action)) {
+	        				ignore = true;
+	        			}
+	        		}
+	        		
+	        		if (!ignore) {
+	        			indicators.add(new Indicator(loc, Color.BLACK));
+	        		}
+
+	        	}    		
+	    	}
+			
+			
 			currentBoard.getChildren().addAll(indicators);
 		}
 		
@@ -165,7 +249,7 @@ public class MainScreenController {
 		indicators.clear();
 		
 		// create new board
-		currentBoard = new Board(graphicsSet, width, height);
+		currentBoard = new Board(this, width, height);
 
 		boardExpander.setCenterX(width * 24);
 		boardExpander.setCenterY(height * 24);
@@ -184,6 +268,7 @@ public class MainScreenController {
 		getHeader().getChildren().add(minesPlaced);
 		
 		messageLine.setText("Build a board");
+		solutionLine.setText("");
 		
 	}
 	
@@ -191,8 +276,20 @@ public class MainScreenController {
 		this.currentBoard = board;
 	}
 	
+	public Board getCurrentBoard() {
+		return this.currentBoard;
+	}
+	
+	public int getGameMines() {
+		return mineCount.getValue();
+	}
+	
 	public void setGraphicsSet(GraphicsSet graphicsSet) {
 		this.graphicsSet = graphicsSet;
+	}
+	
+	public GraphicsSet getGraphicsSet() {
+		return this.graphicsSet;
 	}
 	
 	public AnchorPane getHeader() {
@@ -203,6 +300,24 @@ public class MainScreenController {
 		return boardDisplayArea;
 	}
 
+	public TileValuesController getTileValueController() {
+		return this.tileValueController;
+	}
+	
+	public void setSolutionLine(String text) {
+		
+		if (Platform.isFxApplicationThread()) {
+			solutionLine.setText(text);
+		} else {
+			Platform.runLater(new Runnable() {
+				@Override
+				public void run() {
+					solutionLine.setText(text);
+				}
+			});
+		}
+
+	}
 
 	
 }

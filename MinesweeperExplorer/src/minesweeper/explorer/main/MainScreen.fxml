@@ -49,7 +49,9 @@
       <AnchorPane layoutY="525.0" maxHeight="-Infinity" prefHeight="80.0" prefWidth="554.0" style="-fx-background-color: beige;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
          <children>
             <Label fx:id="messageLine" layoutY="58.0" maxHeight="-Infinity" prefHeight="20.0" prefWidth="554.0" text="Label" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" />
-            <Button fx:id="buttonExplore" layoutX="14.0" layoutY="14.0" mnemonicParsing="false" onAction="#exploreButtonPressed" text="Explore" />
+            <Button fx:id="buttonExplore" layoutY="28.0" mnemonicParsing="false" onAction="#exploreButtonPressed" prefWidth="75.0" text="Solve" />
+            <Label fx:id="solutionLine" layoutX="7.0" layoutY="6.0" maxHeight="-Infinity" prefHeight="20.0" prefWidth="554.0" text="Label" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+            <Button fx:id="buttonCheckFlags" layoutX="106.0" layoutY="28.0" mnemonicParsing="false" onAction="#checkFlagsButtonPressed" prefWidth="75.0" text="Analyse" />
          </children></AnchorPane>
       <AnchorPane fx:id="header" layoutY="25.0" maxHeight="-Infinity" prefHeight="50.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="25.0" />
    </children>

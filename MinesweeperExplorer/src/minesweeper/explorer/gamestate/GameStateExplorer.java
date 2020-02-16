@@ -51,22 +51,6 @@ public class GameStateExplorer extends GameStateModelViewer {
     			
     			if (tile.isFlagged()) {
     				result.setFlag(x, y);
-    			}
-    			
-    			if (tile.isMine()) {
-    				result.board[x][y] = GameStateModel.MINE;
-    				
-    				/*
-                    // tell all the surrounding squares they are next to a mine
-                    for (int j=0; j < DX.length; j++) {
-                        if (x + DX[j] >= 0 && x + DX[j] < result.width && y + DY[j] >= 0 && y + DY[j] < result.height) {
-                            if (result.board[x+DX[j]][y+DY[j]] != GameStateModel.MINE) {
-                                result.board[x+DX[j]][y+DY[j]]++;
-                            }
-                        }
-                    }
-    				*/
-    				
     			} else if (!tile.isCovered()) {
     				result.board[x][y] = tile.getValue();
     				result.setRevealed(x, y);

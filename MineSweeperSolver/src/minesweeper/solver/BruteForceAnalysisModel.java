@@ -1,6 +1,7 @@
 package minesweeper.solver;
 
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 abstract public class BruteForceAnalysisModel {
@@ -34,5 +35,7 @@ abstract public class BruteForceAnalysisModel {
 	abstract protected Location getExpectedMove();
 	
 	abstract protected boolean allDead();
+	
+	abstract Area getDeadLocations();
 	
 }

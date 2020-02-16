@@ -46,7 +46,7 @@ public class EvaluateLocations {
 	/**
 	 * Look for off edge positions which are good for breaking open new areas
 	 */
-	public void addOffEgdeCandidates(List<Location> allUnrevealedSquares) {
+	public void addOffEdgeCandidates(List<Location> allUnrevealedSquares) {
 
 		Set<Location> tileOfInterest = new HashSet<>();
 

@@ -96,7 +96,7 @@ public class SolutionCounter {
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
 		
-		this.minTotalMines = minesLeft - this.squaresLeft;  //we can't use so few mines that we can't fit the remainder elsewhere on the board
+		this.minTotalMines = Math.max(0, minesLeft - this.squaresLeft);  //we can't use so few mines that we can't fit the remainder elsewhere on the board
 		this.maxTotalMines = minesLeft;    // we can't use more mines than are left in the game
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);

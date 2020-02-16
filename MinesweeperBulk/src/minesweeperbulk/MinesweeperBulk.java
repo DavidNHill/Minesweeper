@@ -83,7 +83,7 @@ public class MinesweeperBulk {
 
 		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
 		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(66,66,987);
+		GameSettings gameSettings = GameSettings.create(32,28,203);
 		GameType gameType = GameType.STANDARD;
 		
 		while (played < MAX) {
