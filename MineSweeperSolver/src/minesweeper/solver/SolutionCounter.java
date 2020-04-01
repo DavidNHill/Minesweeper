@@ -3,6 +3,7 @@ package minesweeper.solver;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,16 +19,70 @@ public class SolutionCounter {
 
 	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
+	private class MergeSorter implements Comparator<ProbabilityLine> {
+
+		int[] checks;
+		
+		private MergeSorter(List<Box> boxes) {
+			
+			checks = new int[boxes.size()];
+			
+			for (int i=0; i < boxes.size(); i++) {
+				checks[i] = boxes.get(i).getUID();
+			}
+			
+		}
+		 
+		
+		@Override
+		public int compare(ProbabilityLine p1, ProbabilityLine p2) {
+			
+			int c = p1.mineCount - p2.mineCount;
+			
+			if (c != 0) {
+				return c;
+			}
+			
+			for (int i=0; i < checks.length; i++) {
+				int index = checks[i];
+				
+				//BigInteger c1 = p1.mineBoxCount[index].divide(p1.solutionCount);
+				//BigInteger c2 = p2.mineBoxCount[index].divide(p2.solutionCount);
+				
+				//c = c1.compareTo(c2);
+				
+				c = p1.allocatedMines[index] - p2.allocatedMines[index];
+				
+				if (c != 0) {
+					return c;
+				}
+				
+			}
+
+			return 0;
+		}
+		
+	}
+	
 	// used to hold a viable solution 
 	private class ProbabilityLine implements Comparable<ProbabilityLine> {
 		private int mineCount = 0;
 		private BigInteger solutionCount = BigInteger.ZERO;
 		private BigInteger[] mineBoxCount  = new BigInteger[boxCount];
+		private int[] allocatedMines  = new int[boxCount];   // this is the number of mines originally allocate to a box
 		
 		{
 			for (int i=0; i < mineBoxCount.length; i++) {
 				mineBoxCount[i] = BigInteger.ZERO;
 			}
+		}
+		
+		private ProbabilityLine() {
+			this(BigInteger.ZERO);
+		}
+		
+		private ProbabilityLine(BigInteger solutionCount) {
+			this.solutionCount = solutionCount;
 		}
 		
 		@Override
@@ -132,12 +187,10 @@ public class SolutionCounter {
 		long startTime = System.currentTimeMillis();
 		
 		// create an initial solution of no mines anywhere
-		ProbabilityLine held = new ProbabilityLine();
-		held.solutionCount = BigInteger.ONE;
-		heldProbs.add(held);
+		heldProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
 		// add an empty probability line to get us started
-		workingProbs.add(new ProbabilityLine());
+		workingProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
 		// create an empty mask - indicating no boxes have been processed
 		mask = new boolean[boxCount];           
@@ -159,59 +212,61 @@ public class SolutionCounter {
 			
 		}
 
-		calculateBoxProbabilities();
+		// have we got a valid position
+		if (!heldProbs.isEmpty()) {
+			calculateBoxProbabilities();
+		} else {
+			finalSolutionsCount = BigInteger.ZERO;
+			clearCount = 0;
+		}
+
 		
 		duration = System.currentTimeMillis() - startTime;
 	}
 	
-	private List<ProbabilityLine> crunchByMineCount(List<ProbabilityLine> target) {
+	private List<ProbabilityLine> crunchByMineCount(List<ProbabilityLine> target, MergeSorter sorter) {
 		
 		if (target.isEmpty()) {
 			return target;
 		}
 		
 		// sort the solutions by number of mines
-		Collections.sort(target);
+		Collections.sort(target, sorter);
 		
 		List<ProbabilityLine> result = new ArrayList<>();
 		
-		int mc = target.get(0).mineCount;
-		ProbabilityLine npl = new ProbabilityLine();
-		npl.mineCount = mc;
-		
+		ProbabilityLine current = null;
+
 		for (ProbabilityLine pl: target) {
-			if (pl.mineCount != mc) {
-				result.add(npl);
-				mc = pl.mineCount;
-				npl = new ProbabilityLine();
-				npl.mineCount = mc;
+			
+			if (current == null) {
+				current = pl;
+			} else if (sorter.compare(current, pl) != 0) {
+				result.add(current);
+				current = pl;
+			} else {
+				combineProbabilities(current, pl);
 			}
-			mergeProbabilities(npl, pl);
+			
 		}
 
-		result.add(npl);
-		
+		result.add(current);
+
 		return result;
 		
 	}
 
 	
 	// calculate how many ways this solution can be generated and roll them into one
-	private void mergeProbabilities(ProbabilityLine npl, ProbabilityLine pl) {
+	private void combineProbabilities(ProbabilityLine npl, ProbabilityLine pl) {
 		
-		BigInteger solutions = BigInteger.ONE;
-		for (int i = 0; i < pl.mineBoxCount.length; i++) {
-			solutions = solutions.multiply(BigInteger.valueOf(SMALL_COMBINATIONS[boxes.get(i).getSquares().size()][pl.mineBoxCount[i].intValue()]));
-		}
-
-		npl.solutionCount = npl.solutionCount.add(solutions);
+		npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
 		
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
-			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
-	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
+			if (mask[i]) {  
+	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
 			}
-
-			
+	
 		}
 		
 	}
@@ -221,25 +276,25 @@ public class SolutionCounter {
 		
 		List<ProbabilityLine> result = new ArrayList<>(); 
 		
-		//if (workingProbs.isEmpty()) {
-		//	solver.display("working probabilites list is empty!!");
-		//	return;
-		//} 
+		// if there are no lines to store then we don't have a valid position
+		if (workingProbs.isEmpty()) {
+			//solver.display("working probabilites list is empty!!");
+			heldProbs.clear();
+			return;
+		} 
 		
-		// crunch the new ones down to one line per mine count
-		List<ProbabilityLine> crunched = crunchByMineCount(workingProbs);
-
+		List<ProbabilityLine> crunched = workingProbs;
+		
 		//solver.display("New data has " + crunched.size() + " entries");
 		
 		for (ProbabilityLine pl: crunched) {
 			
 			for (ProbabilityLine epl: heldProbs) {
 				
-				ProbabilityLine npl = new ProbabilityLine();
-				npl.mineCount = pl.mineCount + epl.mineCount;
-				if (npl.mineCount <= maxTotalMines) {
+				if (pl.mineCount + epl.mineCount <= maxTotalMines) {
 					
-					npl.solutionCount = pl.solutionCount.multiply(epl.solutionCount);
+					ProbabilityLine npl = new ProbabilityLine(pl.solutionCount.multiply(epl.solutionCount));
+					npl.mineCount = pl.mineCount + epl.mineCount;
 					
 					for (int i=0; i < npl.mineBoxCount.length; i++) {
 						
@@ -367,7 +422,41 @@ public class SolutionCounter {
 	
 		}
 		
+		//solver.display("Processed witness " + nw.witness.display());
+		
+		// flag the last set of details as processed
+		nw.witness.setProcessed(true);
+		for (Box b: nw.newBoxes) {
+			b.setProcessed(true);
+		}
+
+		
+		
+		List<Box> boundaryBoxes = new ArrayList<>();
+		for (Box box: boxes) {
+			boolean notProcessed = false;
+			boolean processed = false;
+			for (Witness wit: box.getWitnesses()) {
+				if (wit.isProcessed()) {
+					processed = true;
+				} else {
+					notProcessed = true;
+				}
+				if (processed && notProcessed) {
+					//boardState.display("partially processed box " + box.getUID());
+					boundaryBoxes.add(box);
+					break;
+				}
+			}
+		}
+		//solver.display("Boxes partially processed " + boundaryBoxes.size());
+		
+		MergeSorter sorter = new MergeSorter(boundaryBoxes);
+		
+		newProbs = crunchByMineCount(newProbs, sorter);
+
 		return newProbs;
+		
 		
 	}
 	
@@ -397,9 +486,7 @@ public class SolutionCounter {
 			}			
 			
 			// otherwise place the mines in the probability line
-			pl.mineBoxCount[nw.newBoxes.get(index).getUID()] = BigInteger.valueOf(missingMines);
-			pl.mineCount = pl.mineCount + missingMines;
-			result.add(pl);
+			result.add(extendProbabilityLine(pl, nw.newBoxes.get(index), missingMines));
 			return result;
 		}
 		
@@ -420,15 +507,30 @@ public class SolutionCounter {
 	// create a new probability line by taking the old and adding the mines to the new Box
 	private ProbabilityLine extendProbabilityLine(ProbabilityLine pl, Box newBox, int mines) {
 		
-		ProbabilityLine result = new ProbabilityLine();
+		int combination = SMALL_COMBINATIONS[newBox.getSquares().size()][mines];
+		
+		BigInteger newSolutionCount = pl.solutionCount.multiply(BigInteger.valueOf(combination));
+		
+		ProbabilityLine result = new ProbabilityLine(newSolutionCount);
 		
 		result.mineCount = pl.mineCount + mines;
-		//result.solutionCount = pl.solutionCount;
 		
 		// copy the probability array
-		System.arraycopy(pl.mineBoxCount, 0, result.mineBoxCount, 0, pl.mineBoxCount.length);
+		if (combination == 1) {
+			System.arraycopy(pl.mineBoxCount, 0, result.mineBoxCount, 0, pl.mineBoxCount.length);
+		} else {
+			BigInteger multiplier = BigInteger.valueOf(combination);
+			for (int i=0; i < pl.mineBoxCount.length; i++) {
+				if (mask[i]) {
+					result.mineBoxCount[i] = pl.mineBoxCount[i].multiply(multiplier);	
+				}
+			}
+		}
+
+		result.allocatedMines = pl.allocatedMines.clone();
 		
-		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines);
+		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(newSolutionCount);
+		result.allocatedMines[newBox.getUID()] = mines;
 		
 		return result;
 	}
@@ -436,13 +538,18 @@ public class SolutionCounter {
 	// counts the number of mines already placed
 	private int countPlacedMines(ProbabilityLine pl, NextWitness nw) {
 		
-		int result = 0;
+		BigInteger result = BigInteger.ZERO;
 		
 		for (Box b: nw.oldBoxes) {
-			result = result + pl.mineBoxCount[b.getUID()].intValue();
+			result = result.add(pl.mineBoxCount[b.getUID()]);
 		}
 		
-		return result;
+		BigInteger[] divide = result.divideAndRemainder(pl.solutionCount);
+		if (divide[1].signum() != 0) {
+			System.out.println("Min Box Count divide has non-zero remainder " + divide[1]);
+		}
+		
+		return divide[0].intValue();
 	}
 	
 	// return any witness which hasn't been processed
@@ -464,13 +571,50 @@ public class SolutionCounter {
 	private NextWitness findNextWitness(NextWitness prevWitness) {
 		
 		// flag the last set of details as processed
-		prevWitness.witness.setProcessed(true);
-		for (Box b: prevWitness.newBoxes) {
-			b.setProcessed(true);
-		}
+		//prevWitness.witness.setProcessed(true);
+		//for (Box b: prevWitness.newBoxes) {
+		//	b.setProcessed(true);
+		//}
+
 
 		int bestTodo = 99999;
 		Witness bestWitness = null;
+
+		// find the next witness which reduces the boundary to the smallest
+		/*
+		for (Witness w: witnesses) {
+			if (w.isProcessed()) {
+				continue;
+			}
+			
+			w.setProcessed(true);
+			
+			int boundary = 0;
+			for (Box box: boxes) {
+				boolean notProcessed = false;
+				boolean processed = false;
+				for (Witness wit: box.getWitnesses()) {
+					if (wit.isProcessed()) {
+						processed = true;
+					} else {
+						notProcessed = true;
+					}
+					if (processed && notProcessed) {
+						boundary++;
+						break;
+					}
+				}
+			}
+			
+			w.setProcessed(false);
+			
+			if (boundary < bestTodo) {
+				bestTodo = boundary;
+				bestWitness = w;
+			}
+			
+		}
+		*/
 		
 		// and find a witness which is on the boundary of what has already been processed
 		for (Box b: boxes) {
@@ -508,17 +652,22 @@ public class SolutionCounter {
 		NextWitness nw =  findFirstWitness();
 		
 		// only crunch it down for non-trivial probability lines unless it is the last set - this is an efficiency decision
-		if (workingProbs.size() > 1 || nw == null) {
+		//if (workingProbs.size() > 0 || nw == null) {
 			storeProbabilities();
 			
 			// reset the working array so we can start building up one for the new set of witnesses
 			workingProbs.clear();
-			workingProbs.add(new ProbabilityLine());
+			workingProbs.add(new ProbabilityLine(BigInteger.ONE));
 			
 			// reset the mask indicating that no boxes have been processed 
 			mask = new boolean[boxCount]; 
+		//}
+		
+		// if the position is invalid exit now
+		if (heldProbs.isEmpty()) {
+			return null;
 		}
-
+		
 		// return the next witness to process
 		return nw;
 		

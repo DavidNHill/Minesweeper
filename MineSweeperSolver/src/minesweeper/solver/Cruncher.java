@@ -295,6 +295,10 @@ public class Cruncher implements Asynchronous<CrunchResult> {
     	return bfa;
     }
     
+    protected Iterator getIterator() {
+    	return this.iterator;
+    }
+    
     // a witness is a 'good' witness if all its adjacent free squares are also
     // contained in the set of squares being analysed. A 'good' witness must
     // always be satisfied for the candidate solution to be valid.

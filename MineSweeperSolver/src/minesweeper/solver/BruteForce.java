@@ -377,6 +377,10 @@ public class BruteForce {
 		return this.iterations;
 	}
 	
+	public int getTileCount() {
+		return web.getSquares().size();
+	}
+	
 
 	public BruteForceAnalysisModel getBruteForceAnalysis() {
 		return bruteForceAnalysis;

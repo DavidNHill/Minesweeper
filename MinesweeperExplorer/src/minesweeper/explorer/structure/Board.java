@@ -1,33 +1,24 @@
 package minesweeper.explorer.structure;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.math.BigInteger;
 import java.util.Map;
-import java.util.Set;
 
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
-import javafx.collections.ObservableList;
 import javafx.event.EventHandler;
-import javafx.geometry.Point2D;
-import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Popup;
+import minesweeper.explorer.main.Explorer;
 import minesweeper.explorer.main.Graphics.GraphicsSet;
 import minesweeper.explorer.main.MainScreenController;
-import minesweeper.solver.ProbabilityEngine;
 import minesweeper.solver.constructs.InformationLocation;
-import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
 public class Board extends AnchorPane {
 
-	private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
-	
     private final EventHandler<MouseEvent> TOOLTIP = new EventHandler<MouseEvent>() {
 
 		@Override
@@ -62,29 +53,7 @@ public class Board extends AnchorPane {
 				populateTileDetails(tile);
 			}
 			
-			/*
-			BigDecimal prob = null;
-			if (p.getX() >= 0 && p.getX() <= solver.getGame().getWidth() && p.getY() >= 0 && p.getY() <= solver.getGame().getHeight() && solver.getGame().query(new Location((int) p.getX(), (int) p.getY())) == GameStateModel.HIDDEN) {
-				prob = solver.getProbability((int) p.getX(), (int) p.getY());
-				if (prob == null) {
-					popupText.setText("?");
-				} else if (prob.compareTo(BigDecimal.ZERO) == 0) {
-					
-					popupText.setText("Mine!");
-				} else if (prob.compareTo(BigDecimal.ONE) == 0) {
-					popupText.setText("Safe");
-					
-				} else {
-					popupText.setText(Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "% safe");
-				}
-			} else {
-				popupText.setText("");
-			}
-			*/
-			
-
-
-			
+		
 		}
     	
     };
@@ -302,6 +271,7 @@ public class Board extends AnchorPane {
 		}
 		
 		flagsPlaced.set(0);
+		setGameInformation(null);
 		
 	}
 	
@@ -309,7 +279,7 @@ public class Board extends AnchorPane {
       return flagsPlaced.getReadOnlyProperty();
    }
    
-   public int getMinesPlaced() {
+   public int getFlagsPlaced() {
 	   return flagsPlaced.get();
    }
    
@@ -333,7 +303,7 @@ public class Board extends AnchorPane {
 		} else {
 			InformationLocation il = gameInformation.get(tile.getLocation());
 			if (il != null) {
-				tooltipText.setText(Action.FORMAT_2DP.format(il.getProbability().multiply(ONE_HUNDRED)) + "% safe");
+				tooltipText.setText(Explorer.PERCENT.format(il.getProbability()) + " safe");
 			}
 		}
 		
@@ -346,16 +316,16 @@ public class Board extends AnchorPane {
 		
 		if (gameInformation == null) {
 			//System.out.println("Game information not found");
+			controller.getTileValueController().update(null);
 			return;
 		}
-		
-		
-		
+
 		InformationLocation il = gameInformation.get(tile.getLocation());
-		if (il == null) {
-			//System.out.println("Tile information not found for " + tile.asText() + " out of " + gameInformation.size());
-			return;
-		}
+		//if (il == null) {
+		//	//System.out.println("Tile information not found for " + tile.asText() + " out of " + gameInformation.size());
+		//	controller.getTileValueController().update(null);
+		//	return;
+		//}
 		
 		controller.getTileValueController().update(il);
 		
@@ -368,6 +338,32 @@ public class Board extends AnchorPane {
 	public void setGameInformation(Map<Location, InformationLocation> info) {
 		this.gameInformation = info;
 	}
+	
+	public int getHashValue() {
+		
+		int hash = 31*31*31 * controller.getGameMines() + 31*31 * flagsPlaced.get() + 31 * width + height;
+		
+		for (int x=0; x < this.width; x++) {
+			for (int y=0; y < this.height; y++) {
+				Tile tile = tiles[x][y];
+				if (tile == null) {
+					
+				} else {
+					if (tile.isFlagged()) {
+						hash = 31 * hash + 13;
+					} else if (tile.isCovered()) {
+						hash = 31 * hash + 12;
+					} else {
+						hash = 31 * hash + tile.getValue();
+					}
+					
+				}
+			}
+		}
+		
+		return hash;
+	}
+	
 	
    @Override
    protected void finalize() {

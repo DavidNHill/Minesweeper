@@ -5,6 +5,7 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,8 +18,6 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
-import minesweeper.solver.iterator.Iterator;
-import minesweeper.solver.iterator.SequentialIterator;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
@@ -28,17 +27,69 @@ import minesweeper.structure.Location;
  * @author David
  *
  */
-public class ProbabilityEngine extends ProbabilityEngineModel {
+public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
 	private static final boolean CHECK_FOR_DEAD_LOCATIONS = true;
+	
+	private class MergeSorter implements Comparator<ProbabilityLine> {
+
+		int[] checks;
+		
+		private MergeSorter() {
+			checks = new int[0];
+		}
+		
+		
+		private MergeSorter(List<Box> boxes) {
+			
+			checks = new int[boxes.size()];
+			
+			for (int i=0; i < boxes.size(); i++) {
+				checks[i] = boxes.get(i).getUID();
+			}
+			
+		}
+		 
+		
+		@Override
+		public int compare(ProbabilityLine p1, ProbabilityLine p2) {
+			
+			int c = p1.mineCount - p2.mineCount;
+			
+			if (c != 0) {
+				return c;
+			}
+			
+			for (int i=0; i < checks.length; i++) {
+				int index = checks[i];
+				
+				//BigInteger c1 = p1.mineBoxCount[index].divide(p1.solutionCount);
+				//BigInteger c2 = p2.mineBoxCount[index].divide(p2.solutionCount);
+				//
+				//c = c1.compareTo(c2);
+				
+				c = p1.allocatedMines[index] - p2.allocatedMines[index];
+				
+				if (c != 0) {
+					return c;
+				}
+				
+			}
+
+			return 0;
+		}
+		
+	}
 	
 	// used to hold a viable solution 
 	private class ProbabilityLine implements Comparable<ProbabilityLine> {
 		private int mineCount = 0;
 		private BigInteger solutionCount = BigInteger.ZERO;
 		private BigInteger[] mineBoxCount  = new BigInteger[boxCount];
+		
+		private int[] allocatedMines  = new int[boxCount];   // this is the number of mines originally allocate to a box
 		
 		private BigInteger[] hashCount  = new BigInteger[boxCount];
 		private BigInteger hash = new BigInteger(20, new Random());
@@ -49,6 +100,15 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 				hashCount[i] = BigInteger.ZERO;
 			}
 		}
+		
+		private ProbabilityLine() {
+			this(BigInteger.ZERO);
+		}
+		
+		private ProbabilityLine(BigInteger solutionCount) {
+			this.solutionCount = solutionCount;
+		}
+		
 		
 		@Override
 		// sort by the number of mines in the solution
@@ -90,7 +150,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		private List<Box> badBoxes = new ArrayList<>();
 		
 		private boolean firstCheck = true;
-		private BigInteger total;
+		private int total;
 	
 	}
 	
@@ -131,6 +191,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	
 	private int independentGroups = 0;
 	private int recursions = 0;
+	private boolean canDoDeadTileAnalysis;
 	
 	private BigInteger finalSolutionsCount;
 	
@@ -142,7 +203,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
 	
-	public ProbabilityEngine(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
+	public ProbabilityEngineFast(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
 		
 		this.boardState = boardState;
 		this.web = web;
@@ -184,14 +245,14 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 			determineCandidateDeadLocations();			
 		}
 
+		// if we compress the probability lines before the edge is completely processed we can't use the data to look for dead tiles
+		canDoDeadTileAnalysis = true;
 		
 		// create an initial solution of no mines anywhere
-		ProbabilityLine held = new ProbabilityLine();
-		held.solutionCount = BigInteger.ONE;
-		heldProbs.add(held);
+		heldProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
 		// add an empty probability line to get us started
-		workingProbs.add(new ProbabilityLine());
+		workingProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
 		// create an empty mask - indicating no boxes have been processed
 		mask = new boolean[boxCount];           
@@ -258,36 +319,45 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		duration = System.currentTimeMillis() - startTime;
 	}
 	
-	private List<ProbabilityLine> crunchByMineCount(List<ProbabilityLine> target) {
+	private List<ProbabilityLine> crunchByMineCount(List<ProbabilityLine> target, MergeSorter sorter) {
 		
 		if (target.isEmpty()) {
 			return target;
 		}
 		
 		// sort the solutions by number of mines
-		Collections.sort(target);
+		Collections.sort(target, sorter);
 		
 		List<ProbabilityLine> result = new ArrayList<>();
 		
-		int mc = target.get(0).mineCount;
-		ProbabilityLine npl = new ProbabilityLine();
-		npl.mineCount = mc;
+		ProbabilityLine current = null;
+		
 		
 		for (ProbabilityLine pl: target) {
-			if (pl.mineCount != mc) {
-				result.add(npl);
-				mc = pl.mineCount;
-				npl = new ProbabilityLine();
-				npl.mineCount = mc;
+
+			/*
+			String show = pl.mineCount + " : " + pl.solutionCount + " : ";
+			for (int i=0; i < pl.mineBoxCount.length; i++) {
+				show = show + pl.mineBoxCount[i] + " ";
 			}
-			mergeProbabilities(npl, pl);
+			boardState.display(show);
+			*/
+			
+			if (current == null) {
+				current = pl;
+			} else if (sorter.compare(current, pl) != 0) {
+				result.add(current);
+				current = pl;
+			} else {
+				//boardState.display("Combining");
+				combineProbabilities(current, pl);
+			}
+			
 		}
 
-		//if (npl.mineCount >= minTotalMines) {
-			result.add(npl);
-		//}	
-		
-		//solver.display(target.size() + " Probability Lines compressed to " + result.size()); 
+		result.add(current);
+
+		boardState.display(target.size() + " Probability Lines compressed to " + result.size()); 
 			
 		return result;
 		
@@ -295,19 +365,23 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 
 	
 	// calculate how many ways this solution can be generated and roll them into one
-	private void mergeProbabilities(ProbabilityLine npl, ProbabilityLine pl) {
+	private void combineProbabilities(ProbabilityLine npl, ProbabilityLine pl) {
 		
+		/*
 		BigInteger solutions = BigInteger.ONE;
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
 			solutions = solutions.multiply(BigInteger.valueOf(SMALL_COMBINATIONS[boxes.get(i).getSquares().size()][pl.mineBoxCount[i].intValue()]));
 		}
 
 		npl.solutionCount = npl.solutionCount.add(solutions);
+		*/
+		npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
 		
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
 			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
-	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
-				
+	 			//npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
+	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
+	 			
 				if (pl.mineBoxCount[i].signum() == 0) {
 					//npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash.multiply(BigInteger.valueOf(boxes.get(i).getSquares().size())));   // treat no mines as -1 rather than zero
 					npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash);   // treat no mines as -1 rather than zero
@@ -336,8 +410,10 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		//}
 	
 		// crunch the new ones down to one line per mine count
-		List<ProbabilityLine> crunched = crunchByMineCount(workingProbs);
+		//List<ProbabilityLine> crunched = crunchByMineCount(workingProbs);
 
+		List<ProbabilityLine> crunched = workingProbs;
+		
 		if (crunched.size() == 1) {
 			checkEdgeIsIsolated();
 		}
@@ -348,12 +424,13 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		for (ProbabilityLine pl: crunched) {
 			
 			for (ProbabilityLine epl: heldProbs) {
-				
-				ProbabilityLine npl = new ProbabilityLine();
-				npl.mineCount = pl.mineCount + epl.mineCount;
-				if (npl.mineCount <= maxTotalMines) {
+
+				if (pl.mineCount + epl.mineCount <= maxTotalMines) {
 					
-					npl.solutionCount = pl.solutionCount.multiply(epl.solutionCount);
+					ProbabilityLine npl = new ProbabilityLine(pl.solutionCount.multiply(epl.solutionCount));
+					npl.mineCount = pl.mineCount + epl.mineCount;
+					
+					//npl.solutionCount = pl.solutionCount.multiply(epl.solutionCount);
 					
 					for (int i=0; i < npl.mineBoxCount.length; i++) {
 						
@@ -487,20 +564,8 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 			}
 		}
 
-		/*
-		// add the dead locations we found 
-		if (CHECK_FOR_DEAD_LOCATIONS) {
-			Set<Location> newDead = new HashSet<>();
-			for (DeadCandidate dc: deadCandidates) {
-				if (!dc.isAlive && boxProb[dc.myBox.getUID()].signum() != 0) {
-					newDead.add(dc.candidate);
-				}
-			}
-			deadLocations = deadLocations.merge(new Area(newDead));
-			
-		}
-		*/
 		
+		/*
 		for (int i=0; i < hashTally.length; i++) {
 			//solver.display(boxes.get(i).getSquares().size() + " " + boxes.get(i).getSquares().get(0).display() + " " + hashTally[i].toString());
 			for (int j=i+1; j < hashTally.length; j++) {
@@ -536,6 +601,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		
 		// sort so that the locations with the most links are at the top
 		Collections.sort(linkedLocations, LinkedLocation.SORT_BY_LINKS_DESC);
+		*/
 		
 		// avoid divide by zero
 		if (squaresLeft != 0 && totalTally.signum() != 0) {
@@ -628,6 +694,45 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	
 		}
 		
+		// flag the last set of details as processed
+		nw.witness.setProcessed(true);
+		for (Box b: nw.newBoxes) {
+			b.setProcessed(true);
+		}
+		
+		//boardState.display("Processed witness " + nw.witness.display());
+		
+		//if we haven't compressed yet and we are still a small edge then don't compress
+		if (newProbs.size() < 100 && canDoDeadTileAnalysis) {
+			return newProbs;
+		}
+		
+		// about to compress the line
+		canDoDeadTileAnalysis = false;
+		
+		List<Box> boundaryBoxes = new ArrayList<>();
+		for (Box box: boxes) {
+			boolean notProcessed = false;
+			boolean processed = false;
+			for (Witness wit: box.getWitnesses()) {
+				if (wit.isProcessed()) {
+					processed = true;
+				} else {
+					notProcessed = true;
+				}
+				if (processed && notProcessed) {
+					//boardState.display("partially processed box " + box.getUID());
+					boundaryBoxes.add(box);
+					break;
+				}
+			}
+		}
+		//boardState.display("Boxes partially processed " + boundaryBoxes.size());
+		
+		MergeSorter sorter = new MergeSorter(boundaryBoxes);
+		
+		newProbs = crunchByMineCount(newProbs, sorter);
+
 		return newProbs;
 		
 	}
@@ -658,9 +763,12 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 			}			
 			
 			// otherwise place the mines in the probability line
-			pl.mineBoxCount[nw.newBoxes.get(index).getUID()] = BigInteger.valueOf(missingMines);
-			pl.mineCount = pl.mineCount + missingMines;
-			result.add(pl);
+			
+			//pl.mineBoxCount[nw.newBoxes.get(index).getUID()] = BigInteger.valueOf(missingMines).multiply(pl.solutionCount);
+			//pl.mineCount = pl.mineCount + missingMines;
+			//result.add(pl);
+			
+			result.add(extendProbabilityLine(pl, nw.newBoxes.get(index), missingMines, true));
 			return result;
 		}
 		
@@ -669,7 +777,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		int maxToPlace = Math.min(nw.newBoxes.get(index).getMaxMines(), missingMines);
 		
 		for (int i=nw.newBoxes.get(index).getMinMines(); i <= maxToPlace; i++) {
-			ProbabilityLine npl = extendProbabilityLine(pl, nw.newBoxes.get(index), i);
+			ProbabilityLine npl = extendProbabilityLine(pl, nw.newBoxes.get(index), i, false);
 			
 			result.addAll(distributeMissingMines(npl, nw, missingMines - i, index + 1));
 		}
@@ -679,21 +787,42 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	}
 	
 	// create a new probability line by taking the old and adding the mines to the new Box
-	private ProbabilityLine extendProbabilityLine(ProbabilityLine pl, Box newBox, int mines) {
+	private ProbabilityLine extendProbabilityLine(ProbabilityLine pl, Box newBox, int mines, boolean reuseLine) {
 		
-		ProbabilityLine result = new ProbabilityLine();
+		int combination = SMALL_COMBINATIONS[newBox.getSquares().size()][mines];
 		
-		result.mineCount = pl.mineCount + mines;
-		//result.solutionCount = pl.solutionCount;
-		
-		// copy the probability array
-		System.arraycopy(pl.mineBoxCount, 0, result.mineBoxCount, 0, pl.mineBoxCount.length);
-		
-		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines);
+		ProbabilityLine result;
+		if (combination == 1 && reuseLine) {
+			result = pl;
+			result.mineCount = result.mineCount + mines;
+		} else {
+			BigInteger newSolutionCount = pl.solutionCount.multiply(BigInteger.valueOf(combination));
+			
+			result = new ProbabilityLine(newSolutionCount);
+			
+			result.mineCount = pl.mineCount + mines;
+			
+			// copy the probability array
+			if (combination == 1) {
+				System.arraycopy(pl.mineBoxCount, 0, result.mineBoxCount, 0, pl.mineBoxCount.length);
+			} else {
+				BigInteger multiplier = BigInteger.valueOf(combination);
+				for (int i=0; i < pl.mineBoxCount.length; i++) {
+					result.mineBoxCount[i] = pl.mineBoxCount[i].multiply(multiplier);
+				}
+			}
+			
+			result.allocatedMines = pl.allocatedMines.clone();
+		}
+
+
+		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(result.solutionCount);
+		result.allocatedMines[newBox.getUID()] = mines;
 		
 		return result;
 	}
 	
+	/*
 	// counts the number of mines already placed
 	private int countPlacedMines(ProbabilityLine pl, NextWitness nw) {
 		
@@ -704,6 +833,25 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		}
 		
 		return result;
+	}
+	*/
+	
+	// counts the number of mines already placed
+	private int countPlacedMines(ProbabilityLine pl, NextWitness nw) {
+		
+		BigInteger result = BigInteger.ZERO;
+		
+		for (Box b: nw.oldBoxes) {
+			result = result.add(pl.mineBoxCount[b.getUID()]);
+		}
+		
+		BigInteger[] divide = result.divideAndRemainder(pl.solutionCount);
+		if (divide[1].signum() != 0) {
+			System.out.println("Min Box Count divide has non-zero remainder " + divide[1]);
+		}
+		
+		
+		return divide[0].intValue();
 	}
 	
 	// return any witness which hasn't been processed
@@ -725,10 +873,10 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	private NextWitness findNextWitness(NextWitness prevWitness) {
 		
 		// flag the last set of details as processed
-		prevWitness.witness.setProcessed(true);
-		for (Box b: prevWitness.newBoxes) {
-			b.setProcessed(true);
-		}
+		//prevWitness.witness.setProcessed(true);
+		//for (Box b: prevWitness.newBoxes) {
+		//	b.setProcessed(true);
+		//}
 
 		int bestTodo = 99999;
 		Witness bestWitness = null;
@@ -767,10 +915,17 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		
 		// before we crunch everything down check for dead tiles
 		if (CHECK_FOR_DEAD_LOCATIONS) {
-			checkCandidateDeadLocations();
+			checkCandidateDeadLocations(canDoDeadTileAnalysis);
 			//checkEdgeIsDead();
 		}
 		
+		// if we haven't compressed yet then do it now
+		if (canDoDeadTileAnalysis) {
+			MergeSorter sorter = new MergeSorter();
+			workingProbs = crunchByMineCount(workingProbs, sorter);
+		} else {
+			canDoDeadTileAnalysis = true;
+		}
 		
 		// get an unprocessed witness
 		NextWitness nw =  findFirstWitness();
@@ -781,7 +936,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 		
 		// reset the working array so we can start building up one for the new set of witnesses
 		workingProbs.clear();
-		workingProbs.add(new ProbabilityLine());
+		workingProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
 		// reset the mask indicating that no boxes have been processed 
 		mask = new boolean[boxCount]; 
@@ -888,7 +1043,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 	}
 	
 	
-	private void checkCandidateDeadLocations() {
+	private void checkCandidateDeadLocations(boolean checkPossible) {
 		
 		boolean completeScan;
 		if (squaresLeft == 0) {
@@ -936,6 +1091,12 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 				continue;
 			}
 			
+			//if we can't do the check because the edge has been compressed mid process then assume alive
+			if (!checkPossible) {
+				boardState.display("Location " + dc.candidate.display() + " was on compressed edge so assumed alive");
+				dc.isAlive = true;
+				continue;
+			}
 			
 			boolean okay = true;
 			int mineCount = 0;
@@ -946,7 +1107,9 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 				}
 				
 				// ignore probability lines where the candidate is a mine
-				if (pl.mineBoxCount[dc.myBox.getUID()].compareTo(BigInteger.valueOf(dc.myBox.getSquares().size())) == 0) {
+				//if (pl.mineBoxCount[dc.myBox.getUID()].compareTo(BigInteger.valueOf(dc.myBox.getSquares().size())) == 0) {
+				if (pl.allocatedMines[dc.myBox.getUID()] == dc.myBox.getSquares().size()) {
+					//boardState.display("Location " + dc.candidate.display() + " I'm a mine on this Probability line");
 					mineCount++;
 					continue line;
 				}
@@ -955,31 +1118,34 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 				// all the bad boxes must be zero
 				for (Box b: dc.badBoxes) {
 					
-                    int requiredMines;
+					BigInteger requiredMines;
+                    //int requiredMines;
                     if (b.getUID() == dc.myBox.getUID()) {
-                        requiredMines = b.getSquares().size() - 1;
+                        requiredMines = BigInteger.valueOf(b.getSquares().size() - 1).multiply(pl.solutionCount);
                     } else {
-                        requiredMines = b.getSquares().size();
+                        requiredMines = BigInteger.valueOf(b.getSquares().size()).multiply(pl.solutionCount);
                     }
 					
-					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].intValue() != requiredMines) {
+					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].compareTo(requiredMines) != 0) {
 						boardState.display("Location " + dc.candidate.display() + " is not dead because a bad box is neither empty nor full of mines");
 						okay = false;
 						break line;
 					}
 				}
 				
-				BigInteger tally = BigInteger.ZERO;
+				//BigInteger tally = BigInteger.ZERO;
+				int tally = 0;
 				// the number of mines in the good boxes must always be the same
 				for (Box b: dc.goodBoxes) {
-					tally = tally.add(pl.mineBoxCount[b.getUID()]);
+					//tally = tally.add(pl.mineBoxCount[b.getUID()]);
+					tally = tally + pl.allocatedMines[b.getUID()];
 				}
 				//boardState.display("Location " + dc.candidate.display() + " has mine tally " + tally);
 				if (dc.firstCheck) {
 					dc.total = tally;
 					dc.firstCheck = false;
 				} else {
-					if (dc.total.compareTo(tally) != 0) {
+					if (dc.total != tally) {
 						boardState.display("Location " + dc.candidate.display() + " is not dead because the sum of mines in good boxes is not constant. Was "
 					                       + dc.total + " now " + tally + ". Mines in probability line " + pl.mineCount);
 						okay = false;
@@ -993,8 +1159,6 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 				dc.isAlive = true;
 			} else {
 				// add the dead locations we found 
-				//Set<Location> newDead = new HashSet<>();
-				//newDead.add(dc.candidate);
 				deadLocations = deadLocations.add(dc.candidate);
 				boardState.display(dc.candidate.display() + " is dead");
 			}
@@ -1050,6 +1214,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
 
         // if this edge is everything then it isn't an isolated edge
         if (everything) {
+        	boardState.display("Not isolated because the edge is everything");
         	return false;
         }
         
@@ -1059,6 +1224,7 @@ public class ProbabilityEngine extends ProbabilityEngineModel {
             if (this.mask[i]) {   
             	for (Square tile: boxes.get(i).getSquares()) {
             		if (!edgeTiles.containsAll(boardState.getAdjacentUnrevealedSquares(tile))) {
+            			boardState.display("Not isolated because a tile's adjacent tiles isn't on the edge: " + tile.display());
             			return false;
             		}
             	}

@@ -21,13 +21,15 @@ import minesweeper.solver.constructs.InformationLocation.ByValue;
 
 public class TileValuesController {
 
+	private final static String WINDOW_NAME = "Tile values";
+	
 	private Stage stage;
 	private Scene scene;
 
 	@FXML private TableView<TileValueData> resultsTable;
-	@FXML private TableColumn<TileValueData, Integer> columnValue;
+	@FXML private TableColumn<TileValueData, String> columnValue;
 	@FXML private TableColumn<TileValueData, String> columnProbability;
-	@FXML private TableColumn<TileValueData, Integer> columnClears;
+	@FXML private TableColumn<TileValueData, String> columnClears;
 	
 	private boolean closed = false;
 	
@@ -72,7 +74,7 @@ public class TileValuesController {
 		custom.stage = new Stage();
 
 		custom.stage.setScene(custom.scene);
-		custom.stage.setTitle("Tile values");
+		custom.stage.setTitle(WINDOW_NAME);
 		
 		custom.stage.getIcons().add(Graphics.ICON);
 		
@@ -98,9 +100,9 @@ public class TileValuesController {
 		
 		custom.resultsTable.getSelectionModel();
 		
-		custom.columnValue.setCellValueFactory(new PropertyValueFactory<TileValueData, Integer>("value"));
+		custom.columnValue.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("value"));
 		custom.columnProbability.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("probability"));
-		custom.columnClears.setCellValueFactory(new PropertyValueFactory<TileValueData, Integer>("clears"));
+		custom.columnClears.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("clears"));
 		
 		custom.getStage().show();
 
@@ -120,20 +122,23 @@ public class TileValuesController {
 		if (closed) {  // if the window has been closed then let anyone who calls know
 			return false;
 		}
-
-
 		
 		Platform.runLater(new Runnable() {
 			@Override public void run() {
 				items.clear();
-				
-				if (il.getByValueData() == null) {
+
+				if (il == null || il.getByValueData() == null) {
 					return;
 				}
+
+				stage.setTitle(WINDOW_NAME + " (" + il.x + "," + il.y + ")");
 				
 				for (ByValue bv: il.getByValueData()) {
 					items.add(new TileValueData(bv));
 				}
+				items.add(new TileValueData("Safe", Explorer.PERCENT.format(il.getProbability()), ""));
+				items.add(new TileValueData("Progress", Explorer.PERCENT.format(il.getProgressProbability()), Explorer.TWO_DP.format(il.getExpectedClears())));
+				items.add(new TileValueData("Weighting", Explorer.PERCENT.format(il.getWeighting()), ""));
 			}
 		});            
 

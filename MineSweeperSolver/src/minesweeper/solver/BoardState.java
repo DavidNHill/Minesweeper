@@ -262,15 +262,15 @@ public class BoardState {
 	}
 
 	
-	public void setAction(Action a) {
-		setAction(a, true);
-	}
+	//public void setAction(Action a) {
+	//	setAction(a, true);
+	//}
 
 	/**
 	 * Register the action against the location(x,y);
 	 * Optionally add the action to the list of actions to play this turn
 	 */
-	public void setAction(Action a, boolean addToList) {
+	public void setAction(Action a) {
 
 		//display("Setting action at " + a.display());
 		
@@ -318,6 +318,7 @@ public class BoardState {
 	/**
 	 * This will consider chords when returning the moves to play
 	 */
+	/*
 	protected List<Action> getActionsWithChords() {
 
 		// if we aren't using chords or none are available then skip all this expensive processing
@@ -382,7 +383,7 @@ public class BoardState {
 
 		return actions;
 	}
-	
+	*/
 	/**
 	 * Get the probability of a mine being in this square (based upon the actions still pending)
 	 */
@@ -917,6 +918,8 @@ public class BoardState {
 	 * Inform the board state that this location might benefit from using a clear all move, returns true if the move is accepted as a clear all
 	 * @param loc
 	 */
+	/*
+	
 	protected boolean setChordLocation(Location loc) {
 		
 		if (!solver.isPlayChords()) {
@@ -935,27 +938,12 @@ public class BoardState {
 
 			chordLocations.add(new ChordLocation(loc.x, loc.y, benefit - cost));
 			
-			/*
-			for (Location l: getAdjacentSquaresIterable(loc)) {
-				// flag not yet on board
-				if (isConfirmedFlag(l) && !isFlagOnBoard(l)) {
-					clearAllList.add(new Action(l, Action.FLAG, Solver.OBVIOUS, "Place flag", BigDecimal.ONE, 0));
-				}
-				// flag on board in error
-				if (!isConfirmedFlag(l) && isFlagOnBoard(l)) {
-					clearAllList.add(new Action(l, Action.FLAG, Solver.OBVIOUS, "Remove flag", BigDecimal.ONE, 0));
-				}
-			}
-			// now add the clear all
-			clearAllList.add(new Action(loc, Action.CLEARALL, Solver.OBVIOUS, "Clear All", BigDecimal.ONE, 1));	
-			*/
-			
 		}
 		
 		return accepted;
 		
 	}
-
+	*/
 	public int getTestMoveBalance() {
 		return this.testMoveBalance;
 	}

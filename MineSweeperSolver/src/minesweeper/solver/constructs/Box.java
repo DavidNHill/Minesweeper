@@ -23,6 +23,8 @@ public class Box {
 	
 	private boolean processed = false;
 	
+	private boolean dominated = false;
+	
 	public Box(Square square, int uid) {
 		
 		this.uid = uid;
@@ -136,6 +138,14 @@ public class Box {
 	}
 	public int getMinMines() {
 		return this.minMines;
+	}
+	
+	public void setDominated() {
+		this.dominated = true;
+	}
+	
+	public boolean isDominated() {
+		return this.dominated;
 	}
 	
 	public void display() {

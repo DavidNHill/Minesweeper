@@ -16,6 +16,7 @@ import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 /**
  *
@@ -32,7 +33,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 50000;
+	private final static int MAX = 100000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;
@@ -63,28 +64,17 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 12345678;
-			
-		// start (3,2)
-		//Seed 1652664258 played 100000 games Wins=88880 (88.880%) after 40412(25413,14999) guesses(winning, losing), fairness ratio=0.01630, duration = 200178 milliseconds
-		//Number of Never Guessed wins is 71928 (71.928%) modified win rate = 60.388%
-		// start (3,3)
-		//Seed 1652664258 played 100000 games Wins=88684 (88.684%) after 40182(24983,15199) guesses(winning, losing), fairness ratio=0.01047, duration = 200371 milliseconds
-		//Number of Never Guessed wins is 72070 (72.070%) modified win rate = 59.484%
-		// start (2,2)
-		//Seed 1652664258 played 100000 games Wins=88987 (88.987%) after 41751(26752,14999) guesses(winning, losing), fairness ratio=0.01335, duration = 200081 milliseconds
-		//Number of Never Guessed wins is 71407 (71.407%) modified win rate = 61.484%
-		// start (1,1)
-		//Seed 1652664258 played 100000 games Wins=87728 (87.728%) after 51127(33160,17967) guesses(winning, losing), fairness ratio=0.00457, duration = 207854 milliseconds
-		//Number of Never Guessed wins is 67318 (67.318%) modified win rate = 62.450%
+		//seed = 926358205;
+		//seed = 259355150;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
 		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
-		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(32,28,203);
+		GameSettings gameSettings = GameSettings.EXPERT;
+		//GameSettings gameSettings = GameSettings.create(8,8,49);
 		GameType gameType = GameType.STANDARD;
+		//GameType gameType = GameType.EASY;
 		
 		while (played < MAX) {
 
@@ -93,7 +83,7 @@ public class MinesweeperBulk {
 			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
 			
 			//solver.setTestMode();
-			//solver.setStartLocation(new Location(4,4));
+			//solver.setStartLocation(new Location(1, 1));
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 
@@ -102,7 +92,7 @@ public class MinesweeperBulk {
 			if (played % STEP == 0) {
 				double p = (double) wins / (double) played;
 				double err = Math.sqrt(p * ( 1- p) / (double) played) * 1.9599d;
-				System.out.println("played " + played + "/" + MAX + " games Wins=" + wins + " (" + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) +  "%). After "
+				System.out.println("played " + played + "/" + MAX + " games, Wins " + wins + " (" + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) +  "%). After "
 						+ guesses + "(" + winningGuesses + "," + losingGuesses + ") guesses(winning, losing), fairness ratio=" + MASK5DP.format(fairness / fairGuesses) + "." );
 			}
 
@@ -135,7 +125,7 @@ public class MinesweeperBulk {
 
 		double p = (double) wins / (double) MAX;
 		double err = Math.sqrt(p * ( 1- p) / (double) played) * 1.9599d;
-		System.out.println("Seed " + seed + " played " + MAX + " games Wins=" + wins + " (" + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + "%) after " 
+		System.out.println("Seed " + seed + " played " + MAX + " games, Wins " + wins + " (" + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + "%) after " 
 		+ guesses + "(" + winningGuesses + "," + losingGuesses + ") guesses(winning, losing), fairness ratio=" + MASK5DP.format(fairness / fairGuesses) 
 		+ ", duration = " + duration + " milliseconds");
 

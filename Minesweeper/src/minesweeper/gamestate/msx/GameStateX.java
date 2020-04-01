@@ -25,7 +25,7 @@ public class GameStateX extends GameStateModelViewer {
 		
 		// give it time to set the flag
 		try {
-			Thread.sleep(10);
+			Thread.sleep(20);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -45,7 +45,7 @@ public class GameStateX extends GameStateModelViewer {
 		scanner.clear(m.x, m.y);
 		
 		try {
-			Thread.sleep(10);
+			Thread.sleep(20);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
@@ -122,7 +122,7 @@ public class GameStateX extends GameStateModelViewer {
 		scanner.clearAll(m.x, m.y);
 		
 		try {
-			Thread.sleep(10);
+			Thread.sleep(20);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}

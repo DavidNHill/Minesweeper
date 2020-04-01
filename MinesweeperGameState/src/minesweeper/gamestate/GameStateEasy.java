@@ -5,8 +5,6 @@
  */
 package minesweeper.gamestate;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Random;
 
 import minesweeper.random.DefaultRNG;
@@ -46,6 +44,20 @@ public class GameStateEasy extends GameStateModelViewer {
     protected void startHandle(Location m) {
         
         int i=0;
+        
+		int adjacent = 9;
+		// corners
+		if (m.x == 0 && m.y == 0 || m.x == 0 && m.y == this.height - 1 || m.x == this.width - 1 && m.y == this.height - 1 || m.x == this.width - 1 && m.y == this.height - 1) {
+			adjacent = 4; 
+			// the edge
+		} else if (m.x == 0 || m.y == 0 || m.x == this.width - 1 || m.y == this.height){
+			adjacent = 6;
+		}
+        
+        
+        if (this.mines + adjacent > this.width * this.height) {
+        	this.mines = this.width * this.height - adjacent;
+        }
         
         while (i < mines) {
             int y1 = (int) rng.random(this.height);
@@ -131,6 +143,7 @@ public class GameStateEasy extends GameStateModelViewer {
     	
     }
     
+    /*
     private void explode(Location loc) {
     	
     	boolean[][] done = new boolean[width][height];
@@ -174,7 +187,8 @@ public class GameStateEasy extends GameStateModelViewer {
     	
     	
     }
-
+	*/
+    
 	@Override
 	protected boolean clearSurroundHandle(Location m) {
 		
@@ -188,6 +202,11 @@ public class GameStateEasy extends GameStateModelViewer {
         return true;
 	}
     
+	@Override
+    public boolean supports3BV() {
+    	return true;
+    }
+	
 	@Override
     public Location getStartLocation() {
 		//if (x > 7 && y > 7) {

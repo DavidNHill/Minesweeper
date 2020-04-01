@@ -20,6 +20,7 @@ import minesweeper.explorer.structure.Expander;
 import minesweeper.explorer.structure.LedDigits;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.Preferences;
+import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.structure.Action;
@@ -70,8 +71,9 @@ public class MainScreenController {
 	@FXML private AnchorPane header;
 	@FXML private Label messageLine;
 	@FXML private Label solutionLine;
-	@FXML private Button buttonExplore;
-	@FXML private Button buttonCheckFlags;
+	@FXML private Button buttonSolve;
+	@FXML private Button buttonAnalyse;
+	@FXML private Button buttonRollout;
 	
 	private TileValuesController tileValueController;
 	private GraphicsSet graphicsSet;
@@ -132,20 +134,47 @@ public class MainScreenController {
 	}
 	
 	@FXML 
-	public void checkFlagsButtonPressed() {
-		System.out.println("Check flags button pressed");
+	public void rolloutButtonPressed() {
+		System.out.println("Rollout button pressed");
 
 		currentBoard.setGameInformation(null);
 		GameStateModel gs = null;
 		try {
-			gs = GameStateExplorer.build(currentBoard, mineCount.getValue());
+			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+		
 		try {
-			currentBoard.setGameInformation(solver.runProbabiltyEngine());
+			RolloutGenerator gen = solver.getRolloutGenerator();
+			
+			BulkRunner bulkRunner = new BulkRunner(10, gen, new Location(0,2));
+			new Thread(bulkRunner, "Bulk Run").start();
+			
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+		
+	}
+	
+	@FXML 
+	public void analyseButtonPressed() {
+		System.out.println("Analyse button pressed");
+
+		currentBoard.setGameInformation(null);
+		GameStateModel gs = null;
+		try {
+			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+		
+		try {
+			currentBoard.setGameInformation(solver.runTileAnalysis());
 		} catch (Exception e) {
 			e.printStackTrace();
 			setSolutionLine("Unable to process:" + e.getMessage());
@@ -155,12 +184,12 @@ public class MainScreenController {
 	}
 	
 	@FXML 
-	public void exploreButtonPressed() {
-		System.out.println("Explore button pressed");
+	public void solveButtonPressed() {
+		System.out.println("Solve button pressed");
 		
 		GameStateModel gs = null;
 		try {
-			gs = GameStateExplorer.build(currentBoard, mineCount.getValue());
+			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -269,6 +298,8 @@ public class MainScreenController {
 		
 		messageLine.setText("Build a board");
 		solutionLine.setText("");
+
+		Explorer.setSubTitle(width + " x " + height);
 		
 	}
 	
@@ -319,5 +350,20 @@ public class MainScreenController {
 
 	}
 
-	
+	public void setButtonsEnabled(boolean enable) {
+		
+		if (Platform.isFxApplicationThread()) {
+			buttonSolve.setDisable(!enable);
+			buttonAnalyse.setDisable(!enable);
+		} else {
+			Platform.runLater(new Runnable() {
+				@Override
+				public void run() {
+					buttonSolve.setDisable(!enable);
+					buttonAnalyse.setDisable(!enable);
+				}
+			});
+		}
+
+	}
 }

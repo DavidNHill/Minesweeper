@@ -7,9 +7,9 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane prefHeight="246.0" prefWidth="403.0" style="-fx-background-color: green;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.bulk.BulkController">
+<AnchorPane prefHeight="278.0" prefWidth="403.0" style="-fx-background-color: green;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.bulk.BulkController">
    <children>
-      <Button layoutX="319.0" layoutY="208.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
+      <Button layoutX="317.0" layoutY="242.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
       <ProgressBar fx:id="progressRun" layoutX="96.0" layoutY="171.0" prefHeight="25.0" prefWidth="293.0" progress="0.21" style="-fx-control-inner-background: palegreen; -fx-accent: darkgreen;" />
       <TextField fx:id="gameCount" layoutX="95.0" layoutY="18.0" style="-fx-background-color: silver;" />
       <Label layoutX="15.0" layoutY="132.0" prefHeight="25.0" prefWidth="72.0" text="Win rate">
@@ -56,6 +56,11 @@
       </Label>
       <TextField fx:id="startLocY" layoutX="165.0" layoutY="100.0" prefHeight="25.0" prefWidth="43.0" style="-fx-background-color: silver;" />
       <CheckBox fx:id="showGames" layoutX="99.0" layoutY="211.0" mnemonicParsing="false" text="Show game results">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </CheckBox>
+      <CheckBox fx:id="winsOnly" layoutX="99.0" layoutY="244.0" mnemonicParsing="false" text="Wins only">
          <font>
             <Font size="14.0" />
          </font>

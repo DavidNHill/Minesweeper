@@ -25,6 +25,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.random.DefaultRNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
+import minesweeper.solver.Preferences;
 import minesweeper.structure.Location;
 
 public class BulkController {
@@ -41,6 +42,7 @@ public class BulkController {
 	@FXML private TextField startLocX;
 	@FXML private TextField startLocY;
 	@FXML private CheckBox showGames;
+	@FXML private CheckBox winsOnly;
 	
 	private Stage stage;
 	private Scene scene;
@@ -51,6 +53,7 @@ public class BulkController {
 	private GameSettings gameSettings;
 	private GameType gameType;
 	private Location startLocation;
+	private Preferences preferences;
 	
 	//private ResultsController resultsController;
 	
@@ -123,7 +126,7 @@ public class BulkController {
 
 		gameSeed.setText(String.valueOf(gameGenerator));
 		
-		bulkRunner = new BulkRunner(this, gamesMax, gameSettings, gameType, gameGenerator, startLocation, showGames.isSelected());
+		bulkRunner = new BulkRunner(this, gamesMax, gameSettings, gameType, gameGenerator, startLocation, showGames.isSelected(), winsOnly.isSelected(), preferences);
 		
 		new Thread(bulkRunner, "Bulk Run").start();
 		
@@ -140,7 +143,7 @@ public class BulkController {
 	}
 
 
-	public static BulkController launch(Window owner, GameSettings gameSettings, GameType gameType) {
+	public static BulkController launch(Window owner, GameSettings gameSettings, GameType gameType, Preferences preferences ) {
 
 		if (BulkController.class.getResource("BulkScreen.fxml") == null) {
 			System.out.println("BulkScreen.fxml not found");
@@ -168,6 +171,7 @@ public class BulkController {
 
 		custom.gameSettings = gameSettings;
 		custom.gameType = gameType;
+		custom.preferences = preferences;
 		
 		custom.scene = new Scene(root);
 

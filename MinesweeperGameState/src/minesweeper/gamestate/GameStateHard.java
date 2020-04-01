@@ -123,6 +123,7 @@ public class GameStateHard extends GameStateModelViewer {
     	
     }
     
+    /*
     private void explode(Location loc) {
     	
     	boolean[][] done = new boolean[width][height];
@@ -147,13 +148,16 @@ public class GameStateHard extends GameStateModelViewer {
                 
                 // check each of the surrounding squares which haven't already been checked
                 if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
-                	if (!done[x1][y1] && query(new Location(x1, y1)) == GameStateModel.HIDDEN) {
+                	
+                	Location l = new Location(x1, y1);
+                	
+                	if (!done[x1][y1] && query(l) == GameStateModel.HIDDEN) {
                 		
                 		done[x1][y1] = true;
                     	setRevealed(x1,y1);
  
                         // if this square is also a zero then add it to the list of locations to be exploded
-                        if (board[x1][y1] == 0) {
+                        if (query(l) == 0) {
                         	interiorList.add(new Location(x1, y1));
                         }                		
                 	}
@@ -163,8 +167,13 @@ public class GameStateHard extends GameStateModelViewer {
 
             processFrom++;
         }    	
-    	
-    	
+
+    }
+    */
+    
+	@Override
+    public boolean supports3BV() {
+    	return true;
     }
     
 	@Override

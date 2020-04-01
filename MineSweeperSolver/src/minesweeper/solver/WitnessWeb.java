@@ -69,6 +69,10 @@ public class WitnessWeb {
                 	adjSqu.add(squ);
                 }
             }
+            if (mines > adjSqu.size()) {
+            	validWeb = false;
+            	return;
+            }
             addWitness(new Witness(wit, mines, adjSqu));
         }        
         

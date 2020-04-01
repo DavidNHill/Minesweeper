@@ -75,7 +75,6 @@ public class Tile extends ImageView {
 	
 	private GraphicsSet graphicsSet;
 	private boolean covered;
-	//private boolean mine;
 	private boolean flagged;
 	
 	private int value;
@@ -102,8 +101,6 @@ public class Tile extends ImageView {
 		
 		if (flagged) {
 			this.setImage(graphicsSet.getFlag());
-		//} else if (mine) {
-		//	this.setImage(graphicsSet.getMine());
 		} else if (covered) {
 			this.setImage(graphicsSet.getHidden());
 		} else {
@@ -205,20 +202,6 @@ public class Tile extends ImageView {
 			return;
 		}
 		
-		/*
-		AdjacentDetails adjDetails = board.countAdjMines(this);
-		
-		int minValue = adjDetails.mines;
-		int maxValue = adjDetails.mines + adjDetails.notMines;
-		
-		if (value == minValue) {
-			board.coverAdjacentZeroTiles(this, false);
-		} else {
-			board.coverAdjacentZeroTiles(this, true);
-		}
-		*/
-		
-		//this.covered = false;
 		this.value = value;
 		doDraw();
 	}

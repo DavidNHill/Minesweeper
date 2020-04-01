@@ -9,7 +9,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.List;
 
 import minesweeper.settings.GameSettings;
@@ -33,23 +32,7 @@ public class GameStateReader extends GameStateModelViewer {
         this.board = new int[width][height];
     }
     
-    /*
-    public GameStateReader(int x, int y, int mines, long seed) {
-        this(x,y,mines, new Random(seed));
-        
-        this.seed = seed;
-       
-    }
-    
-    private GameStateReader(int x, int y, int mines, Random rng) {
-        super(x,y,mines);
-        
-        this.board = new int[x][y];
-        
-        this.rng = rng; 
-    }
-    */
-    
+   
     public final static GameStateModelViewer load(File file) throws Exception {
     	
     	if (file.getName().toUpperCase().endsWith(".MBF")) {
@@ -246,6 +229,45 @@ public class GameStateReader extends GameStateModelViewer {
 		
     }
     
+    public final static GameStateModelViewer loadMines(int width, int height, List<Location> mines, List<Location> revealed) {
+    	
+    	GameStateReader result = new GameStateReader(GameSettings.create(width, height, mines.size()));
+    	
+    	for (Location mine: mines) {
+    		
+			int x = mine.x;
+			int y = mine.y;
+			
+			//System.out.println("mine at (" + x + "," + y + ")");
+            result.board[x][y] = GameStateModel.MINE;
+            
+            // tell all the surrounding squares they are next to a mine
+            for (int j=0; j < DX.length; j++) {
+                if (x + DX[j] >= 0 && x + DX[j] < result.width && y + DY[j] >= 0 && y + DY[j] < result.height) {
+                    if (result.board[x+DX[j]][y+DY[j]] != GameStateModel.MINE) {
+                        result.board[x+DX[j]][y+DY[j]]++;
+                    }
+                }
+            }
+    	}
+    	
+    	// set the revealed locations
+    	for (Location tile: revealed) {
+    		
+			int x = tile.x;
+			int y = tile.y;
+			
+			result.setRevealed(x, y);
+    	}   	
+     	
+    	result.partialGame = false;  // indicates that the board is complete
+    	result.safeOpening = false;
+    	
+    	return result;
+    	
+    }
+    
+    
     // in this gamestate the board is built from the file
     @Override
     protected void startHandle(Location m) {
@@ -304,16 +326,27 @@ public class GameStateReader extends GameStateModelViewer {
     @Override
     public String showGameKey() {
     	
-    	String partial = "";
-    	if (partialGame) {
-    		partial = " (Mines missing!)";
+    	String gameKey = "";
+    	
+    	if (file != null) {
+    		gameKey = "file = " + file.getAbsolutePath();
+    	} else {
+    		gameKey = "Generated";
     	}
     	
-    	return "file = " + file.getAbsolutePath() + partial;
+    	if (partialGame) {
+    		gameKey = gameKey + " (Mines missing!)";
+    	}
+    	
+    	return gameKey;
     	
     }
     
+    public boolean supports3BV() {
+    	return !partialGame;
+    }
     
+    /*
     private void explode(Location loc) {
     	
     	boolean[][] done = new boolean[width][height];
@@ -357,6 +390,7 @@ public class GameStateReader extends GameStateModelViewer {
     	
     	
     }
+    */
     
 	@Override
 	protected boolean clearSurroundHandle(Location m) {

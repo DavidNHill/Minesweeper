@@ -70,6 +70,16 @@
                         <RadioMenuItem fx:id="rngKiss64" mnemonicParsing="false" text="KISS64 random numbers" toggleGroup="$RNG" />
                     </items>
                   </Menu>
+                  <Menu mnemonicParsing="false" text="Brute force analysis">
+                     <items>
+                        <RadioMenuItem fx:id="sol400" mnemonicParsing="false" text="400 solutions">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="BFDA" />
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="sol4000" mnemonicParsing="false" selected="true" text="4000 solutions" toggleGroup="$BFDA" />
+                     </items>
+                  </Menu>
               </items>
             </Menu>
             <Menu mnemonicParsing="false" text="Bulk run">

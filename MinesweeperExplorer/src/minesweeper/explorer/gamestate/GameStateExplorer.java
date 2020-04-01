@@ -5,9 +5,6 @@
  */
 package minesweeper.explorer.gamestate;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import minesweeper.explorer.structure.Board;
 import minesweeper.explorer.structure.Tile;
 import minesweeper.gamestate.GameStateModel;
@@ -135,7 +132,7 @@ public class GameStateExplorer extends GameStateModelViewer {
     	
     }
     
-    
+    /*
     private void explode(Location loc) {
     	
     	boolean[][] done = new boolean[width][height];
@@ -177,8 +174,8 @@ public class GameStateExplorer extends GameStateModelViewer {
             processFrom++;
         }    	
     	
-    	
     }
+    */
     
 	@Override
 	protected boolean clearSurroundHandle(Location m) {

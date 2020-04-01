@@ -1,4 +1,4 @@
-package minesweeper.bulk;
+package minesweeper.explorer.main;
 
 import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
@@ -7,6 +7,7 @@ import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
+import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
@@ -15,39 +16,26 @@ public class BulkRunner implements Runnable {
 	
 	private boolean stop = false;
 	private final int maxSteps;
-	private final long seed;
-	private final BulkController controller;
-	private final GameSettings gameSettings;
-	private final GameType gameType;
+	//private final BulkController controller;
 	private final Location startLocation;
-	private final Preferences preferences;
-
+	private final RolloutGenerator rollout;
+	
 	//private final Random seeder;
 	private int steps = 0;
 	private int wins = 0;
 	
-	private final RNG seeder;
-	
-	private ResultsController resultsController;
+	//private ResultsController resultsController;
 	private boolean showGames;
 	private boolean winsOnly;
 	
-	public BulkRunner(BulkController controller, int iterations, GameSettings gameSettings, GameType gameType, 
-			long seed, Location startLocation, boolean showGames, boolean winsOnly, Preferences preferences) {
+	public BulkRunner(int iterations, RolloutGenerator rollout, Location startLocation) {
 		
-		maxSteps = iterations;
-		this.seed = seed;
-		this.controller = controller;
-		this.gameSettings = gameSettings;
-		this.gameType = gameType;
+		this.maxSteps = iterations;
+		this.rollout = rollout;
 		this.startLocation = startLocation;
-		this.seeder = DefaultRNG.getRNG(seed);
-		this.showGames = showGames;
-		this.winsOnly = winsOnly;
-		this.preferences = preferences;
 		
 		if (showGames) {
-			resultsController = ResultsController.launch(null, gameSettings, gameType);
+			//resultsController = ResultsController.launch(null, gameSettings, gameType);
 		}
 		
 		
@@ -62,19 +50,26 @@ public class BulkRunner implements Runnable {
 			
 			steps++;
 			
-			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.random(0));
+			GameStateModel gs = rollout.generateGame();
 
-			Solver solver = new Solver(gs, preferences, false);
-			if (startLocation != null) {
-				solver.setStartLocation(startLocation);
+			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
+			
+			
+			gs.doAction(new Action(startLocation,Action.CLEAR));
+			int state = gs.getGameState();
+
+			boolean win;
+			if (state == GameStateModel.LOST || state == GameStateModel.WON) {  // if we have won or lost on the first move nothing more to do
+				win = (state == GameStateModel.WON);
+			} else { // otherwise use the solver to play the game
+				 win = playGame(gs, solver);
 			}
-			
-			boolean win = playGame(gs, solver);
-			
+		
 			if (win) {
 				wins++;
 			}
-			
+
+			/*
 			if (showGames && (win || !win && !winsOnly)) {
 				if (!resultsController.update(gs)) {  // this returns false if the window has been closed
 					showGames = false;
@@ -82,14 +77,14 @@ public class BulkRunner implements Runnable {
 					System.out.println("Results window has been closed... will no longer send data to it");
 				}
 			}
+			*/
 			
-			
-			controller.update(steps, maxSteps, wins);
+			//controller.update(steps, maxSteps, wins);
 			
 		}
 		
 		stop = true;
-		System.out.println("BulkRunner run method ending");
+		System.out.println("BulkRunner run method ending with wins = " +  wins + " of " + steps);
 		
 	}
 	
@@ -147,6 +142,10 @@ public class BulkRunner implements Runnable {
 	
 	public boolean isFinished() {
 		return stop;
+	}
+	
+	public int getWins() {
+		return wins;
 	}
 
 }

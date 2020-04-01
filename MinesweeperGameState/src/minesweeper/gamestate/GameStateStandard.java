@@ -131,7 +131,7 @@ public class GameStateStandard extends GameStateModelViewer {
     	
     }
     
-    
+    /*
     private void explode(Location loc) {
     	
     	boolean[][] done = new boolean[width][height];
@@ -174,6 +174,12 @@ public class GameStateStandard extends GameStateModelViewer {
         }    	
     	
     	
+    }
+    */
+    
+	@Override
+    public boolean supports3BV() {
+    	return true;
     }
     
 	@Override

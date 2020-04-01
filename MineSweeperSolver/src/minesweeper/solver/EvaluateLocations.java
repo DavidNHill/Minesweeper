@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.structure.Action;
@@ -18,23 +19,23 @@ import minesweeper.structure.Location;
 
 public class EvaluateLocations {
 
-	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_PROGRESS_PROBABILITY;  // this works well
-	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_LINKED_EXPECTED_CLEARS;   // trying this
+	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_PROGRESS_PROBABILITY;  // this works well
+	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
 	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_FIXED_CLEARS_PROGRESS;      // trying this
-	
 	
 	private final static int[][] OFFSETS = {{2, 0}, {-2, 0}, {0, 2}, {0, -2}};
 
-	//private final static int[][] OFFSETS = {{2, -1}, {2, 0}, {2, 1}, {-2, -1}, {-2, 0}, {-2, 1}, {-1, 2}, {0, 2}, {1, 2}, {-1, -2}, {0, -2}, {1, -2}};
+	private final static int[][] OFFSETS_ALL = {{2,-2}, {2,-1}, {2,0}, {2,1}, {2,2}, {-2,-2}, {-2,-1}, {-2,0}, {-2,1}, {-2,2}, {-1,2}, {0,2}, {1,2}, {-1,-2}, {0,-2}, {1,-2}};
 	
 	private final BoardState boardState;
 	private final WitnessWeb wholeEdge;
-	private final ProbabilityEngine pe;
+	private final ProbabilityEngineModel pe;
 	private final Solver solver;
 
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
+	EvaluatedLocation best;
 
-	public EvaluateLocations(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngine pe) {
+	public EvaluateLocations(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe) {
 
 		this.boardState = boardState;
 		this.wholeEdge = wholeEdge;
@@ -48,20 +49,39 @@ public class EvaluateLocations {
 	 */
 	public void addOffEdgeCandidates(List<Location> allUnrevealedSquares) {
 
-		Set<Location> tileOfInterest = new HashSet<>();
+		
+		Set<CandidateLocation> tileOfInterest = new HashSet<>();
+		
+		// if there are only a small number of tiles off the edge then consider them all
+		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
+			for (Location tile: allUnrevealedSquares) {
+				if (!wholeEdge.isOnWeb(tile)) {
+					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0, 0));
+				}
+			}	
+			evaluateLocations(tileOfInterest);
+			return;
+		}
 
+		int[][] offsets;
+		if (isHighDensity()) {
+			offsets = OFFSETS_ALL;
+		} else {
+			offsets = OFFSETS;
+		}
+		
 		// look for potential super locations
 		for (Location tile: wholeEdge.getOriginalWitnesses()) {
 
 			//boardState.display(tile.display() + " is an original witness");
 
-			for (int[] offset: OFFSETS) {
+			for (int[] offset: offsets) {
 
 				int x1 = tile.x + offset[0];
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					Location loc = new Location(x1, y1);
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0, 0);
 					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						tileOfInterest.add(loc);
@@ -71,7 +91,7 @@ public class EvaluateLocations {
 			}
 		}
 
-		evaluateLocations(tileOfInterest);
+
 
 		// look for potential off edge squares with not many neighbours and calculate their probability of having no more flags around them
 		for (Location tile: allUnrevealedSquares) {
@@ -81,8 +101,11 @@ public class EvaluateLocations {
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterest.contains(tile)) {
 
+				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0, 0));
+				
+				/*
 				//SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, adjMines, wholeEdge.getOriginalWitnesses());
-				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, adjMines);
+				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, adjMines);
 
 				BigInteger sol = counter.getSolutionCount();
 
@@ -106,21 +129,22 @@ public class EvaluateLocations {
 				} else {
 					boardState.display(tile.display() + " with value " + adjMines + " has probability zero");
 				}
-
+				*/
 
 			}
 
 		}		
 
-
+		evaluateLocations(tileOfInterest);
+		
 	}
 
 	/**
 	 * Evaluate a set of tiles to see the expected number of clears it will provide
 	 */
-	public void evaluateLocations(Collection<? extends Location> tiles) {
+	public void evaluateLocations(Collection<? extends CandidateLocation> tiles) {
 
-		for (Location tile: tiles) {
+		for (CandidateLocation tile: tiles) {
 			evaluateLocation(tile);
 		}
 
@@ -129,12 +153,23 @@ public class EvaluateLocations {
 	/**
 	 * Evaluate a tile to see the expected number of clears it will provide
 	 */
-	public void evaluateLocation(Location tile) {
+	public void evaluateLocation(CandidateLocation tile) {
+
+		if (best != null) {
+			if (tile.getProbability().multiply(Solver.PROGRESS_MULTIPLIER).compareTo(best.getWeighting()) <= 0) {
+				boardState.display(tile.display() + " is ignored because it can not do better than the best");
+				return;
+			}
+		}
 
 		//EvaluatedLocation evalTile = doEvaluateTile(tile);
 		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
 
+
 		if (evalTile != null) {
+			if (best == null || evalTile.getWeighting().compareTo(best.getWeighting()) > 0) {
+				best = evalTile;
+			}
 			evaluated.add(evalTile);
 		}
 	}
@@ -233,7 +268,7 @@ public class EvaluateLocations {
 			//int clears = solver.validateLocationUsingLocalCheck(tile, i);
 			//if (clears > 0) {
 
-				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, i);
+				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i);
 				BigInteger sol = counter.getSolutionCount();
 				int clears = counter.getClearCount();
 
@@ -273,7 +308,7 @@ public class EvaluateLocations {
 
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile));
+			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile), BigDecimal.ZERO);
 			
 			if (linkedLocation != null) {
 				boardState.display("Considering with " + linkedLocation.getLinkedLocations().size() + " linked locations");
@@ -333,34 +368,43 @@ public class EvaluateLocations {
 
 		//boardState.display(tile.display() + " has " + linkedTiles + " linked tiles");
 
+		BigDecimal maxValueProgress = BigDecimal.ZERO;
 		BigDecimal progressProb = BigDecimal.ZERO;
 
 		for (int i = minMines; i <= maxMines; i++) {
 
-			SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, i);
+			SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i);
 
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getClearCount();
 
-			if (sol.signum() != 0 && clears > linkedTiles) {
-
+			// keep track of the maximum probability across all valid values
+			if (sol.signum() != 0) {
+				
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-				boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
+				
+				maxValueProgress = maxValueProgress.max(prob);
+				
+				if (clears > linkedTiles) {
+					
+					boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
 
-				// expected clears is the sum of the number of mines cleared * the probability of clearing them
-				expectedClears = expectedClears.add(BigDecimal.valueOf(clears - linkedTiles).multiply(prob));   
+					// expected clears is the sum of the number of mines cleared * the probability of clearing them
+					expectedClears = expectedClears.add(BigDecimal.valueOf(clears - linkedTiles).multiply(prob));   
 
-				if (clears != 0) {
-					progressProb = progressProb.add(prob);
-				}
-
-			} else {
-				if (sol.signum() == 0) {
-					boardState.display(tile.display() + " with value " + i + " with probability zero");
+					if (clears != 0) {
+						progressProb = progressProb.add(prob);
+					}
+					
 				} else {
 					boardState.display(tile.display() + " with value " + i + " only has linked clears");
 				}
+				
+			} else {
+				boardState.display(tile.display() + " with value " + i + " with probability zero");
 			}
+			
+
 
 		}
 
@@ -369,7 +413,7 @@ public class EvaluateLocations {
 		//}
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile));
+		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile), maxValueProgress);
 		//}
 
 
@@ -423,7 +467,16 @@ public class EvaluateLocations {
 			return new Action[0];
 		}
 
-		evaluated.sort(SORT_ORDER);
+		// for high density board guess safety and then minimax probability of tile value
+		if (isHighDensity()) {
+			boardState.display("High density evaluation being used");
+			evaluated.sort(EvaluatedLocation.SORT_BY_SAFETY_MINIMAX);
+		} else {
+			// other wise weigh safety and progress
+			evaluated.sort(SORT_ORDER);
+		}
+		//evaluated.sort(SORT_ORDER);
+
 
 		EvaluatedLocation evalLoc = evaluated.get(0);
 
@@ -444,5 +497,12 @@ public class EvaluateLocations {
 		return evaluated;
 	}
 	
+	private boolean isHighDensity() {
+		
+		int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+		int tilesLeft = boardState.getTotalUnrevealedCount();
+		
+		return (minesLeft * 5 > tilesLeft * 2) && Solver.CONSIDER_HIGH_DENSITY_STRATEGY;
+	}
 
 }

@@ -71,9 +71,9 @@ public class CustomController {
 	@FXML
 	private void handleOkayButton(ActionEvent event) {
 
-		this.mines = StringToInteger(minesText.getText(), 1, 9999, this.mines);
-		this.width = StringToInteger(widthText.getText(), 4, 999, this.width);
-		this.height = StringToInteger(heightText.getText(), 4, 999, this.height);
+		this.mines = StringToInteger(minesText.getText(), 1, 20000, this.mines);
+		this.width = StringToInteger(widthText.getText(), 2, 200, this.width);
+		this.height = StringToInteger(heightText.getText(), 2, 200, this.height);
 		
 		try {
 			this.gameCode = Long.parseLong(gameCodeText.getText());
@@ -81,8 +81,8 @@ public class CustomController {
 			this.gameCode = 0;
 		}
 		
-		if (mines > width * height - 10) {
-			mines = width * height - 10;
+		if (mines > width * height - 1) {
+			mines = width * height - 1;
 		}
 		
 		gameSettings = GameSettings.create(width, height, mines);

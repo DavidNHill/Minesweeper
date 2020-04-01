@@ -18,10 +18,7 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonType;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import minesweeper.gamestate.GameStateStandard;
 import minesweeper.gamestate.GameFactory;
-import minesweeper.gamestate.GameStateEasy;
-import minesweeper.gamestate.GameStateHard;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateReader;
@@ -36,7 +33,7 @@ import minesweeper.settings.GameType;
  */
 public class Minesweeper extends Application {
     
-	public final static String VERSION = "1.03b";
+	public final static String VERSION = "1.04a";
 	
 	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
 	

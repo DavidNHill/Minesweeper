@@ -55,6 +55,16 @@ public class Area {
 		return area.size();
 	}
 	
+	public Area add(Location add) {
+		if (area.contains(add)) {
+			return this;
+		}
+		Set<Location> result = new HashSet<>(this.size());
+		result.addAll(area);
+		result.add(add);
+		return new Area(result);		
+	}
+	
 	public Area remove(Location remove) {
 		if (!area.contains(remove)) {
 			return this;

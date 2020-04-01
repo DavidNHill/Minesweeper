@@ -1,8 +1,5 @@
 package minesweeper.explorer.main;
 
-import java.math.BigDecimal;
-import java.text.DecimalFormat;
-
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -11,19 +8,23 @@ import minesweeper.solver.constructs.InformationLocation.ByValue;
 
 public class TileValueData {
 
-	private final static DecimalFormat PERCENT = new DecimalFormat("#0.000%");
-	
-	private final IntegerProperty value;
+	private final StringProperty value;
 	private final StringProperty probability;
-	private final IntegerProperty clears;
+	private final StringProperty clears;
 	
 	public TileValueData(ByValue bv) {
 		
-		this.value = new SimpleIntegerProperty(bv.value);
+		this.value = new SimpleStringProperty(String.valueOf(bv.value));
+		this.probability = new SimpleStringProperty(Explorer.PERCENT.format(bv.probability));
+		this.clears = new SimpleStringProperty(String.valueOf(bv.clears));
+
+	}
+	
+	public TileValueData(String value, String prob, String clears) {
 		
-		probability = new SimpleStringProperty(PERCENT.format(bv.probability));
-		
-		clears = new SimpleIntegerProperty(bv.clears);
+		this.value = new SimpleStringProperty(value);
+		this.probability = new SimpleStringProperty(prob);
+		this.clears = new SimpleStringProperty(clears);
 
 	}
 	
@@ -31,11 +32,11 @@ public class TileValueData {
 		return probability;
 	}
 	
-	public IntegerProperty clearsProperty() {
+	public StringProperty clearsProperty() {
 		return clears;
 	}
 	
-	public IntegerProperty valueProperty() {
+	public StringProperty valueProperty() {
 		return value;
 	}
 }

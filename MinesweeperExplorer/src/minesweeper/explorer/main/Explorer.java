@@ -1,6 +1,7 @@
 package minesweeper.explorer.main;
 	
 import java.io.IOException;
+import java.text.DecimalFormat;
 
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -17,10 +18,16 @@ import minesweeper.explorer.main.Graphics.GraphicsSet;
 
 public class Explorer extends Application {
 	
+	public static String APPLICATION_NAME = "Minesweeper explorer";
+	
 	private final int tileSize = 24;
 	
+	public static final DecimalFormat PERCENT = new DecimalFormat("#0.000%");
+	public static final DecimalFormat TWO_DP = new DecimalFormat("#0.00");
 	public static final Background GREY_BACKGROUND = new Background(new BackgroundFill(Color.LIGHTGREY, null, null));
 
+	private static Stage primaryStage;
+	
 	@Override
 	public void start(Stage primaryStage) {
 		
@@ -41,12 +48,14 @@ public class Explorer extends Application {
 			System.err.println(ex.getMessage());
 		}
 		
+		this.primaryStage = primaryStage;
+		
 		try {
 			//BorderPane root = new BorderPane();
 			Scene scene = new Scene(root,800,600);
 			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
 			primaryStage.setScene(scene);
-			primaryStage.setTitle("Minesweeper explorer");
+			primaryStage.setTitle(APPLICATION_NAME);
 			primaryStage.getIcons().add(Graphics.ICON);
 			primaryStage.show();
 		} catch(Exception e) {
@@ -54,6 +63,10 @@ public class Explorer extends Application {
 		}
 		
 		MainScreenController mainScreenController = loader.getController();
+		
+		if (mainScreenController == null) {
+			System.out.println("MainScreenController not found");
+		}
 		
 		mainScreenController.setGraphicsSet(graphicsSet);
 		mainScreenController.newIntermediateBoard();
@@ -80,6 +93,15 @@ public class Explorer extends Application {
 		launch(args);
 	}
 	
-	
+	public static void setSubTitle(String subTitle) {
+		
+		if (subTitle == null || subTitle.trim().isEmpty()) {
+			primaryStage.setTitle(APPLICATION_NAME);
+		} else {
+			primaryStage.setTitle(APPLICATION_NAME + " - " + subTitle);
+		}
+		
+		
+	}
 	
 }

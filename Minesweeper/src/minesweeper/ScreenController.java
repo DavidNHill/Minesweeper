@@ -102,6 +102,9 @@ public class ScreenController {
     @FXML private RadioMenuItem rngJava;
     @FXML private RadioMenuItem rngKiss64;
     
+    @FXML private RadioMenuItem sol400;
+    @FXML private RadioMenuItem sol4000;
+    
     @FXML private CheckMenuItem showMove;
     @FXML private CheckMenuItem showTooltips;
     @FXML private CheckMenuItem acceptGuess;
@@ -132,7 +135,7 @@ public class ScreenController {
     // What kind of solver should we use
     //private static final Preferences preferences = Preferences.NO_BRUTE_FORCE;
     //private static final Preferences preferences = Preferences.MAX_ANALYSIS; 
-    private static final Preferences preferences = Preferences.LARGE_ANALYSIS; 
+    private static Preferences preferences = Preferences.LARGE_ANALYSIS; 
     //private static final Preferences preferences = Preferences.VERY_LARGE_ANALYSIS; 
     private Solver solver;
     
@@ -189,7 +192,6 @@ public class ScreenController {
 				if (prob == null) {
 					popupText.setText("?");
 				} else if (prob.compareTo(BigDecimal.ZERO) == 0) {
-					
 					popupText.setText("Mine!");
 				} else if (prob.compareTo(BigDecimal.ONE) == 0) {
 					popupText.setText("Safe");
@@ -386,7 +388,14 @@ public class ScreenController {
     @FXML
     private void handleNewBulkRun(ActionEvent event) {
         
-        BulkController.launch(window.getScene().getWindow(), Minesweeper.getGameSettings(), gameType);
+        if (sol4000.isSelected()) {
+        	preferences = Preferences.LARGE_ANALYSIS;
+        } else {
+        	preferences = Preferences.SMALL_ANALYSIS;
+        }
+    	
+    	
+        BulkController.launch(window.getScene().getWindow(), Minesweeper.getGameSettings(), gameType, preferences);
         
     }
 
@@ -1114,6 +1123,11 @@ public class ScreenController {
          
         newGameButton.setLayoutX(offsetX);
         
+        if (sol4000.isSelected()) {
+        	preferences = Preferences.LARGE_ANALYSIS;
+        } else {
+        	preferences = Preferences.SMALL_ANALYSIS;
+        }
         
         // create a new solver
         solver = new Solver(gs, preferences, HelperController.launch(), true);
