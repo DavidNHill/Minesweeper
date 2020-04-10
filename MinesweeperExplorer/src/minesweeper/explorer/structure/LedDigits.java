@@ -31,9 +31,12 @@ public class LedDigits extends HBox {
 		this.digits = new LedDigit[numberOfDigits];
 
 		this.locked = locked;
+		
+		int size = 1;
 
 		for (int i=0; i < numberOfDigits; i++) {
-			digits[i] = new LedDigit(this);
+			digits[numberOfDigits - i - 1] = new LedDigit(this, size);
+			size = size * 10;
 		}
 
 		// add the digits to the container
@@ -61,8 +64,13 @@ public class LedDigits extends HBox {
 	}
 
 	public void setValue(int value) {
-		//this.value = value;
 
+		if (value < 0) {
+			value = 0;
+		} else if (value > 999) {
+			value = 999;
+		}
+		
 		int work = value;
 		for (int i=numberOfDigits - 1; i >= 0; i-- ) {
 			int digitValue = work % 10;

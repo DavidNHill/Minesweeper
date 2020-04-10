@@ -22,6 +22,7 @@ import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateReader;
+import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.msx.GameStateX;
 import minesweeper.gamestate.msx.ScreenScanner;
 import minesweeper.settings.GameSettings;
@@ -164,6 +165,7 @@ public class Minesweeper extends Application {
     	
     	
     	myGame = GameFactory.create(gameType, gameSettings, gameCode);
+        //myGame = new GameStateStandardWith8(gameSettings);
     	
     	/*
     	switch (gameType) {

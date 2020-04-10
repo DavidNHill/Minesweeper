@@ -7,14 +7,18 @@ import java.util.List;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioMenuItem;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
+import javafx.stage.Stage;
 import minesweeper.explorer.gamestate.GameStateExplorer;
 import minesweeper.explorer.main.Graphics.GraphicsSet;
+import minesweeper.explorer.rollout.RolloutController;
 import minesweeper.explorer.structure.Board;
 import minesweeper.explorer.structure.Expander;
 import minesweeper.explorer.structure.LedDigits;
@@ -74,12 +78,15 @@ public class MainScreenController {
 	@FXML private Button buttonSolve;
 	@FXML private Button buttonAnalyse;
 	@FXML private Button buttonRollout;
+	@FXML private CheckBox checkBoxLockMineCount;
+	@FXML private RadioMenuItem rolloutStrong;
+	@FXML private RadioMenuItem rolloutWeak;
 	
 	private TileValuesController tileValueController;
 	private GraphicsSet graphicsSet;
 	private Expander boardExpander = new Expander(0, 0, 6, Color.BLACK);
 	private Board currentBoard;
-	private LedDigits mineCount;
+	private LedDigits minesToFind;
 	private LedDigits minesPlaced;
 	private List<Indicator> indicators = new ArrayList<>();
 
@@ -109,18 +116,18 @@ public class MainScreenController {
 	
 	@FXML 
 	public void newBeginnerBoard() {
-		newBoard(9,9);
+		newBoard(9, 9, 10);
 	}
 	
 	@FXML 
 	public void newIntermediateBoard() {
-		newBoard(16,16);
+		newBoard(16, 16, 40);
 	}
 	
 	@FXML 
 	public void newExpertBoard() {
 		
-		newBoard(30,16);
+		newBoard(30, 16, 99);
 	}
 	
 	@FXML 
@@ -129,7 +136,7 @@ public class MainScreenController {
 		int boardWidth = (int) (boardExpander.getCenterX() / 24);
 		int boardHeight = (int) (boardExpander.getCenterY() / 24);
 		
-		newBoard(boardWidth,boardHeight);
+		newBoard(boardWidth,boardHeight, 0);
 		
 	}
 	
@@ -137,21 +144,27 @@ public class MainScreenController {
 	public void rolloutButtonPressed() {
 		System.out.println("Rollout button pressed");
 
-		currentBoard.setGameInformation(null);
 		GameStateModel gs = null;
 		try {
-			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
+			gs = GameStateExplorer.build(currentBoard, minesToFind.getValue() + minesPlaced.getValue());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
 		
+		Preferences preferences;
+		if (rolloutWeak.isSelected()) {
+			System.out.println("Weak selected");
+			preferences = Preferences.SMALL_ANALYSIS.setTieBreak(false);
+		} else {
+			preferences = Preferences.SMALL_ANALYSIS;
+		}
+		
 		try {
 			RolloutGenerator gen = solver.getRolloutGenerator();
 			
-			BulkRunner bulkRunner = new BulkRunner(10, gen, new Location(0,2));
-			new Thread(bulkRunner, "Bulk Run").start();
+	        RolloutController.launch(boardDisplayArea.getScene().getWindow(), gen, preferences);
 			
 		} catch (Exception e1) {
 			e1.printStackTrace();
@@ -163,18 +176,19 @@ public class MainScreenController {
 	public void analyseButtonPressed() {
 		System.out.println("Analyse button pressed");
 
-		currentBoard.setGameInformation(null);
+		currentBoard.setGameInformation(null, 0);
 		GameStateModel gs = null;
 		try {
-			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
+			gs = GameStateExplorer.build(currentBoard, minesToFind.getValue() + minesPlaced.getValue());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
-		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+		Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, true);
 		
 		try {
-			currentBoard.setGameInformation(solver.runTileAnalysis());
+			int hash = currentBoard.getHashValue();
+			currentBoard.setGameInformation(solver.runTileAnalysis(), hash);
 		} catch (Exception e) {
 			e.printStackTrace();
 			setSolutionLine("Unable to process:" + e.getMessage());
@@ -189,7 +203,7 @@ public class MainScreenController {
 		
 		GameStateModel gs = null;
 		try {
-			gs = GameStateExplorer.build(currentBoard, mineCount.getValue() + minesPlaced.getValue());
+			gs = GameStateExplorer.build(currentBoard, minesToFind.getValue() + minesPlaced.getValue());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -206,8 +220,9 @@ public class MainScreenController {
 			Action a = actions[0];
 			messageLine.setText(a.asString());
 			
-			currentBoard.getChildren().removeAll(indicators);
-			indicators.clear();
+			//currentBoard.getChildren().removeAll(indicators);
+			//indicators.clear();
+			removeIndicators();
 			for (Action action: actions) {
 				indicators.add(new Indicator(action));
 			}
@@ -257,15 +272,46 @@ public class MainScreenController {
 		
 	}
 	
-	private void clearBoard(boolean covered) {
+	protected void removeIndicators() {
 		
+		if (Platform.isFxApplicationThread()) {
+			doRemoveIndicators();
+		} else {
+			Platform.runLater(new Runnable() {
+				@Override
+				public void run() {
+					doRemoveIndicators();
+				}
+			});
+		}
+
+	}
+	
+	private void doRemoveIndicators() {
 		currentBoard.getChildren().removeAll(indicators);
 		indicators.clear();
+	}
+	
+	
+	private void clearBoard(boolean covered) {
+		
+		removeIndicators();
+		//currentBoard.getChildren().removeAll(indicators);
+		//indicators.clear();
+		
+		if (checkBoxLockMineCount.isSelected()) {
+			
+		}
+		if (checkBoxLockMineCount.isSelected() && covered) {
+			minesToFind.setValue(minesToFind.getValue() + minesPlaced.getValue());
+		} else {
+			minesToFind.setValue(0);
+		}
 		
 		this.currentBoard.clearBoard(covered);
 	}
 	
-	private void newBoard(int width, int height) {
+	private void newBoard(int width, int height, int mines) {
 		
 		// tidy up old details
 		if (minesPlaced != null) {
@@ -280,15 +326,19 @@ public class MainScreenController {
 		// create new board
 		currentBoard = new Board(this, width, height);
 
+		currentBoard.clearBoard(true);  // all covered to start with
+		checkBoxLockMineCount.setSelected(mines != 0);
+	
 		boardExpander.setCenterX(width * 24);
 		boardExpander.setCenterY(height * 24);
 		
 		getBoardDisplayArea().getChildren().addAll(currentBoard, boardExpander);
 
-		mineCount = new LedDigits(3);
-		mineCount.relocate(10, 5);
-		mineCount.setBackground(Explorer.GREY_BACKGROUND);
-		getHeader().getChildren().add(mineCount);
+		minesToFind = new LedDigits(3);
+		minesToFind.relocate(10, 5);
+		minesToFind.setBackground(Explorer.GREY_BACKGROUND);
+		getHeader().getChildren().add(minesToFind);
+		minesToFind.setValue(mines);
 		
 		minesPlaced = new LedDigits(3, true);
 		minesPlaced.relocate(100, 5);
@@ -311,8 +361,12 @@ public class MainScreenController {
 		return this.currentBoard;
 	}
 	
-	public int getGameMines() {
-		return mineCount.getValue();
+	public int getTotalMines() {
+		return 	minesToFind.getValue() + minesPlaced.getValue();
+	}
+	
+	public LedDigits getMinesToFindController() {
+		return minesToFind;
 	}
 	
 	public void setGraphicsSet(GraphicsSet graphicsSet) {
@@ -335,6 +389,11 @@ public class MainScreenController {
 		return this.tileValueController;
 	}
 	
+	public boolean mineCountLocked() {
+		return checkBoxLockMineCount.isSelected();
+	}
+	
+	
 	public void setSolutionLine(String text) {
 		
 		if (Platform.isFxApplicationThread()) {
@@ -355,12 +414,14 @@ public class MainScreenController {
 		if (Platform.isFxApplicationThread()) {
 			buttonSolve.setDisable(!enable);
 			buttonAnalyse.setDisable(!enable);
+			buttonRollout.setDisable(!enable);
 		} else {
 			Platform.runLater(new Runnable() {
 				@Override
 				public void run() {
 					buttonSolve.setDisable(!enable);
 					buttonAnalyse.setDisable(!enable);
+					buttonRollout.setDisable(!enable);
 				}
 			});
 		}

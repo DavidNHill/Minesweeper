@@ -20,6 +20,9 @@ public class Explorer extends Application {
 	
 	public static String APPLICATION_NAME = "Minesweeper explorer";
 	
+	public static final Background BACKGROUND_PINK = new Background(new BackgroundFill(Color.PINK, null, null));
+	public static final Background BACKGROUND_SILVER = new Background(new BackgroundFill(Color.SILVER, null, null));
+	
 	private final int tileSize = 24;
 	
 	public static final DecimalFormat PERCENT = new DecimalFormat("#0.000%");
@@ -30,6 +33,8 @@ public class Explorer extends Application {
 	
 	@Override
 	public void start(Stage primaryStage) {
+		
+		System.out.println("Starting...");
 		
 		if (Explorer.class.getResource("MainScreen.fxml") == null) {
 			System.out.println("MainScreen.fxml not found");
@@ -52,7 +57,7 @@ public class Explorer extends Application {
 		
 		try {
 			//BorderPane root = new BorderPane();
-			Scene scene = new Scene(root,800,600);
+			Scene scene = new Scene(root,900,550);
 			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
 			primaryStage.setScene(scene);
 			primaryStage.setTitle(APPLICATION_NAME);
@@ -62,6 +67,8 @@ public class Explorer extends Application {
 			e.printStackTrace();
 		}
 		
+		System.out.println("Main screen running...");
+		
 		MainScreenController mainScreenController = loader.getController();
 		
 		if (mainScreenController == null) {
@@ -69,7 +76,7 @@ public class Explorer extends Application {
 		}
 		
 		mainScreenController.setGraphicsSet(graphicsSet);
-		mainScreenController.newIntermediateBoard();
+		mainScreenController.newExpertBoard();
 		
 		BoardMonitor monitor = new BoardMonitor(mainScreenController);
 		
@@ -87,6 +94,13 @@ public class Explorer extends Application {
             }
         });                        
 		
+        double x = primaryStage.getX();
+        double y = primaryStage.getY();
+        
+        mainScreenController.getTileValueController().getStage().setX(x + primaryStage.getWidth());
+        mainScreenController.getTileValueController().getStage().setY(y);
+        
+        System.out.println("...Startup finished.");
 	}
 	
 	public static void main(String[] args) {

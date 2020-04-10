@@ -8,13 +8,19 @@ abstract public class Preferences {
 	protected int BRUTE_FORCE_ANALYSIS_MAX_NODES = 50000;
 	protected int BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 50;
     protected BigInteger BRUTE_FORCE_MAX = new BigInteger("50000000");  // 50 million
-    //protected boolean USE_MIN_MAX = true;
+
+    protected boolean doTiebreak = true;
 	
     public Preferences() {
     	setVariables();
     }
     
     abstract public void setVariables();
+    
+    public Preferences setTieBreak(boolean doTiebreak) {
+    	this.doTiebreak = doTiebreak;
+    	return this;
+    }
     
     
     /**
@@ -28,7 +34,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 3200;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 5000000;
 	    	BRUTE_FORCE_MAX = new BigInteger("15000000"); // 5 million
-	    	//USE_MIN_MAX = true;
 	    	
 		}
     	
@@ -45,8 +50,7 @@ abstract public class Preferences {
 			
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
-	    	BRUTE_FORCE_MAX = new BigInteger("0");  
-	    	//USE_MIN_MAX = true;
+	    	BRUTE_FORCE_MAX = BigInteger.ZERO;  
 	    	
 		}
     	
@@ -64,7 +68,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 0;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 0;
 	    	BRUTE_FORCE_MAX = new BigInteger("250000");  // 250 thousand
-	    	//USE_MIN_MAX = true;
 	    	
 		}
     	
@@ -83,7 +86,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 100;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 100000;    // 100,000
 	    	BRUTE_FORCE_MAX = new BigInteger("500000"); // 500,000
-	    	//USE_MIN_MAX = true;
 	    	
 		}
     	
@@ -102,7 +104,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 400;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 150000;
 	    	BRUTE_FORCE_MAX = new BigInteger("5000000"); // 5 million
-	    	//USE_MIN_MAX = true;
 	    	
 		}
     	
@@ -123,8 +124,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 1000;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 500000;
 	    	BRUTE_FORCE_MAX = new BigInteger("10000000"); // 10 million
-	    	//ZONE_MAX = new BigInteger("100000"); // 100 thousand
-	    	//USE_MIN_MAX = true;
 	    	
 		}
     	
@@ -143,8 +142,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS = 4000;
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 20000000;     // 20 million
 			BRUTE_FORCE_MAX = new BigInteger("10000000");  // 10 million
-		    //ZONE_MAX = new BigInteger("1000000");  // 1 million
-		    //USE_MIN_MAX = true;
+
 		}
     	
     };
@@ -164,7 +162,6 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 200000000;  // 200 millions
 			BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 4;          // too much tree depth will cause memory to run out
 			BRUTE_FORCE_MAX = new BigInteger("50000000");  // 50 million
-		   //USE_MIN_MAX = true;
 		}
     	
     };
@@ -183,7 +180,7 @@ abstract public class Preferences {
 			BRUTE_FORCE_ANALYSIS_MAX_NODES = 2000000000;  // 2 billion
 			BRUTE_FORCE_ANALYSIS_TREE_DEPTH = 3;          // too much tree depth will cause memory to run out
 			BRUTE_FORCE_MAX = new BigInteger("100000000");  // 100 million
-		    //USE_MIN_MAX = true;
+
 		}
     	
     };

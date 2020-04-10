@@ -50,6 +50,7 @@ import minesweeper.bulk.BulkController;
 import minesweeper.coach.HelperController;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
+import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNGJava;
@@ -1081,7 +1082,7 @@ public class ScreenController {
     	
         // create a new game state
         GameStateModel gs = Minesweeper.createNewGame(difficulty, gameType, fileSelected);
-        
+         
         newGame(gs);
         
        

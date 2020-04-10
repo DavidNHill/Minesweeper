@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.paint.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.scene.control.*?>
+<?import java.lang.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.layout.AnchorPane?>
+
+<AnchorPane prefHeight="240.0" prefWidth="400.0" style="-fx-background-color: lightgrey;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.rollout.RolloutController">
+   <children>
+      <Button layoutX="317.0" layoutY="203.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
+      <ProgressBar fx:id="progressRun" layoutX="96.0" layoutY="171.0" prefHeight="25.0" prefWidth="293.0" progress="0.21" style="-fx-control-inner-background: lightgrey; -fx-accent: lightgreen;" />
+      <TextField fx:id="gameCount" layoutX="95.0" layoutY="18.0" style="-fx-background-color: silver;" />
+      <Label layoutX="15.0" layoutY="132.0" prefHeight="25.0" prefWidth="72.0" text="Win rate">
+         <font>
+            <Font size="14.0" />
+         </font></Label>
+      <Label layoutX="14.0" layoutY="18.0" prefHeight="25.0" prefWidth="72.0" text="Games" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <Label layoutX="15.0" layoutY="171.0" prefHeight="25.0" prefWidth="72.0" text="Progress" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <Label fx:id="progressRunLabel" alignment="CENTER" layoutX="112.0" layoutY="171.0" prefHeight="25.0" prefWidth="267.0" text="590/1000">
+         <font>
+            <Font name="System Bold" size="16.0" />
+         </font>
+      </Label>
+      <Label fx:id="winPercentage" layoutX="96.0" layoutY="131.0" prefHeight="27.0" prefWidth="293.0">
+         <font>
+            <Font name="System Bold" size="18.0" />
+         </font>
+      </Label>
+      <Label layoutX="14.0" layoutY="57.0" prefHeight="25.0" prefWidth="72.0" text="Seed" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <TextField fx:id="gameSeed" layoutX="95.0" layoutY="57.0" style="-fx-background-color: silver;" />
+      <Button layoutX="253.0" layoutY="57.0" mnemonicParsing="false" onAction="#handleNewSeedButton" prefHeight="25.0" prefWidth="72.0" text="New seed" />
+      <Label layoutX="14.0" layoutY="100.0" prefHeight="25.0" prefWidth="92.0" text="Start Loc: X=" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <TextField fx:id="startLocX" layoutX="95.0" layoutY="100.0" prefHeight="25.0" prefWidth="43.0" style="-fx-background-color: silver;" />
+      <Label layoutX="145.0" layoutY="100.0" prefHeight="25.0" prefWidth="29.0" text="Y=" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <TextField fx:id="startLocY" layoutX="165.0" layoutY="100.0" prefHeight="25.0" prefWidth="43.0" style="-fx-background-color: silver;" />
+   </children>
+</AnchorPane>

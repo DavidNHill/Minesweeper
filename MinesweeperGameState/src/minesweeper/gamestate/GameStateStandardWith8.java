@@ -16,18 +16,18 @@ import minesweeper.structure.Location;
  * A Version of Minesweeper which ensures the first click is not a mine
  * @author David
  */
-public class GameStateStandard extends GameStateModelViewer {
+public class GameStateStandardWith8 extends GameStateModelViewer {
     
     private final int[][] board;
     
     private RNG rng;
     
-    public GameStateStandard(GameSettings gameSettings) {
+    public GameStateStandardWith8(GameSettings gameSettings) {
         this(gameSettings, new Random().nextLong());
     }
     
  
-    public GameStateStandard(GameSettings gameSettings, long seed) {
+    public GameStateStandardWith8(GameSettings gameSettings, long seed) {
         super(gameSettings, seed);
         
         this.board = new int[width][height];
@@ -41,6 +41,38 @@ public class GameStateStandard extends GameStateModelViewer {
         
         int i=0;
         
+        Location locationOf8 = null;
+        boolean placed8 = false;
+        while (!placed8) {
+            int y1 = 1 + (int) rng.random(this.height - 2);
+            int x1 = 1 + (int) rng.random(this.width - 2); 
+            locationOf8 = new Location(x1, y1);
+        	
+            // place the 8 mines around a single tile
+            if (!locationOf8.equals(m) && !locationOf8.isAdjacent(m)) {
+                for (int k=0; k < DX.length; k++) {
+                	
+                	int x2 = x1 + DX[k];
+                	int y2 = y1 + DY[k];
+                	
+                    //System.out.println("Mine added at " + x2 + "," + y2);
+                    board[x2][y2] = GameStateModel.MINE;
+                    i++;
+                    
+                    // tell all the surrounding squares they are next to a mine
+                    for (int j=0; j < DX.length; j++) {
+                        if (x2 + DX[j] >= 0 && x2 + DX[j] < this.width && y2 + DY[j] >= 0 && y2 + DY[j] < this.height) {
+                            if (board[x2+DX[j]][y2+DY[j]] != GameStateModel.MINE) {
+                                board[x2+DX[j]][y2+DY[j]]++;
+                            }
+                        }
+                    }
+
+                }     
+                placed8 = true;
+            }
+        }
+        
         while (i < mines) {
             int y1 = (int) rng.random(this.height);
             int x1 = (int) rng.random(this.width);
@@ -48,7 +80,7 @@ public class GameStateStandard extends GameStateModelViewer {
             
             // if the location is NOT the first square pressed
             // and the location is not already a mine then place a mine here
-            if (!l1.equals(m)) {
+            if (!l1.equals(m) && !l1.equals(locationOf8)) {
                 if (board[x1][y1] != GameStateModel.MINE) {
                     //System.out.println("Mine added at " + x1 + "," + y1);
                     board[x1][y1] = GameStateModel.MINE;
@@ -128,52 +160,6 @@ public class GameStateStandard extends GameStateModelViewer {
     	return "Seed = " + seed + " (" + rng.shortname() + ")";
     	
     }
-    
-    /*
-    private void explode(Location loc) {
-    	
-    	boolean[][] done = new boolean[width][height];
-    	
-    	List<Location> interiorList = new ArrayList<>();
-    	
-        // add this location to the interior array list
-        done[loc.x][loc.y] = true;
-        interiorList.add(loc);
-        
-        int processFrom = 0;
-        
-        while (processFrom < interiorList.size()) {
-        	
-        	// get the current location to process surrounding squares
-        	Location cl = interiorList.get(processFrom);
-        	
-            for (int i=0; i < DX.length; i++) {
-                
-                int x1 = cl.x + DX[i];
-                int y1 = cl.y + DY[i];
-                
-                // check each of the surrounding squares which haven't already been checked
-                if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
-                	if (!done[x1][y1] && query(new Location(x1, y1)) == GameStateModel.HIDDEN) {
-                		
-                		done[x1][y1] = true;
-                    	setRevealed(x1,y1);
- 
-                        // if this square is also a zero then add it to the list of locations to be exploded
-                        if (board[x1][y1] == 0) {
-                        	interiorList.add(new Location(x1, y1));
-                        }                		
-                	}
-
-                 }
-            }     
-
-            processFrom++;
-        }    	
-    	
-    	
-    }
-    */
     
 	@Override
     public boolean supports3BV() {

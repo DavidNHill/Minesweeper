@@ -974,13 +974,6 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		return bestProbability;
 	}
 	
-	/**
-	 * Moves with probability above this are candidate moves
-	 * @return
-	 */
-	//protected BigDecimal geCutoffProb() {
-	//	return cutoffProbability;
-	//}
 	
 	protected boolean isBestGuessOffEdge() {
 		return this.offEdgeBest;

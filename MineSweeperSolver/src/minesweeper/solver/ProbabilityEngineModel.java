@@ -26,5 +26,6 @@ abstract public class ProbabilityEngineModel {
 	abstract protected List<LinkedLocation> getLinkedLocations();
 	abstract protected LinkedLocation getLinkedLocation(Location tile);
 	abstract protected List<BruteForce> getIsolatedEdges();
+	abstract protected boolean isBestGuessOffEdge();
 
 }

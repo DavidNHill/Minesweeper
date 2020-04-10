@@ -10,6 +10,7 @@ import java.util.Random;
 
 import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
+import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
@@ -64,22 +65,22 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 926358205;
+		seed = 18138477;
 		//seed = 259355150;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
 		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
-		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(8,8,49);
+		//GameSettings gameSettings = GameSettings.EXPERT;
+		GameSettings gameSettings = GameSettings.create(15,13,62);
 		GameType gameType = GameType.STANDARD;
 		//GameType gameType = GameType.EASY;
 		
 		while (played < MAX) {
 
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.nextLong());
-
+			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
 			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
 			
 			//solver.setTestMode();
@@ -167,7 +168,7 @@ public class MinesweeperBulk {
 			}
 
 			if (moves.length == 0) {
-				System.err.println("No moves returned by the solver");
+				System.err.println(gs.getSeed() + " - No moves returned by the solver");
 				System.exit(1);
 			}            
 

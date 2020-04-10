@@ -33,13 +33,16 @@ public class BoardMonitor implements Runnable {
 			
 			// if we haven't placed too many mines
 			if (hash != lastHash) {
-				if (board.getFlagsPlaced() <= controller.getGameMines()) {
+				
+				controller.removeIndicators();
+				
+				if (board.getFlagsPlaced() <= controller.getTotalMines()) {
 					
 					lastHash = hash;
 					
 					GameStateModel gs = null;
 					try {
-						gs = GameStateExplorer.build(board, controller.getGameMines());
+						gs = GameStateExplorer.build(board, controller.getTotalMines());
 						Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
 						BigInteger solutionCount = solver.getSolutionCount();
 						

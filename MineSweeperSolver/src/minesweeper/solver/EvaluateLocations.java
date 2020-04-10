@@ -47,10 +47,13 @@ public class EvaluateLocations {
 	/**
 	 * Look for off edge positions which are good for breaking open new areas
 	 */
-	public void addOffEdgeCandidates(List<Location> allUnrevealedSquares) {
+	public void evaluateOffEdgeCandidates(List<Location> allUnrevealedSquares) {
 
 		
 		Set<CandidateLocation> tileOfInterest = new HashSet<>();
+		
+		//int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+		// || allUnrevealedSquares.size() - minesLeft < 6
 		
 		// if there are only a small number of tiles off the edge then consider them all
 		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
@@ -103,34 +106,6 @@ public class EvaluateLocations {
 
 				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0, 0));
 				
-				/*
-				//SolutionCounter counter = solver.validateLocationUsingSolutionCounter(tile, adjMines, wholeEdge.getOriginalWitnesses());
-				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, adjMines);
-
-				BigInteger sol = counter.getSolutionCount();
-
-				if (sol.signum() != 0) {
-
-					BigDecimal probThisTile = pe.getProbability(tile);   // probability of this tile being clear
-					BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP); // probability of this tile's value being 'adjMines'
-
-    				boardState.display("Off edge good guess: " + tile.display() + " with value " + adjMines + " has " + counter.getClearCount() + " clears with probability " + prob.toPlainString());
-
-    				BigDecimal expectedClears = BigDecimal.valueOf(counter.getClearCount()).multiply(prob); // expect tiles cleared if we play here
-
-    				//BigDecimal progressProb = prob.divide(probThisTile, Solver.DP, RoundingMode.HALF_UP); // probability given we survive
-
-    				BigDecimal totalClears = expectedClears.add(probThisTile);
-    				
-    				EvaluatedLocation evalTile = new EvaluatedLocation(tile.x, tile.y, probThisTile, prob, totalClears, 0, isCorner(tile));
-
-    				evaluated.add(evalTile);
-
-				} else {
-					boardState.display(tile.display() + " with value " + adjMines + " has probability zero");
-				}
-				*/
-
 			}
 
 		}		

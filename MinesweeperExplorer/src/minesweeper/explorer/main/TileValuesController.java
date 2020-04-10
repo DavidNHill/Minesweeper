@@ -59,9 +59,9 @@ public class TileValuesController {
 			System.err.println(ex.getMessage());
 		}
 
-		TileValuesController custom = loader.getController();
+		TileValuesController tileValuesController = loader.getController();
 		
-		if (custom == null) {
+		if (tileValuesController == null) {
 			System.out.println("Custom is null");
 		}
 
@@ -69,46 +69,48 @@ public class TileValuesController {
 			System.out.println("Root is null");
 		}
 
-		custom.scene = new Scene(root);
+		tileValuesController.scene = new Scene(root);
 
-		custom.stage = new Stage();
+		tileValuesController.stage = new Stage();
 
-		custom.stage.setScene(custom.scene);
-		custom.stage.setTitle(WINDOW_NAME);
+		tileValuesController.stage.setScene(tileValuesController.scene);
+		tileValuesController.stage.setTitle(WINDOW_NAME);
 		
-		custom.stage.getIcons().add(Graphics.ICON);
+		tileValuesController.stage.getIcons().add(Graphics.ICON);
 		
-		custom.stage.setResizable(false);
+		tileValuesController.stage.setResizable(false);
 
 		//custom.stage.initOwner(owner);
 		//custom.stage.initModality(Modality.WINDOW_MODAL);
 		
-		custom.stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+		tileValuesController.stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
 
 			@Override
 			public void handle(WindowEvent event) {
 				System.out.println("Entered OnCloseRequest handler for Tile Values Screen");
 				
-				custom.closed = true;
-				custom.items.clear();  // clear down the table to encourage the items to be garbage collected
+				tileValuesController.closed = true;
+				tileValuesController.items.clear();  // clear down the table to encourage the items to be garbage collected
 				
 			}
 			
 		});
 		
-		custom.resultsTable.setItems(custom.items);
+		tileValuesController.resultsTable.setItems(tileValuesController.items);
 		
-		custom.resultsTable.getSelectionModel();
+		tileValuesController.resultsTable.getSelectionModel();
 		
-		custom.columnValue.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("value"));
-		custom.columnProbability.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("probability"));
-		custom.columnClears.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("clears"));
+		tileValuesController.columnValue.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("value"));
+		tileValuesController.columnProbability.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("probability"));
+		tileValuesController.columnClears.setCellValueFactory(new PropertyValueFactory<TileValueData, String>("clears"));
 		
-		custom.getStage().show();
+		tileValuesController.getStage().show();
 
+		System.out.println("Tile values screen running...");
+		
 		//System.out.println("Columns = " + custom.resultsTable.getColumns().size());
 		
-		return custom;
+		return tileValuesController;
 	}
 
 	public Stage getStage() {
@@ -138,7 +140,7 @@ public class TileValuesController {
 				}
 				items.add(new TileValueData("Safe", Explorer.PERCENT.format(il.getProbability()), ""));
 				items.add(new TileValueData("Progress", Explorer.PERCENT.format(il.getProgressProbability()), Explorer.TWO_DP.format(il.getExpectedClears())));
-				items.add(new TileValueData("Weighting", Explorer.PERCENT.format(il.getWeighting()), ""));
+				items.add(new TileValueData("Score", Explorer.PERCENT.format(il.getWeighting()), ""));
 			}
 		});            
 

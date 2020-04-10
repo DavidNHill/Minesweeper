@@ -119,10 +119,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     
     protected final Preferences preferences;
-    
- 
-    //private final List<OpeningLocation> book = new ArrayList<>();
-    
+
     // the class that knows the real board layout, which squares have been revealed and where the flags are
     private final GameStateModel myGame;
     
@@ -137,10 +134,7 @@ public class Solver implements Asynchronous<Action[]> {
     private BruteForceAnalysisModel bruteForceAnalysis;
     private EvaluateLocations evaluateLocations;
     
-    private BigDecimal offContourBigProb;
-    //private WitnessWeb wholeEdge; 
-
-    //final private int[][] boardCheck;  // this is used in the determine zones processing - a lot more efficient to clear it down then redefine it each time
+    private BigDecimal offEdgeProb;
     
     private List<Location> bfdaStartLocations = null;
     
@@ -176,7 +170,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     // when set the solver will gather detailed information about the possible values each tile can have
     // intended for use with the Minesweeper Explorer. Can have significant performance impact.
-    private boolean gatherDetailedInformation = true;
+    //private boolean gatherDetailedInformation = true;
     
     // a flag to turn bits on and off if we want to do a comparison run
     private boolean testMode = false;
@@ -226,6 +220,8 @@ public class Solver implements Asynchronous<Action[]> {
         }
         display("Found " + witnesses.size() + " witnesses already in the game");
         //findTrivialActions(witnesses);
+        
+        displayAlways("Do tiebreaks = " + preferences.doTiebreak);
         
     }
 
@@ -356,9 +352,9 @@ public class Solver implements Asynchronous<Action[]> {
     	return bfdaStartLocations;
     }
     
-    public void setGatherDetailedInformation(boolean gather) {
-    	this.gatherDetailedInformation = gather;
-    }
+    //public void setGatherDetailedInformation(boolean gather) {
+    //	this.gatherDetailedInformation = gather;
+    //}
 
     
     private FinalMoves newProcess() {
@@ -425,9 +421,9 @@ public class Solver implements Asynchronous<Action[]> {
         if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
         	
         	if (myGame.safeOpening()) {
-        		offContourBigProb = BigDecimal.ONE;   
+        		offEdgeProb = BigDecimal.ONE;   
         	} else {
-        		offContourBigProb = BigDecimal.ONE.subtract(BigDecimal.valueOf(myGame.getMinesLeft()).divide(BigDecimal.valueOf(myGame.getHidden()), Solver.DP, RoundingMode.HALF_UP));
+        		offEdgeProb = BigDecimal.ONE.subtract(BigDecimal.valueOf(myGame.getMinesLeft()).divide(BigDecimal.valueOf(myGame.getHidden()), Solver.DP, RoundingMode.HALF_UP));
         	}
         	
         	fm = guess(null);
@@ -588,12 +584,12 @@ public class Solver implements Asynchronous<Action[]> {
     	// get the new deadLocations with any found by the probability engine 
     	deadLocations = pe.getDeadLocations();
     	
-    	offContourBigProb = pe.getOffEdgeProb();
+    	offEdgeProb = pe.getOffEdgeProb();
     	
-    	if (offContourBigProb.compareTo(BigDecimal.ONE) > 0) {
-    		displayAlways("Probability off edge is " + offContourBigProb);
+    	if (offEdgeProb.compareTo(BigDecimal.ONE) > 0) {
+    		displayAlways("Probability off edge is " + offEdgeProb);
     	} else {
-    		display("Probability off edge is " + offContourBigProb);
+    		display("Probability off edge is " + offEdgeProb);
     	}
  
     	// if all the locations are dead then just use any one (unless there is only one solution)
@@ -642,7 +638,7 @@ public class Solver implements Asynchronous<Action[]> {
     	display("Off edge threshold is " + offEdgeCutoff);
     	
     	// are clears off the edge within the permitted cut-off?
-    	boolean addOffEdgeOptions = (offContourBigProb.compareTo(offEdgeCutoff) > 0);
+    	boolean addOffEdgeOptions = (offEdgeProb.compareTo(offEdgeCutoff) > 0);
         
         display("Probability Engine processing took " + pe.getDuration() + " milliseconds");
     	display("----- Probability engine finished -----");
@@ -655,8 +651,10 @@ public class Solver implements Asynchronous<Action[]> {
     		newLine("There are " + pe.getSolutionCount() + " candidate solutions remaining");
     	}
 
+    	boolean certainClearFound = pe.foundCertainty();
+    	
     	// if there are no certain moves then play any isolated dead tiles we have found
-        if (!pe.foundCertainty() && boardState.getIsolatedDeadTileCount() != 0) {
+        if (!certainClearFound && boardState.getIsolatedDeadTileCount() != 0) {
         	Location isolatedDeadTile = boardState.getIsolatedDeadTile();
         	display("After probability engine: Guessing in an isolated dead zone at " + isolatedDeadTile.display());
     		newLine("--------- Unavoidable Guess ---------");
@@ -668,7 +666,7 @@ public class Solver implements Asynchronous<Action[]> {
         }
     	
     	// if there are no certain moves then process any Isolated non-dead edges we have found
-        if (!pe.foundCertainty() && !pe.getIsolatedEdges().isEmpty()) {
+        if (!certainClearFound && !pe.getIsolatedEdges().isEmpty()) {
         	display("Processing an Isolated non-dead edge");
     		newLine("--------- Isolated Area ---------");
     		newLine("An isolated area has been found which can be processed separately");
@@ -683,50 +681,53 @@ public class Solver implements Asynchronous<Action[]> {
     		
             // determine all possible solutions
             cruncher.process();
-            
-            // determine best way to solver them
-            BruteForceAnalysisModel bfa = cruncher.getBruteForceAnalysis();
-            bfa.process();
-            
-    		// if after trying to process the data we can't complete then abandon it
-    		if (!bfa.isComplete()) {
-    			displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bfa.getNodeCount() + " steps");
-    			bfa = null;
 
-    		} else { // otherwise try and get the best long term move
-    			
-    			bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
-    			
-    			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
-    			Action move = bruteForceAnalysis.getNextMove(boardState);
-    			if (move != null) {
-    				display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
-    				//newLine("Brute Force Analysis move is " + move.asString());
-    				fm = new FinalMoves(move);
-    				return fm;
-    			} else {
-    				if (bruteForceAnalysis.allDead()) {
-    					display("All Brute Force Analysis moves are dead");
-    					Location anyLocWillDo = cruncher.getCrunchResult().square.get(0);
-        				fm = new FinalMoves(new Action(anyLocWillDo, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(anyLocWillDo)));
+            if (cruncher.hasRun()) {
+            	
+                // determine best way to solver them
+                BruteForceAnalysisModel bfa = cruncher.getBruteForceAnalysis();
+                bfa.process();
+                
+        		// if after trying to process the data we can't complete then abandon it
+        		if (!bfa.isComplete()) {
+        			displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bfa.getNodeCount() + " steps");
+        			bfa = null;
+
+        		} else { // otherwise try and get the best long term move
+        			
+        			bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
+        			
+        			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
+        			Action move = bruteForceAnalysis.getNextMove(boardState);
+        			if (move != null) {
+        				display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
+        				//newLine("Brute Force Analysis move is " + move.asString());
+        				fm = new FinalMoves(move);
         				return fm;
-    				}
-    				display(myGame.showGameKey() + " Brute Force Analysis: no move found!");
-    			}
-    		}
-            
+        			} else {
+        				if (bruteForceAnalysis.allDead()) {
+        					display("All Brute Force Analysis moves are dead");
+        					Location anyLocWillDo = cruncher.getCrunchResult().square.get(0);
+            				fm = new FinalMoves(new Action(anyLocWillDo, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(anyLocWillDo)));
+            				return fm;
+        				}
+        				display(myGame.showGameKey() + " Brute Force Analysis: no move found!");
+        			}
+        		}            	
+            } else {
+            	display(myGame.showGameKey() + " Brute Force did not run");
+            }
         }        
         
         if (bestCandidates.isEmpty()) {
         	newLine("The probability engine found no candidate moves on the edge");
-        	newLine("Probability off the edge is " + Action.FORMAT_2DP.format(offContourBigProb.multiply(ONE_HUNDRED)) + "%");
+        	newLine("Probability off the edge is " + Action.FORMAT_2DP.format(offEdgeProb.multiply(ONE_HUNDRED)) + "%");
         } else {
         	newLine("The probability engine found " + bestCandidates.size() + " candidate moves on the edge");
         }
         
         // do brute force if the number of candidate solutions is not greater than the allowable maximum
     	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS)) <= 0);
-    	boolean certainClearFound = pe.foundCertainty();
     	boolean certainFlagFound = !pe.getMines().isEmpty();
       
         // Probability engine says there are few enough candidate solutions to do a Brute force deep analysis - so lets try
@@ -783,9 +784,7 @@ public class Solver implements Asynchronous<Action[]> {
             			bruteForceAnalysis = null;
 
             		} else { // otherwise try and get the best long term move
-            			//if (bruteForceAnalysis.isShallow()) {
-            			//	newLine("Built shallow probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions");
-            			//}
+
             			deadLocations = bruteForceAnalysis.getDeadLocations();
             			
             			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
@@ -821,14 +820,32 @@ public class Solver implements Asynchronous<Action[]> {
         // if we haven't got a move from the BFDA
         if (!fm.moveFound) {
 
-        	if (addOffEdgeOptions && !certainClearFound) { // evaluate the off edge moves
+        	// no certain moves and we aren't doing tiebreaks
+        	if (!certainClearFound && !preferences.doTiebreak) {
+        		
+        		// if off edge is better than on edge
+        		if (pe.isBestGuessOffEdge()) {
+        			fm = guess(wholeEdge);
+        		} else {
+            		// take the first move
+            		for (CandidateLocation cl: bestCandidates) {
+            			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
+             	    	// let the boardState decide what to do with this action
+            			boardState.setAction(move);   
+            			break;
+            		}
+        			Action[] moves = boardState.getActions().toArray(new Action[0]);
+        			fm = new FinalMoves(moves);
+        		}
+    			return fm;
+        	} else if (addOffEdgeOptions && !certainClearFound) { // evaluate the off edge moves
         		display("Adding the off edge super locations to the candidate moves");
         		
         		if (allUnrevealedSquares == null) {   // defer this until we need it, can be expensive
         			allUnrevealedSquares = boardState.getAllUnrevealedSquares();
         		}
             	
-            	evaluateLocations.addOffEdgeCandidates(allUnrevealedSquares);
+            	evaluateLocations.evaluateOffEdgeCandidates(allUnrevealedSquares);
             	display("About to evaluate best candidates -->");
             	evaluateLocations.evaluateLocations(bestCandidates);
             	display("<-- Done");  
@@ -843,10 +860,7 @@ public class Solver implements Asynchronous<Action[]> {
         		// register all the moves
         		for (CandidateLocation cl: bestCandidates) {
         			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
-            		//if (move.getAction() == Action.FLAG) {
-            		//	boardState.setFlagConfirmed(move);
-            		//}
-        	    	// let the boardState decide what to do with this action
+         	    	// let the boardState decide what to do with this action
         			boardState.setAction(move);        			
         			
         		}
@@ -867,9 +881,7 @@ public class Solver implements Asynchronous<Action[]> {
                 } else {
                 	fm = new FinalMoves(boardState.getActions().toArray(new Action[0]));
                 }
-        		
-    	        //Action[] moves = boardState.getActions().toArray(new Action[0]);
-    			//fm = new FinalMoves(moves);
+
     			
     		} else {    // evaluate which of the best candidates to choose
         		display("About to evaluate best candidates -->");
@@ -1814,9 +1826,9 @@ public class Solver implements Asynchronous<Action[]> {
     	// get the starting move if we are at the start of the game
     	if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
     		if (overriddenStartLocation != null) {
-    			action = new Action(overriddenStartLocation, Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
+    			action = new Action(overriddenStartLocation, Action.CLEAR, MoveMethod.BOOK, "", offEdgeProb);
     		} else { 
-    			action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offContourBigProb);
+    			action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offEdgeProb);
     		}
     	}
     	
@@ -1834,7 +1846,7 @@ public class Solver implements Asynchronous<Action[]> {
                     	Location l = new Location(i, j);
                     	// if we aren't on the edge and there are some adjacent squares 
                     	if ((wholeEdge == null || !wholeEdge.isOnWeb(l))) {
-                            list.add(new CandidateLocation(l.x, l.y, offContourBigProb, boardState.countAdjacentUnrevealed(l), boardState.countAdjacentConfirmedFlags(l)));
+                            list.add(new CandidateLocation(l.x, l.y, offEdgeProb, boardState.countAdjacentUnrevealed(l), boardState.countAdjacentConfirmedFlags(l)));
                         }
                         
                     } 

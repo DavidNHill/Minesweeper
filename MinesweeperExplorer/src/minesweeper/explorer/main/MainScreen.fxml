@@ -12,9 +12,9 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane prefHeight="475.0" prefWidth="725.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.main.MainScreenController">
+<AnchorPane prefHeight="475.0" prefWidth="850.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.main.MainScreenController">
    <children>
-      <AnchorPane fx:id="boardDisplayArea" layoutY="104.0" prefHeight="296.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="75.0" AnchorPane.leftAnchor="150.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="75.0" />
+      <AnchorPane fx:id="boardDisplayArea" layoutY="104.0" prefHeight="296.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="150.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="75.0" />
       <MenuBar prefHeight="25.0" prefWidth="554.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <menus>
           <Menu mnemonicParsing="false" text="Explorer">
@@ -37,7 +37,16 @@
           </Menu>
           <Menu mnemonicParsing="false" text="Settings">
             <items>
-              <MenuItem mnemonicParsing="false" text="Delete" />
+                  <Menu mnemonicParsing="false" text="Rollout Strength">
+                     <items>
+                        <RadioMenuItem fx:id="rolloutWeak" mnemonicParsing="false" selected="true" text="Weakest (fastest)">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="rolloutStrength" />
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="rolloutStrong" mnemonicParsing="false" text="Strongest (slowest)" toggleGroup="$rolloutStrength" />
+                     </items>
+                  </Menu>
             </items>
           </Menu>
           <Menu mnemonicParsing="false" text="Help">
@@ -47,9 +56,9 @@
           </Menu>
         </menus>
       </MenuBar>
-      <AnchorPane layoutY="525.0" maxHeight="-Infinity" prefHeight="80.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+      <AnchorPane layoutY="525.0" maxHeight="-Infinity" prefHeight="60.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
          <children>
-            <Label fx:id="messageLine" layoutY="58.0" maxHeight="-Infinity" prefHeight="20.0" prefWidth="554.0" text="Label" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
+            <Label fx:id="messageLine" layoutY="4.0" maxHeight="-Infinity" prefHeight="20.0" prefWidth="554.0" text="Label" AnchorPane.bottomAnchor="36.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0">
                <font>
                   <Font size="14.0" />
                </font></Label>
@@ -59,13 +68,13 @@
                </font></Label>
          </children></AnchorPane>
       <AnchorPane fx:id="header" layoutY="25.0" maxHeight="-Infinity" prefHeight="50.0" prefWidth="554.0" style="-fx-background-color: lightgrey;" AnchorPane.leftAnchor="150.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="25.0" />
-      <AnchorPane layoutX="-38.0" layoutY="35.0" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="365.0" prefWidth="150.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="75.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="25.0">
+      <AnchorPane layoutX="-38.0" layoutY="35.0" maxHeight="-Infinity" maxWidth="-Infinity" prefHeight="365.0" prefWidth="150.0" style="-fx-background-color: lightgrey;" AnchorPane.bottomAnchor="60.0" AnchorPane.leftAnchor="0.0" AnchorPane.topAnchor="25.0">
          <children>
-            <CheckBox layoutX="7.0" layoutY="14.0" mnemonicParsing="false" text="Lock mine count">
+            <CheckBox fx:id="checkBoxLockMineCount" layoutX="7.0" layoutY="14.0" mnemonicParsing="false" text="Lock mine count">
                <font>
                   <Font size="14.0" />
                </font></CheckBox>
-            <Button fx:id="buttonSolve" layoutX="14.0" layoutY="131.0" mnemonicParsing="false" onAction="#solveButtonPressed" prefHeight="25.0" prefWidth="109.0" text="Solve" />
+            <Button fx:id="buttonSolve" layoutX="14.0" layoutY="131.0" mnemonicParsing="false" onAction="#solveButtonPressed" prefHeight="25.0" prefWidth="109.0" text="Solver's move" />
             <Button fx:id="buttonAnalyse" layoutX="14.0" layoutY="175.0" mnemonicParsing="false" onAction="#analyseButtonPressed" prefHeight="25.0" prefWidth="109.0" text="Analyse" />
             <Button fx:id="buttonRollout" layoutX="14.0" layoutY="224.0" mnemonicParsing="false" onAction="#rolloutButtonPressed" prefHeight="25.0" prefWidth="109.0" text="Rollout..." />
          </children>

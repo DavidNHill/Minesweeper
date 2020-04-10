@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 import minesweeper.gamestate.GameStateModel;
@@ -88,7 +89,7 @@ public class RolloutGenerator {
 	
 	final private List<Location> offWebTiles;
 	final private List<Location> revealedTiles = new ArrayList<>();
-			
+	final private List<Location> placedMines = new ArrayList<>();
 	
 	private int recursions = 0;
 	
@@ -147,11 +148,14 @@ public class RolloutGenerator {
     			if (boardState.isRevealed(x, y)) {
     				revealedTiles.add(new Location(x,y));
     			}
+    			if (boardState.isConfirmedFlag(x,y)) {
+    				placedMines.add(new Location(x,y));
+    			}
     		}
     	}
-		
     	
     	boardState.display("Total tiles revealed " + revealedTiles.size());
+    	boardState.display("Total mines placed " + placedMines.size());
 	}
 
 	/**
@@ -439,7 +443,15 @@ public class RolloutGenerator {
 		return valid;
 	}
 	
-	public GameStateModelViewer generateGame() {
+	public int getWidth() {
+		return boardState.getGameWidth();
+	}
+	
+	public int getHeight() {
+		return boardState.getGameHeight();
+	}
+	
+	public GameStateModelViewer generateGame(long seed) {
 		
 		GameStateModelViewer result;
 		
@@ -447,8 +459,10 @@ public class RolloutGenerator {
 		int height = boardState.getGameHeight();
 		int mineCount = this.minesLeft;
 		
-		int edge = (int) (Math.random()*1000000);
-		boardState.display("Random number is " + edge);
+		Random rng = new Random(seed);
+		
+		int edge = (int) (rng.nextDouble()*totalWeight);
+		//boardState.display("Random number is " + edge);
 		
 		int soFar = 0;
 		ProbabilityLine line = null;
@@ -462,7 +476,7 @@ public class RolloutGenerator {
 
 		mineCount = mineCount - line.mineCount;
 		
-		List<Location> mines = new ArrayList<>();
+		List<Location> mines = new ArrayList<>(placedMines);  // start with the mines we have already placed
 		
 		for (int i=0; i < line.allocatedMines.length; i++) {
 			
@@ -474,7 +488,7 @@ public class RolloutGenerator {
 				}
 			
 			} else {  // shuffle the tiles in the box and take the first ones as the mines
-				Collections.shuffle(boxes.get(i).getSquares());
+				Collections.shuffle(boxes.get(i).getSquares(), rng);
 				
 				for (int j=0; j < line.allocatedMines[i]; j++) {
 					mines.add(boxes.get(i).getSquares().get(j));
@@ -483,15 +497,14 @@ public class RolloutGenerator {
 			
 		}
 		
-		Collections.shuffle(offWebTiles);
+		Collections.shuffle(offWebTiles, rng);
 		for (int j=0; j < mineCount; j++) {
 			mines.add(offWebTiles.get(j));
 		}
 		
-		
 		result = GameStateReader.loadMines(width, height, mines, revealedTiles);
 		
-		
+		/*
 		// show the board
 		for (int y=0; y < height; y++) {
 			for (int x=0; x < width; x++) {
@@ -510,6 +523,7 @@ public class RolloutGenerator {
 			}
 			System.out.println();
 		}					
+		*/
 		
 		return result;
 		

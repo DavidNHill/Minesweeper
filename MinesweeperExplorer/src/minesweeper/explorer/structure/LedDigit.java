@@ -28,23 +28,22 @@ public class LedDigit extends ImageView {
 				delta = -1;
 			}
 			
-			
 			digit.rotateValue(delta);
 			
 		}
 		
 	};
 	
-	
-	
 	private final LedDigits owner;
+	private int size;
 	
 	private int value = 0;
 	
 	
-	public LedDigit(LedDigits owner) {
+	public LedDigit(LedDigits owner, int size) {
 		
 		this.owner = owner;
+		this.size = size;
 		
 		this.setOnScroll(SCROLLED);
 		this.setPickOnBounds(true);
@@ -70,12 +69,20 @@ public class LedDigit extends ImageView {
 	
 	private void rotateValue(int delta) {
 		
-		int newValue = (value + delta) % 10;
-		if (newValue < 0) {
-			newValue = newValue + 10;
+		int value = owner.getValue() + delta * this.size;
+		
+		if (value < 0) {
+			value = 0;
+		} else if (value > 999) {
+			value = 999;
 		}
 		
-		setValue(newValue);
+		//int newValue = (value + delta) % 10;
+		//if (newValue < 0) {
+		//	newValue = newValue + 10;
+		//}
+		
+		owner.setValue(value);
 	}
 	
 

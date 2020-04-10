@@ -50,7 +50,7 @@ public class Board extends AnchorPane {
 				hideTooltip();
 			} else {
 				showTooltip(event.getScreenX() + 10, event.getScreenY() - 10, tile);
-				populateTileDetails(tile);
+				//populateTileDetails(tile);
 			}
 			
 		
@@ -81,6 +81,7 @@ public class Board extends AnchorPane {
 	
 	private ReadOnlyIntegerWrapper flagsPlaced = new ReadOnlyIntegerWrapper();
 	private Map<Location, InformationLocation> gameInformation;
+	private int gameInfoHash = 0;
 	
 	private final Tile[][] tiles;
 	
@@ -120,6 +121,10 @@ public class Board extends AnchorPane {
 		
 		tile.setFlagged(true);
 		flagsPlaced.set(flagsPlaced.get() + 1);
+		if (controller.mineCountLocked()) {
+			int minesToFind = controller.getMinesToFindController().getValue() - 1;
+			controller.getMinesToFindController().setValue(minesToFind);
+		}
 		
 		if (!spread) {
 			return;
@@ -163,6 +168,10 @@ public class Board extends AnchorPane {
 		
 		tile.setFlagged(false);
 		flagsPlaced.set(flagsPlaced.get() - 1);
+		if (controller.mineCountLocked()) {
+			int minesToFind = controller.getMinesToFindController().getValue() + 1;
+			controller.getMinesToFindController().setValue(minesToFind);
+		}
 		
 		int startx = Math.max(0, tile.getTileX() - 1);
 		int endx = Math.min(width - 1, tile.getTileX() + 1);
@@ -271,7 +280,7 @@ public class Board extends AnchorPane {
 		}
 		
 		flagsPlaced.set(0);
-		setGameInformation(null);
+		setGameInformation(null, 0);
 		
 	}
 	
@@ -298,12 +307,14 @@ public class Board extends AnchorPane {
    
 	public void showTooltip(double x, double y, Tile tile) {
 		
-		if (gameInformation == null) {
-			tooltipText.setText("?");
+		if (gameInformation == null || gameInfoHash != getHashValue()) {
+			tooltipText.setText("Press 'Analyse'" + System.lineSeparator() + "for details");
+			populateTileDetails(null);
 		} else {
 			InformationLocation il = gameInformation.get(tile.getLocation());
 			if (il != null) {
 				tooltipText.setText(Explorer.PERCENT.format(il.getProbability()) + " safe");
+				populateTileDetails(tile);
 			}
 		}
 		
@@ -314,18 +325,13 @@ public class Board extends AnchorPane {
 	
 	public void populateTileDetails(Tile tile) {
 		
-		if (gameInformation == null) {
+		if (gameInformation == null || tile == null) {
 			//System.out.println("Game information not found");
 			controller.getTileValueController().update(null);
 			return;
 		}
 
 		InformationLocation il = gameInformation.get(tile.getLocation());
-		//if (il == null) {
-		//	//System.out.println("Tile information not found for " + tile.asText() + " out of " + gameInformation.size());
-		//	controller.getTileValueController().update(null);
-		//	return;
-		//}
 		
 		controller.getTileValueController().update(il);
 		
@@ -335,13 +341,14 @@ public class Board extends AnchorPane {
 		toolTip.hide();
 	}
    
-	public void setGameInformation(Map<Location, InformationLocation> info) {
+	public void setGameInformation(Map<Location, InformationLocation> info, int hashValue) {
+		this.gameInfoHash = hashValue;
 		this.gameInformation = info;
 	}
 	
 	public int getHashValue() {
 		
-		int hash = 31*31*31 * controller.getGameMines() + 31*31 * flagsPlaced.get() + 31 * width + height;
+		int hash = 31*31*31 * controller.getTotalMines() + 31*31 * flagsPlaced.get() + 31 * width + height;
 		
 		for (int x=0; x < this.width; x++) {
 			for (int y=0; y < this.height; y++) {

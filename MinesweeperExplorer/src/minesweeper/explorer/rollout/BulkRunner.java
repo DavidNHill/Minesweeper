@@ -1,11 +1,8 @@
-package minesweeper.explorer.main;
+package minesweeper.explorer.rollout;
 
-import minesweeper.gamestate.GameFactory;
+import java.util.Random;
+
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.random.DefaultRNG;
-import minesweeper.random.RNG;
-import minesweeper.settings.GameSettings;
-import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
@@ -16,9 +13,11 @@ public class BulkRunner implements Runnable {
 	
 	private boolean stop = false;
 	private final int maxSteps;
-	//private final BulkController controller;
+	private final RolloutController controller;
 	private final Location startLocation;
 	private final RolloutGenerator rollout;
+	private final Preferences preferences;
+	private final long seed;
 	
 	//private final Random seeder;
 	private int steps = 0;
@@ -28,11 +27,14 @@ public class BulkRunner implements Runnable {
 	private boolean showGames;
 	private boolean winsOnly;
 	
-	public BulkRunner(int iterations, RolloutGenerator rollout, Location startLocation) {
+	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, Preferences preferences, long seed) {
 		
+		this.controller = controller;
 		this.maxSteps = iterations;
 		this.rollout = rollout;
 		this.startLocation = startLocation;
+		this.preferences = preferences;
+		this.seed = seed;
 		
 		if (showGames) {
 			//resultsController = ResultsController.launch(null, gameSettings, gameType);
@@ -44,18 +46,19 @@ public class BulkRunner implements Runnable {
 	@Override
 	public void run() {
 		
-		System.out.println("At BulkRunner run method");
+		System.out.println("At BulkRunner run method using seed " + seed);
+		
+		Random seeder = new Random(seed);
 		
 		while (!stop && steps < maxSteps) {
 			
 			steps++;
 			
-			GameStateModel gs = rollout.generateGame();
+			GameStateModel gs = rollout.generateGame(seeder.nextLong());
 
-			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
+			Solver solver = new Solver(gs, preferences, false);
 			
-			
-			gs.doAction(new Action(startLocation,Action.CLEAR));
+			gs.doAction(new Action(startLocation, Action.CLEAR));
 			int state = gs.getGameState();
 
 			boolean win;
@@ -79,7 +82,7 @@ public class BulkRunner implements Runnable {
 			}
 			*/
 			
-			//controller.update(steps, maxSteps, wins);
+			controller.update(steps, maxSteps, wins);
 			
 		}
 		
@@ -100,7 +103,8 @@ public class BulkRunner implements Runnable {
 				solver.start();
 				moves = solver.getResult();
 			} catch (Exception e) {
-				System.out.println("Game " + gs.showGameKey() + " has thrown an exception!");
+				System.out.println("Game " + gs.showGameKey() + " has thrown an exception! ");
+				e.printStackTrace();
 				stop = true;
 				return false;
 			}
