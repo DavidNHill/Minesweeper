@@ -26,6 +26,7 @@ import minesweeper.random.DefaultRNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Location;
 
 public class BulkController {
@@ -53,7 +54,7 @@ public class BulkController {
 	private GameSettings gameSettings;
 	private GameType gameType;
 	private Location startLocation;
-	private Preferences preferences;
+	private SolverSettings preferences;
 	
 	//private ResultsController resultsController;
 	
@@ -143,7 +144,7 @@ public class BulkController {
 	}
 
 
-	public static BulkController launch(Window owner, GameSettings gameSettings, GameType gameType, Preferences preferences ) {
+	public static BulkController launch(Window owner, GameSettings gameSettings, GameType gameType, SolverSettings preferences ) {
 
 		if (BulkController.class.getResource("BulkScreen.fxml") == null) {
 			System.out.println("BulkScreen.fxml not found");

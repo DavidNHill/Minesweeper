@@ -6,8 +6,8 @@ import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
@@ -20,7 +20,7 @@ public class BulkRunner implements Runnable {
 	private final GameSettings gameSettings;
 	private final GameType gameType;
 	private final Location startLocation;
-	private final Preferences preferences;
+	private final SolverSettings preferences;
 
 	//private final Random seeder;
 	private int steps = 0;
@@ -33,7 +33,7 @@ public class BulkRunner implements Runnable {
 	private boolean winsOnly;
 	
 	public BulkRunner(BulkController controller, int iterations, GameSettings gameSettings, GameType gameType, 
-			long seed, Location startLocation, boolean showGames, boolean winsOnly, Preferences preferences) {
+			long seed, Location startLocation, boolean showGames, boolean winsOnly, SolverSettings preferences) {
 		
 		maxSteps = iterations;
 		this.seed = seed;

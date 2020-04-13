@@ -26,7 +26,9 @@ import minesweeper.solver.constructs.InformationLocation;
 import minesweeper.solver.constructs.WitnessData;
 import minesweeper.solver.iterator.Iterator;
 import minesweeper.solver.iterator.SequentialIterator;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.utility.Binomial;
+import minesweeper.solver.utility.ProgressMonitor;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -118,7 +120,7 @@ public class Solver implements Asynchronous<Action[]> {
     static Binomial binomialEngine = new Binomial(1000000, 500); 
     
     
-    protected final Preferences preferences;
+    protected final SolverSettings preferences;
 
     // the class that knows the real board layout, which squares have been revealed and where the flags are
     private final GameStateModel myGame;
@@ -181,7 +183,7 @@ public class Solver implements Asynchronous<Action[]> {
      * @param preferences
      * @param interactive
      */
-    public Solver(GameStateModel myGame, Preferences preferences, boolean interactive) {
+    public Solver(GameStateModel myGame, SolverSettings preferences, boolean interactive) {
         this(myGame, preferences, new CoachSilent(), interactive);
     }
     
@@ -191,11 +193,11 @@ public class Solver implements Asynchronous<Action[]> {
      * @param preferences
      * @param interactive
      */
-    public Solver(GameStateModel myGame, Preferences preferences, CoachModel coachDisplay, boolean interactive) {
+    public Solver(GameStateModel myGame, SolverSettings preferences, CoachModel coachDisplay, boolean interactive) {
         
         this.myGame = myGame;
         this.interactive = interactive;
-        this.preferences = preferences;
+        this.preferences = preferences.lockSettings();
         
         //this.boardCheck = new int[myGame.getWidth()][myGame.getHeight()];
         
@@ -221,7 +223,7 @@ public class Solver implements Asynchronous<Action[]> {
         display("Found " + witnesses.size() + " witnesses already in the game");
         //findTrivialActions(witnesses);
         
-        displayAlways("Do tiebreaks = " + preferences.doTiebreak);
+        //displayAlways("Do tiebreaks = " + preferences.isDoTiebreak());
         
     }
 
@@ -727,7 +729,7 @@ public class Solver implements Asynchronous<Action[]> {
         }
         
         // do brute force if the number of candidate solutions is not greater than the allowable maximum
-    	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS)) <= 0);
+    	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getBruteForceMaxSolutions())) <= 0);
     	boolean certainFlagFound = !pe.getMines().isEmpty();
       
         // Probability engine says there are few enough candidate solutions to do a Brute force deep analysis - so lets try
@@ -739,7 +741,7 @@ public class Solver implements Asynchronous<Action[]> {
             
             WitnessWeb wholeBoard = new WitnessWeb(boardState, wholeEdge.getPrunedWitnesses(), allUnrevealedSquares);
             
-            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.BRUTE_FORCE_MAX, "Game");
+            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.getBruteForceMaxIterations(), "Game");
             
             bf.process();
             
@@ -821,7 +823,7 @@ public class Solver implements Asynchronous<Action[]> {
         if (!fm.moveFound) {
 
         	// no certain moves and we aren't doing tiebreaks
-        	if (!certainClearFound && !preferences.doTiebreak) {
+        	if (!certainClearFound && !preferences.isDoTiebreak()) {
         		
         		// if off edge is better than on edge
         		if (pe.isBestGuessOffEdge()) {
@@ -974,7 +976,7 @@ public class Solver implements Asynchronous<Action[]> {
     /**
      * This method will find use the probability engine to get all the unrevealed tiles chance of being a mine
      */
-    public Map<Location, InformationLocation> runTileAnalysis() throws Exception {
+    public Map<Location, InformationLocation> runTileAnalysis(ProgressMonitor pm) throws Exception {
     	
     	Map<Location, InformationLocation> result = new HashMap<>();
     	
@@ -997,11 +999,16 @@ public class Solver implements Asynchronous<Action[]> {
 	   	 int minesLeft = myGame.getMines() - boardState.getConfirmedFlagCount();
 	   	 
 	   	 System.out.println("Mines left=" + minesLeft + " unrevealed=" + unrevealed + " Witnesses=" + allWitnesses.size() + " witnessed tiles=" + allWitnessedSquares.size());
-		 
+
+	   	 int maxProgress = boardState.getGameWidth() * boardState.getGameHeight() + 1;
+	   	 pm.SetMaxProgress("Processing", maxProgress);
+	   	 int progress = 0;
+	   	 
 	   	 ProbabilityEngineModel pe = new ProbabilityEngineFast(boardState, wholeEdge, unrevealed, minesLeft);
 	   	 pe.process();
+	   	 pm.setProgress(++progress);
 	   	 
-
+	   	 
 	   	 if (pe.getSolutionCount().signum() == 0) {
 	   		 throw new Exception("This board has no solutions");
 	   	 } else {
@@ -1019,6 +1026,7 @@ public class Solver implements Asynchronous<Action[]> {
 	   					 
 	   					 result.put(il, il);
 	   				 }
+	   			   	 pm.setProgress(++progress);
 	   			 }
 	   		 }                        	   		 
 	   	 }

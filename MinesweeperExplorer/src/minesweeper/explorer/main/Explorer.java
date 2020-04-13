@@ -19,6 +19,7 @@ import minesweeper.explorer.main.Graphics.GraphicsSet;
 public class Explorer extends Application {
 	
 	public static String APPLICATION_NAME = "Minesweeper explorer";
+	public static String VERSION = "0.0";
 	
 	public static final Background BACKGROUND_PINK = new Background(new BackgroundFill(Color.PINK, null, null));
 	public static final Background BACKGROUND_SILVER = new Background(new BackgroundFill(Color.SILVER, null, null));

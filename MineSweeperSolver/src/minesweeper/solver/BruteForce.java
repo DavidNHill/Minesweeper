@@ -84,7 +84,7 @@ public class BruteForce {
 
 				//if (iterations.compareTo(BigInteger.valueOf(1000000l)) <= 0) {
 					//this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS);
-					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS, scope, solver.bfdaStartLocations());
+					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.getBruteForceMaxSolutions(), scope, solver.bfdaStartLocations());
 				//}
 				
 			

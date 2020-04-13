@@ -1,6 +1,5 @@
 package minesweeper.explorer.structure;
 
-import java.math.BigInteger;
 import java.util.Map;
 
 import javafx.beans.property.ReadOnlyIntegerProperty;
@@ -344,6 +343,15 @@ public class Board extends AnchorPane {
 	public void setGameInformation(Map<Location, InformationLocation> info, int hashValue) {
 		this.gameInfoHash = hashValue;
 		this.gameInformation = info;
+		
+		if (info != null) {
+			for (InformationLocation il: info.values()) {
+				Tile tile = getTile(il.x, il.y);
+				tile.setTextValue(il.getProbability());
+			}			
+		}
+
+		
 	}
 	
 	public int getHashValue() {

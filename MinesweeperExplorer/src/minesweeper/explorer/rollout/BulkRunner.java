@@ -6,6 +6,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
@@ -16,7 +17,7 @@ public class BulkRunner implements Runnable {
 	private final RolloutController controller;
 	private final Location startLocation;
 	private final RolloutGenerator rollout;
-	private final Preferences preferences;
+	private final SolverSettings preferences;
 	private final long seed;
 	
 	//private final Random seeder;
@@ -27,7 +28,7 @@ public class BulkRunner implements Runnable {
 	private boolean showGames;
 	private boolean winsOnly;
 	
-	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, Preferences preferences, long seed) {
+	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, SolverSettings preferences, long seed) {
 		
 		this.controller = controller;
 		this.maxSteps = iterations;

@@ -16,6 +16,9 @@ import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SettingsFactory;
+import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
@@ -34,7 +37,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 100000;
+	private final static int MAX = 50000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;
@@ -65,23 +68,24 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 18138477;
-		//seed = 259355150;
+		//seed = 18138477;
+		seed = 259355150;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
 		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
-		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(15,13,62);
+		GameSettings gameSettings = GameSettings.EXPERT;
+		//GameSettings gameSettings = GameSettings.create(15,13,62);
 		GameType gameType = GameType.STANDARD;
 		//GameType gameType = GameType.EASY;
 		
 		while (played < MAX) {
 
+			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.nextLong());
 			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
-			Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, false);
+			Solver solver = new Solver(gs, settings, false);
 			
 			//solver.setTestMode();
 			//solver.setStartLocation(new Location(1, 1));

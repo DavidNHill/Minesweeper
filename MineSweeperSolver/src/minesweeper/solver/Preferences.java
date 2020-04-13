@@ -25,7 +25,7 @@ abstract public class Preferences {
     
     /**
  	*  Testing, you probably shouldn't be using it
-      */
+    */
     final static public Preferences TEST = new Preferences() {
 
 		@Override

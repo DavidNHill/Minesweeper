@@ -22,8 +22,8 @@ import javafx.stage.Window;
 import javafx.stage.WindowEvent;
 import minesweeper.explorer.main.Explorer;
 import minesweeper.explorer.main.Graphics;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.RolloutGenerator;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Location;
 
 public class RolloutController {
@@ -50,7 +50,7 @@ public class RolloutController {
 	//private GameSettings gameSettings;
 	//private GameType gameType;
 	private Location startLocation;
-	private Preferences preferences;
+	private SolverSettings preferences;
 	
 	private RolloutGenerator generator;
 	
@@ -153,7 +153,7 @@ public class RolloutController {
 	}
 
 
-	public static RolloutController launch(Window owner, RolloutGenerator generator, Preferences preferences ) {
+	public static RolloutController launch(Window owner, RolloutGenerator generator, SolverSettings preferences ) {
 
 		if (RolloutController.class.getResource("RolloutScreen.fxml") == null) {
 			System.out.println("RolloutScreen.fxml not found");

@@ -1,15 +1,20 @@
 package minesweeper.explorer.structure;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import javafx.event.EventHandler;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.layout.StackPane;
+import javafx.scene.text.Text;
 import minesweeper.explorer.main.Graphics.GraphicsSet;
 import minesweeper.explorer.structure.Board.AdjacentDetails;
 import minesweeper.structure.Location;
 
-public class Tile extends ImageView {
+public class Tile extends StackPane {
 
 	// generic mouse click event for tiles
 	private final static EventHandler<MouseEvent> CLICKED = new EventHandler<MouseEvent>() {
@@ -68,10 +73,14 @@ public class Tile extends ImageView {
 		
 	};
 	
+	private ImageView image;
+	private Text text;
+	
 	private final int x;
 	private final int y;
 	private final Board board;
 	private final Location location;
+	private String textValue = "";
 	
 	private GraphicsSet graphicsSet;
 	private boolean covered;
@@ -80,6 +89,11 @@ public class Tile extends ImageView {
 	private int value;
 
 	public Tile(GraphicsSet graphicsSet, Board board, int x, int y) {
+		
+		this.image = new ImageView();
+		this.text = new Text("");
+		
+		this.getChildren().addAll(image, text);
 		
 		this.board = board;
 		this.x = x;
@@ -100,13 +114,14 @@ public class Tile extends ImageView {
 	private void doDraw() {
 		
 		if (flagged) {
-			this.setImage(graphicsSet.getFlag());
+			this.image.setImage(graphicsSet.getFlag());
 		} else if (covered) {
-			this.setImage(graphicsSet.getHidden());
+			this.image.setImage(graphicsSet.getHidden());
 		} else {
-			this.setImage(graphicsSet.getNumber(value));
+			this.image.setImage(graphicsSet.getNumber(value));
 		}
 		
+		showTextValue();
 		
 	}
 	
@@ -130,16 +145,31 @@ public class Tile extends ImageView {
 		doDraw();
 	}
 
-	/*
-	public boolean isMine() {
-		return mine;
+	protected void setTextValue(BigDecimal safety) {
+		
+		safety = BigDecimal.ONE.subtract(safety).multiply(BigDecimal.valueOf(100));
+		
+		if (safety.compareTo(BigDecimal.TEN) < 0) {
+			safety = safety.setScale(1, RoundingMode.HALF_UP);
+		} else {
+			safety = safety.setScale(0, RoundingMode.HALF_UP);
+		}
+		
+		textValue = safety.toPlainString();
+		showTextValue();
+		
 	}
-
-	protected void setMine(boolean mine) {
-		this.mine = mine;
-		doDraw();
+	
+	private void showTextValue() {
+		
+		if (isCovered() && !isFlagged()) {
+			text.setText(textValue);
+		} else {
+			text.setText("");
+		}
+		
+		
 	}
-	*/
 	
 	public boolean isFlagged() {
 		return flagged;

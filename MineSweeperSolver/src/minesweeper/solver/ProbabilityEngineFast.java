@@ -1232,7 +1232,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
         
         // build a web of the isolated edge and use it to build a brute force
         WitnessWeb isolatedEdge = new WitnessWeb(boardState, witnesses, tiles);
-        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.BRUTE_FORCE_MAX, "Isolated Edge");
+        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.getBruteForceMaxIterations(), "Isolated Edge");
         
         isolatedEdges.add(bruteForce);
         

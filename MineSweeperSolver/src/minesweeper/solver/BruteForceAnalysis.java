@@ -12,7 +12,6 @@ import java.util.Map;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
-import minesweeper.solver.utility.BigDecimalCache;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -316,7 +315,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			int result = 0;
 			
 			processCount++;
-			if (processCount > solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_NODES) {
+			if (processCount > solver.preferences.getBruteForceMaxNodes()) {
 				return 0;
 			}
 
@@ -396,7 +395,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					
 				}
 			
-				if (depth > solver.preferences.BRUTE_FORCE_ANALYSIS_TREE_DEPTH) {  // stop holding the tree beyond this depth
+				if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
 					child.bestLiving = null;
 				}
 				
@@ -625,7 +624,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		currentNode = top;
 		
-		if (processCount < solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_NODES) {
+		if (processCount < solver.preferences.getBruteForceMaxNodes()) {
 			this.completed = true;
 			if (solver.isShowProbabilityTree()) {
 				solver.newLine("--------- Probability Tree dump start ---------");

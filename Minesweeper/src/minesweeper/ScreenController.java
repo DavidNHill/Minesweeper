@@ -59,6 +59,9 @@ import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.settings.SettingsFactory;
+import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -134,10 +137,7 @@ public class ScreenController {
     
     
     // What kind of solver should we use
-    //private static final Preferences preferences = Preferences.NO_BRUTE_FORCE;
-    //private static final Preferences preferences = Preferences.MAX_ANALYSIS; 
-    private static Preferences preferences = Preferences.LARGE_ANALYSIS; 
-    //private static final Preferences preferences = Preferences.VERY_LARGE_ANALYSIS; 
+    private static SolverSettings preferences; 
     private Solver solver;
     
     private WritableImage scr;
@@ -390,9 +390,9 @@ public class ScreenController {
     private void handleNewBulkRun(ActionEvent event) {
         
         if (sol4000.isSelected()) {
-        	preferences = Preferences.LARGE_ANALYSIS;
+        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS);
         } else {
-        	preferences = Preferences.SMALL_ANALYSIS;
+        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
         }
     	
     	
@@ -1125,9 +1125,9 @@ public class ScreenController {
         newGameButton.setLayoutX(offsetX);
         
         if (sol4000.isSelected()) {
-        	preferences = Preferences.LARGE_ANALYSIS;
+        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS);
         } else {
-        	preferences = Preferences.SMALL_ANALYSIS;
+        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
         }
         
         // create a new solver

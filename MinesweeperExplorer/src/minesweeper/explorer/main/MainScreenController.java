@@ -1,5 +1,10 @@
 package minesweeper.explorer.main;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,18 +20,24 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
-import javafx.stage.Stage;
+import javafx.stage.FileChooser;
+import minesweeper.explorer.busy.BusyController;
+import minesweeper.explorer.busy.ParallelTask;
 import minesweeper.explorer.gamestate.GameStateExplorer;
 import minesweeper.explorer.main.Graphics.GraphicsSet;
 import minesweeper.explorer.rollout.RolloutController;
 import minesweeper.explorer.structure.Board;
 import minesweeper.explorer.structure.Expander;
 import minesweeper.explorer.structure.LedDigits;
+import minesweeper.explorer.structure.Tile;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.settings.SettingsFactory;
+import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.utility.ProgressMonitor;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -89,6 +100,8 @@ public class MainScreenController {
 	private LedDigits minesToFind;
 	private LedDigits minesPlaced;
 	private List<Indicator> indicators = new ArrayList<>();
+    private FileChooser fileChooser = new FileChooser();
+    private File fileSelected = null;
 
 	@FXML
 	void initialize() {
@@ -131,6 +144,45 @@ public class MainScreenController {
 	}
 	
 	@FXML 
+	public void loadBoard() {
+		
+    	fileChooser.setTitle("Open game to analyse");
+    	if (fileSelected != null) {
+    		fileChooser.setInitialDirectory(fileSelected.getParentFile());
+    	}
+    	fileSelected = fileChooser.showOpenDialog(boardDisplayArea.getScene().getWindow());
+    	
+    	if (fileSelected != null) {
+    		try {
+				loadFromFile(fileSelected);
+			} catch (Exception e) {
+				setSolutionLine("Unable to load file: " + e.getMessage());
+				e.printStackTrace();
+			}
+    	}
+		
+	}
+	
+	@FXML 
+	public void saveBoard() {
+		
+    	fileChooser.setTitle("Save board position");
+    	if (fileSelected != null) {
+    		fileChooser.setInitialDirectory(fileSelected.getParentFile());
+    	}
+    	
+     	fileSelected = fileChooser.showSaveDialog(boardDisplayArea.getScene().getWindow());
+
+     	try {
+			saveToFile(fileSelected);
+		} catch (Exception e) {
+			System.out.println("Error writing to output file");
+			e.printStackTrace();
+		}
+		
+	}
+	
+	@FXML 
 	public void newCustomBoard() {
 		
 		int boardWidth = (int) (boardExpander.getCenterX() / 24);
@@ -151,20 +203,21 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
-		
-		Preferences preferences;
+		SolverSettings settings;
 		if (rolloutWeak.isSelected()) {
 			System.out.println("Weak selected");
-			preferences = Preferences.SMALL_ANALYSIS.setTieBreak(false);
+			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setTieBreak(false);
 		} else {
-			preferences = Preferences.SMALL_ANALYSIS;
+			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		}
+		
+		Solver solver = new Solver(gs, settings, true);
+		
 		
 		try {
 			RolloutGenerator gen = solver.getRolloutGenerator();
 			
-	        RolloutController.launch(boardDisplayArea.getScene().getWindow(), gen, preferences);
+	        RolloutController.launch(boardDisplayArea.getScene().getWindow(), gen, settings);
 			
 		} catch (Exception e1) {
 			e1.printStackTrace();
@@ -184,16 +237,49 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		Solver solver = new Solver(gs, Preferences.SMALL_ANALYSIS, true);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		Solver solver = new Solver(gs, settings, true);
+		ProgressMonitor pm = new ProgressMonitor();
 		
-		try {
-			int hash = currentBoard.getHashValue();
-			currentBoard.setGameInformation(solver.runTileAnalysis(), hash);
-		} catch (Exception e) {
-			e.printStackTrace();
-			setSolutionLine("Unable to process:" + e.getMessage());
-		}
-		
+		// run this task in parallel while locking the screen against any other actions
+		ParallelTask<Boolean> pt = new ParallelTask<Boolean>() {
+			@Override
+			public void doExecute() {
+				
+				try {
+					int hash = currentBoard.getHashValue();
+					currentBoard.setGameInformation(solver.runTileAnalysis(pm), hash);
+				} catch (Exception e) {
+					e.printStackTrace();
+					setSolutionLine("Unable to process:" + e.getMessage());
+				}
+				
+				Platform.runLater(new Runnable() {
+					@Override
+					public void run() {
+						
+					}
+				});
+				
+			}
+
+			@Override
+			public Boolean getResult() {
+				return true;
+			}
+
+			@Override
+			public int getMaxProgress() {
+				return pm.getMaxProgress();
+			}
+
+			@Override
+			public int getProgress() {
+				return pm.getProgress();
+			}
+		};
+
+		BusyController.launch(boardDisplayArea.getScene().getWindow(), pt, pm);
 		
 	}
 	
@@ -208,11 +294,97 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS);
+		Solver solver = new Solver(gs, settings, true);
 		
-		solver.start();
 		
-		Action[] actions = solver.getResult();
+		// run this task in parallel while locking the screen against any other actions
+		ParallelTask<Action[]> pt = new ParallelTask<Action[]>() {
+			@Override
+			public void doExecute() {
+				solver.start();
+				
+				Platform.runLater(new Runnable() {
+					@Override
+					public void run() {
+						
+						Action[] actions = solver.getResult();
+						
+						if (actions.length == 0) {
+							messageLine.setText("No suggestion returned by the solver");
+						} else {
+							Action a = actions[0];
+							messageLine.setText(a.asString());
+							
+							removeIndicators();
+							for (Action action: actions) {
+								indicators.add(new Indicator(action));
+							}
+							
+					    	List<EvaluatedLocation> els = solver.getEvaluatedLocations();
+					    	if (els != null) {
+					        	for (EvaluatedLocation el: els) {
+					        		
+					        		// don't show evaluated positions which are actually chosen to be played
+					        		boolean ignore = false;
+					        		for (Action action: actions) {
+					        			if (el.equals(action)) {
+					        				ignore = true;
+					        			}
+					        		}
+					        		
+					        		if (!ignore) {
+					        			indicators.add(new Indicator(el, Color.ORANGE));
+					        		}
+					        	}    		
+					    	}
+							
+					    	Area dead = solver.getDeadLocations();
+					    	if (dead != null) {
+					        	for (Location loc: dead.getLocations()) {
+					        		
+					        		// don't show evaluated positions which are actually chosen to be played
+					        		boolean ignore = false;
+					        		for (Action action: actions) {
+					        			if (loc.equals(action)) {
+					        				ignore = true;
+					        			}
+					        		}
+					        		
+					        		if (!ignore) {
+					        			indicators.add(new Indicator(loc, Color.BLACK));
+					        		}
+
+					        	}    		
+					    	}
+							
+							currentBoard.getChildren().addAll(indicators);
+						}
+					}
+				});
+				
+			}
+
+			@Override
+			public Action[] getResult() {
+				return solver.getResult();
+			}
+
+			@Override
+			public int getMaxProgress() {
+				return 0;
+			}
+
+			@Override
+			public int getProgress() {
+				return 0;
+			}
+		};
+
+		BusyController.launch(boardDisplayArea.getScene().getWindow(), pt, null);
+		
+		/*
+		Action[] actions = pt.getResult();
 		
 		if (actions.length == 0) {
 			messageLine.setText("No suggestion returned by the solver");
@@ -269,7 +441,7 @@ public class MainScreenController {
 			
 			currentBoard.getChildren().addAll(indicators);
 		}
-		
+		*/
 	}
 	
 	protected void removeIndicators() {
@@ -313,24 +485,130 @@ public class MainScreenController {
 	
 	private void newBoard(int width, int height, int mines) {
 		
+	
+		// create new board
+		Board newBoard = new Board(this, width, height);
+		newBoard.clearBoard(true);  // all covered to start with
+
+		setNewBoard(newBoard, mines);
+		
+	}
+	
+	public void loadFromFile(File file) throws Exception {
+		
+    	int width;
+    	int height;
+    	int mines;
+    	
+    	int minesCount = 0;
+    	
+    	Board result;
+
+		try (InputStreamReader isr = new InputStreamReader(new FileInputStream(file));
+				BufferedReader reader  = new BufferedReader(isr)
+		){
+			
+			String data = reader.readLine();
+			
+			if (data == null) {
+				throw new Exception("File is empty!");
+			}
+			
+			String[] header = data.trim().split("x");
+			if (header.length != 3) {
+				throw new Exception("Header (" + data + ") doesn't contain width, height, mine separated by 'x'");
+			}
+			
+			try {
+				width = Integer.parseInt(header[0]);
+				height = Integer.parseInt(header[1]);
+				mines = Integer.parseInt(header[2]);
+			} catch (Exception e) {
+				throw new Exception("Unable to parse the values in the header (" + data + ")");
+			}
+
+			result = new Board(this, width, height);
+
+			data = reader.readLine();
+			int cy=0;
+			
+			while (data != null) {
+				
+				if (data.trim().length() != width) {
+					throw new Exception("Detail row is not the same width as the header's width value");
+				}
+				
+				int cx = 0;
+				for (char c: data.trim().toCharArray()) {
+					
+					Tile tile = result.getTile(cx,  cy);
+					
+					if (c == 'M') {
+						
+						//System.out.println("Set mine " + tile.asText());
+						minesCount++;
+						
+						result.setFlag(tile, true);
+						
+					} else if (c == 'm') {
+						
+						//System.out.println("unfound mine " + tile.asText());
+						tile.setCovered(true);
+					
+					}else if (c != 'H' && c != 'h') {
+						int val = Character.getNumericValue(c);
+						//System.out.println("Set value " + tile.asText() + " to " + val);
+						tile.setCovered(false);
+						tile.setValue(val);
+					
+					} else {
+						//System.out.println("Set covered " + tile.asText());
+						tile.setCovered(true);
+					}
+					cx++;
+				}
+			
+				cy++;
+				data = reader.readLine();	
+				
+				if (cy == height) {
+					break;
+				}
+				
+			};
+
+			if (cy != height) {
+				throw new Exception("Not enough rows in the file for the game defined in the header");
+			}
+		
+		} catch (Exception e) {
+			throw e;
+		}	
+
+		int minesLeft = Math.max(0, mines - minesCount);
+		
+		setNewBoard(result, minesLeft);
+		
+	}
+	
+	private void setNewBoard(Board board, int minesLeft) {
+		
 		// tidy up old details
 		if (minesPlaced != null) {
 			minesPlaced.removeValueListener();
 		}
-		
-		
+
 		// remove current board graphics
 		getBoardDisplayArea().getChildren().clear();
 		indicators.clear();
 		
 		// create new board
-		currentBoard = new Board(this, width, height);
+		currentBoard = board;
 
-		currentBoard.clearBoard(true);  // all covered to start with
-		checkBoxLockMineCount.setSelected(mines != 0);
+		checkBoxLockMineCount.setSelected(minesLeft != 0);
 	
-		boardExpander.setCenterX(width * 24);
-		boardExpander.setCenterY(height * 24);
+		boardExpander.setCenterX(board.getGameWidth() * 24);
+		boardExpander.setCenterY(board.getGameHeight() * 24);
 		
 		getBoardDisplayArea().getChildren().addAll(currentBoard, boardExpander);
 
@@ -338,24 +616,70 @@ public class MainScreenController {
 		minesToFind.relocate(10, 5);
 		minesToFind.setBackground(Explorer.GREY_BACKGROUND);
 		getHeader().getChildren().add(minesToFind);
-		minesToFind.setValue(mines);
+		minesToFind.setValue(minesLeft);
 		
 		minesPlaced = new LedDigits(3, true);
 		minesPlaced.relocate(100, 5);
 		minesPlaced.setBackground(Explorer.GREY_BACKGROUND);
 		minesPlaced.setValueListener(currentBoard.getMinesPlacedProperty());
+		minesPlaced.setValue(currentBoard.getFlagsPlaced());
 		getHeader().getChildren().add(minesPlaced);
 		
 		messageLine.setText("Build a board");
 		solutionLine.setText("");
 
-		Explorer.setSubTitle(width + " x " + height);
+		Explorer.setSubTitle(board.getGameWidth() + " x " + board.getGameHeight());
 		
 	}
 	
-	public void setCurrentBoard(Board board) {
-		this.currentBoard = board;
-	}
+    private void saveToFile(File file) throws Exception {
+    	
+    	if (file == null) {
+    		return;
+    	}
+    	
+
+    	int width = currentBoard.getGameWidth();
+    	int height = currentBoard.getGameHeight();
+    	int mines = currentBoard.getFlagsPlaced() + minesToFind.getValue();
+    	
+    	List<String> records = new ArrayList<>();
+    	
+    	String header =  width + "x" + height + "x" + mines;
+    	records.add(header);
+    	
+    	for (int y=0; y < height; y++) {
+    		
+    		StringBuilder record = new StringBuilder();
+        	for (int x=0; x < width; x++) {
+        		
+        		
+        		Tile tile = currentBoard.getTile(x, y);
+
+        		if (tile.isFlagged()) {
+                	record.append("M");
+                } else if (tile.isCovered()) {
+                	 record.append("h");
+                } else {
+                	record.append(String.valueOf(tile.getValue()));
+                }
+        	}   		
+    		
+        	records.add(record.toString());
+    		
+    	}
+
+    	records.add("Game created by Minesweeper Explorer vsn " + Explorer.VERSION);
+    	
+    	try (PrintStream output = new PrintStream(file)) {
+    	   	for (String record: records) {
+        		output.println(record);
+        	}    		
+    	} catch (Exception e) {
+    		throw e;
+    	}
+    	
+    }
 	
 	public Board getCurrentBoard() {
 		return this.currentBoard;

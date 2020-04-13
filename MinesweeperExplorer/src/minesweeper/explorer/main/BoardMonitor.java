@@ -7,6 +7,9 @@ import minesweeper.explorer.structure.Board;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
+import minesweeper.solver.settings.SettingsFactory;
+import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SettingsFactory.Setting;
 
 public class BoardMonitor implements Runnable {
 
@@ -43,7 +46,8 @@ public class BoardMonitor implements Runnable {
 					GameStateModel gs = null;
 					try {
 						gs = GameStateExplorer.build(board, controller.getTotalMines());
-						Solver solver = new Solver(gs, Preferences.VERY_LARGE_ANALYSIS, true);
+						SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS);
+						Solver solver = new Solver(gs, settings, true);
 						BigInteger solutionCount = solver.getSolutionCount();
 						
 						if (solutionCount.signum() == 0) {
