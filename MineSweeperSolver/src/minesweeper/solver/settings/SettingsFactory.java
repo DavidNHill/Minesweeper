@@ -6,21 +6,27 @@ public class SettingsFactory {
 	
 	public enum Setting {
 		NO_BRUTE_FORCE,
+		TINY_ANALYSIS,
 		SMALL_ANALYSIS,
 		LARGE_ANALYSIS,
-		VERY_LARGE_ANALYSIS;
+		VERY_LARGE_ANALYSIS,
+		MAX_ANALYSIS;
 	}
 	
 	final static public SolverSettings GetSettings(Setting setting) {
 		
 		if (setting == Setting.SMALL_ANALYSIS) {
 			return smallAnalysis();
+		} else if (setting == Setting.TINY_ANALYSIS) {
+			return tinyAnalysis();
 		} else if (setting == Setting.LARGE_ANALYSIS) {
 			return largeAnalysis();
 		} else if (setting == Setting.NO_BRUTE_FORCE) {
 			return noBruteForce();
 		} else if (setting == Setting.VERY_LARGE_ANALYSIS) {
 			return veryLargeAnalysis();
+		} else if (setting == Setting.MAX_ANALYSIS) {
+			return maxAnalysis();
 		} 
 		
 		return smallAnalysis();
@@ -40,6 +46,17 @@ public class SettingsFactory {
     	return settings;
     };
 	
+    private static SolverSettings tinyAnalysis() {
+
+    	SolverSettings settings = new SolverSettings();
+    	
+    	settings.bruteForceMaxSolutions = 40;
+    	settings.bruteForceMaxNodes = 150000;
+    	settings.bruteForceTreeDepth = 10;
+    	settings.bruteForceMaxIterations = new BigInteger("5000000"); // 5 million
+
+    	return settings;
+    };
 	
     /**
      * Does trivial, Local and Probability Engine searches.
@@ -84,6 +101,18 @@ public class SettingsFactory {
 		settings.bruteForceMaxNodes = 200000000;     // 200 million
 		settings.bruteForceTreeDepth = 3;
 		settings.bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
+
+    	return settings;
+    };
+    
+    private static SolverSettings maxAnalysis() {
+
+    	SolverSettings settings = new SolverSettings();
+    	
+    	settings.bruteForceMaxSolutions = 200000;
+		settings.bruteForceMaxNodes = 2000000000;     // 2000 million
+		settings.bruteForceTreeDepth = 3;
+		settings.bruteForceMaxIterations = new BigInteger("500000000");  // 500 million
 
     	return settings;
     };

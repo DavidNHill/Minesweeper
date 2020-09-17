@@ -53,6 +53,7 @@ import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNGJSF;
 import minesweeper.random.RNGJava;
 import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameType;
@@ -1076,6 +1077,7 @@ public class ScreenController {
         
     	if (rngKiss64.isSelected()) {
     		DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
+    		//DefaultRNG.setDefaultRNGClass(RNGJSF.class);
     	} else {
     		DefaultRNG.setDefaultRNGClass(RNGJava.class);
     	}
@@ -1125,7 +1127,7 @@ public class ScreenController {
         newGameButton.setLayoutX(offsetX);
         
         if (sol4000.isSelected()) {
-        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS);
+        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setRolloutSolutions(10000000);
         } else {
         	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
         }

@@ -11,6 +11,9 @@ public class SolverSettings {
     protected BigInteger bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
 
     protected boolean doTiebreak = true;
+    protected int rolloutSolutions = 0;
+    protected boolean doDomination = true;
+    protected boolean testMode = false;
 	
     private boolean locked;
     
@@ -29,6 +32,33 @@ public class SolverSettings {
     	return this;
     }
 
+    public SolverSettings setDomination(boolean doDomination) {
+    	
+    	if (!locked) {
+        	this.doDomination = doDomination;
+    	}
+ 
+    	return this;
+    }
+    
+    public SolverSettings setRolloutSolutions(int rolloutSolutions) {
+    	
+    	if (!locked) {
+        	this.rolloutSolutions = rolloutSolutions;
+    	}
+ 
+    	return this;
+    }
+    
+    public SolverSettings setTestMode(boolean isTestMode) {
+    	
+    	if (!locked) {
+        	this.testMode = isTestMode;
+    	}
+ 
+    	return this;
+    }
+    
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
 	}
@@ -49,6 +79,18 @@ public class SolverSettings {
 		return doTiebreak;
 	}
 
+	public boolean isDoDomination() {
+		return doDomination;
+	}
+	
+	public boolean isTestMode() {
+		return testMode;
+	}
+	
+	public int getRolloutSolutions() {
+		return this.rolloutSolutions;
+	}
+	
 	public boolean isLocked() {
 		return locked;
 	}

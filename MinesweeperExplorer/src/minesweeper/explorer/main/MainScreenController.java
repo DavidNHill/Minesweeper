@@ -21,6 +21,7 @@ import javafx.scene.paint.Paint;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
 import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import minesweeper.explorer.busy.BusyController;
 import minesweeper.explorer.busy.ParallelTask;
 import minesweeper.explorer.gamestate.GameStateExplorer;
@@ -106,6 +107,15 @@ public class MainScreenController {
 	@FXML
 	void initialize() {
 		System.out.println("Entered Main Screen Controller initialize method");
+		
+        // set-up the filechooser
+    	ExtensionFilter ef1 = new ExtensionFilter("All files", "*.*");
+    	ExtensionFilter ef2 = new ExtensionFilter("Minesweeper board", "*.mine");
+    	//ExtensionFilter ef3 = new ExtensionFilter("Minesweeper board", "*.board");
+    	//ExtensionFilter ef4 = new ExtensionFilter("Minesweeper board", "*.mbf");
+    	fileChooser.getExtensionFilters().addAll(ef1, ef2);
+    	fileChooser.setSelectedExtensionFilter(ef2);        
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.dir")));
 		
 		tileValueController = TileValuesController.launch(null);
 
@@ -294,7 +304,8 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setRolloutSolutions(1000000);
+		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
 		Solver solver = new Solver(gs, settings, true);
 		
 		

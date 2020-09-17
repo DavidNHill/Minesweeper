@@ -92,7 +92,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		private int[] allocatedMines  = new int[boxCount];   // this is the number of mines originally allocate to a box
 		
 		private BigInteger[] hashCount  = new BigInteger[boxCount];
-		private BigInteger hash = new BigInteger(20, new Random());
+		private BigInteger hash = new BigInteger(30, new Random());
 		
 		{
 			for (int i=0; i < mineBoxCount.length; i++) {
@@ -376,22 +376,23 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		npl.solutionCount = npl.solutionCount.add(solutions);
 		*/
 		npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
+		npl.hash = npl.hash.add(pl.hash);
 		
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
 			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
 	 			//npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
 	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
+	 			npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
 	 			
-				if (pl.mineBoxCount[i].signum() == 0) {
-					//npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash.multiply(BigInteger.valueOf(boxes.get(i).getSquares().size())));   // treat no mines as -1 rather than zero
-					npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash);   // treat no mines as -1 rather than zero
-				} else {
-					npl.hashCount[i] = npl.hashCount[i].add(pl.mineBoxCount[i].multiply(pl.hash));
-				}				
+				//if (pl.mineBoxCount[i].signum() == 0) {
+				//	npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash);   // treat no mines as -1 rather than zero
+				//} else {
+				//	npl.hashCount[i] = npl.hashCount[i].add(pl.mineBoxCount[i].multiply(pl.hash));
+				//}				
 			}
-
-			
 		}
+		
+		
 		
 	}
 	
@@ -429,6 +430,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					
 					ProbabilityLine npl = new ProbabilityLine(pl.solutionCount.multiply(epl.solutionCount));
 					npl.mineCount = pl.mineCount + epl.mineCount;
+					npl.hash = epl.hash.add(pl.hash);
 					
 					//npl.solutionCount = pl.solutionCount.multiply(epl.solutionCount);
 					
@@ -472,6 +474,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				npl.mineCount = mc;
 			}
 			npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
+			npl.hash = npl.hash.add(pl.hash);
 			
 			for (int i = 0; i < pl.mineBoxCount.length; i++) {
 				npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
@@ -564,7 +567,6 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			}
 		}
 
-		
 		/*
 		for (int i=0; i < hashTally.length; i++) {
 			//solver.display(boxes.get(i).getSquares().size() + " " + boxes.get(i).getSquares().get(0).display() + " " + hashTally[i].toString());
@@ -574,10 +576,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				//BigInteger hash2 = hashTally[j].divide(BigInteger.valueOf(boxes.get(j).getSquares().size()));
 				
 				if (hashTally[i].compareTo(hashTally[j]) == 0) {
-				//if (hash1.compareTo(hash2) == 0) {
 					if (boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {  // linked tiles 
-						addLinkedLocation(linkedLocations, boxes.get(i), boxes.get(j));
-						addLinkedLocation(linkedLocations, boxes.get(j), boxes.get(i));
+						//addLinkedLocation(linkedLocations, boxes.get(i), boxes.get(j));
+						//addLinkedLocation(linkedLocations, boxes.get(j), boxes.get(i));
 						
 					} else if (boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() > 1) {
 						boxes.get(i).setDominated();
@@ -590,18 +591,17 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				}
 				
 				// if one hasTally is the negative of the other then   i flag <=> j clear
-				if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
-				//if (hash1.compareTo(hash2.negate()) == 0) {
-					//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is contra linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i] + " " + boxProb[j]);
-					addLinkedLocation(contraLinkedLocations, boxes.get(i), boxes.get(j));
-					addLinkedLocation(contraLinkedLocations, boxes.get(j), boxes.get(i));					
-				}
+				//if (hashTally[i].compareTo(hashTally[j].negate()) == 0 && boxes.get(i).getSquares().size() == 1 && boxes.get(j).getSquares().size() == 1) {
+				//	//solver.display("Box " + boxes.get(i).getSquares().get(0).display() + " is contra linked to Box " + boxes.get(j).getSquares().get(0).display() + " prob " + boxProb[i] + " " + boxProb[j]);
+				//	addLinkedLocation(contraLinkedLocations, boxes.get(i), boxes.get(j));
+				//	addLinkedLocation(contraLinkedLocations, boxes.get(j), boxes.get(i));					
+				//}
 			}
 		}
+		*/
 		
 		// sort so that the locations with the most links are at the top
-		Collections.sort(linkedLocations, LinkedLocation.SORT_BY_LINKS_DESC);
-		*/
+		//Collections.sort(linkedLocations, LinkedLocation.SORT_BY_LINKS_DESC);
 		
 		// avoid divide by zero
 		if (squaresLeft != 0 && totalTally.signum() != 0) {
@@ -801,6 +801,10 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			result = new ProbabilityLine(newSolutionCount);
 			
 			result.mineCount = pl.mineCount + mines;
+			result.hash = pl.hash;
+			
+			// copy the hash values
+			System.arraycopy(pl.hashCount, 0, result.hashCount, 0, pl.mineBoxCount.length);
 			
 			// copy the probability array
 			if (combination == 1) {
@@ -818,6 +822,12 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(result.solutionCount);
 		result.allocatedMines[newBox.getUID()] = mines;
+		
+		if (mines == 0) {
+			result.hashCount[newBox.getUID()] = result.hash.negate();   // treat no mines as -1 rather than zero
+		} else {
+			result.hashCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(result.hash);
+		}				
 		
 		return result;
 	}

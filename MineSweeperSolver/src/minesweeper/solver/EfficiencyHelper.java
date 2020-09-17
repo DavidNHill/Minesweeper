@@ -9,6 +9,7 @@ import java.util.List;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.constructs.ChordLocation;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 public class EfficiencyHelper {
@@ -89,7 +90,7 @@ public class EfficiencyHelper {
 					
 					int reward = hidden - adjMines + adjFlags;  // tiles adjacent - ones which are mines - mines which aren't flagged yet
 					
-					SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, act, adjMines);
+					SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, act, adjMines, Area.EMPTY_AREA);
 					
 					BigInteger current = counter.getSolutionCount().multiply(BigInteger.valueOf(reward));
 					

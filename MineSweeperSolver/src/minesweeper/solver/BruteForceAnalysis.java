@@ -313,13 +313,20 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		private int getWinningLines(int depth, LivingLocation move, int cutoff) {
 
 			int result = 0;
+
+			int notMines = this.getSolutionSize() - move.mineCount;
 			
+			// if the max possible winning lines is less than the current cutoff then no point doing the analysis
+			if (Solver.PRUNE_BF_ANALYSIS && notMines <= cutoff) {
+				move.pruned = true;
+				return 0;
+			}
+			
+			// we're going to have to do some work
 			processCount++;
 			if (processCount > solver.preferences.getBruteForceMaxNodes()) {
 				return 0;
 			}
-
-			int notMines = this.getSolutionSize() - move.mineCount;
 			
 			move.buildChildNodes(this);   
 			
@@ -329,15 +336,6 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					continue;  // continue the loop but ignore this entry
 				}
 				
-				int maxWinningLines = result + notMines;
-				
-				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
-				if (Solver.PRUNE_BF_ANALYSIS && maxWinningLines <= cutoff) {
-					move.pruned = true;
-					return 0;
-				}
-
-
 				if (child.fromCache) {  // nothing more to do, since we did it before
 					this.work++;
 				} else {
@@ -369,7 +367,6 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 							if (childMove.mineCount == 0) {
 								break;
 						 	}
-							
 							
 						}
 
@@ -403,6 +400,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				result = result + child.winningLines;	
 				
 				notMines = notMines - child.getSolutionSize();  // reduce the number of not mines
+				
+				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
+				if (Solver.PRUNE_BF_ANALYSIS && result + notMines <= cutoff) {
+					move.pruned = true;
+					return 0;
+				}
 				
 			}
 			
@@ -699,8 +702,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				alive.zeroSolutions = valueCount[0];
 				living.add(alive);
 			} else {
-				solver.display(locations.get(i).display() + " is dead with value " + minValue);
-				deadLocations.add(locations.get(i));
+				if (mines == result.getSolutionSize()) {
+					solver.display(locations.get(i).display() + " is a mine");
+				} else {
+					solver.display(locations.get(i).display() + " is dead with value " + minValue);
+					deadLocations.add(locations.get(i));
+				}
 			}
 			
 		}

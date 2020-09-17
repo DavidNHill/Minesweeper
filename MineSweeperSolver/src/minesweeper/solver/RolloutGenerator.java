@@ -2,20 +2,24 @@ package minesweeper.solver;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import Asynchronous.Asynchronous;
+import Monitor.AsynchMonitor;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateReader;
-import minesweeper.settings.GameSettings;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.settings.SettingsFactory;
+import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.settings.SolverSettings;
+import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
 /**
@@ -451,7 +455,7 @@ public class RolloutGenerator {
 		return boardState.getGameHeight();
 	}
 	
-	public GameStateModelViewer generateGame(long seed) {
+	public synchronized GameStateModelViewer generateGame(long seed) {
 		
 		GameStateModelViewer result;
 		
@@ -488,18 +492,26 @@ public class RolloutGenerator {
 				}
 			
 			} else {  // shuffle the tiles in the box and take the first ones as the mines
-				Collections.shuffle(boxes.get(i).getSquares(), rng);
+				
+				// in order to make this repeatable with the same seed, we can't shuffle the underlying data. So create a copy.
+				List<Location> boxTiles = new ArrayList<>(boxes.get(i).getSquares());
+				
+				Collections.shuffle(boxTiles, rng);
 				
 				for (int j=0; j < line.allocatedMines[i]; j++) {
-					mines.add(boxes.get(i).getSquares().get(j));
+					mines.add(boxTiles.get(j));
 				}
 			}
 			
 		}
 		
-		Collections.shuffle(offWebTiles, rng);
+		
+		// in order to make this repeatable with the same seed, we can't shuffle the underlying data. So create a copy.
+		List<Location> owt = new ArrayList<>(offWebTiles);
+		
+		Collections.shuffle(owt, rng);
 		for (int j=0; j < mineCount; j++) {
-			mines.add(offWebTiles.get(j));
+			mines.add(owt.get(j));
 		}
 		
 		result = GameStateReader.loadMines(width, height, mines, revealedTiles);
@@ -527,6 +539,182 @@ public class RolloutGenerator {
 		
 		return result;
 		
+	}
+	
+	public class Adversarial<T> implements Comparable<Adversarial<T>> {
+		public final T original;
+		public int wins;
+		public int played;
+		private Adversarial(T original) {
+			this.original = original;
+		}
+		@Override
+		public int compareTo(Adversarial<T> o) {
+			return o.wins - this.wins;
+		}
+	}
+	
+	public class RolloutWork implements Asynchronous<Boolean> {
+
+		private final Adversarial<? extends Location> player;
+		private final int plays;
+		
+		public RolloutWork(Adversarial<? extends Location> player, int plays) {
+			this.player = player;
+			this.plays = plays;
+		}
+		
+		
+		@Override
+		public void start() {
+			int wins = playGames(player.original, plays);
+			player.wins = player.wins + wins;
+			player.played = player.played + plays;
+		}
+
+		@Override
+		public void requestStop() {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public Boolean getResult() {
+			return true;
+		}
+		
+	}
+	
+	public <T extends Location> List<Adversarial<T>> adversarial(List<T> candidates) {
+
+		List<Adversarial<T>> players = new ArrayList<>();
+		
+		for (T candidate: candidates) {
+			players.add(new Adversarial<T>(candidate));
+		}
+		
+		int check = players.size();
+		
+		final int plays = 200;
+		
+		while (check > 1) {
+			
+			RolloutWork[] workers = new RolloutWork[check];
+			
+			for (int i=0; i < check; i++) {
+				Adversarial<T> player = players.get(i);
+				
+				workers[i] = new RolloutWork(player, plays);
+				
+				//int wins = playGames(player.original, plays);
+				//player.wins = player.wins + wins;
+				//player.played = player.played + plays;
+			}
+
+			AsynchMonitor monitor = new AsynchMonitor(workers);
+			monitor.setMaxThreads(6);
+			try {
+				monitor.startAndWait();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			Collections.sort(players);
+			if (check > 4) {
+				check = check * 3 / 4;
+			} else {
+				check--;
+			}
+			
+		}
+
+		for (Adversarial<T> player: players) {
+			boardState.display(player.original.display() + " had " + player.wins + " wins out of " + player.played);
+		}
+		
+		return players;
+		
+	}
+	
+	private int playGames(Location startLocation, int count) {
+		
+		int wins = 0;
+		
+		Random seeder = new Random();
+		
+		SolverSettings preferences = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setTieBreak(false);
+		
+		int steps = 0;
+		int maxSteps = count;
+		
+		while (steps < maxSteps) {
+			
+			steps++;
+			
+			GameStateModel gs = generateGame(seeder.nextLong());
+
+			Solver solver = new Solver(gs, preferences, false);
+			
+			gs.doAction(new Action(startLocation, Action.CLEAR));
+			int state = gs.getGameState();
+
+			boolean win;
+			if (state == GameStateModel.LOST || state == GameStateModel.WON) {  // if we have won or lost on the first move nothing more to do
+				win = (state == GameStateModel.WON);
+			} else { // otherwise use the solver to play the game
+				 win = playGame(gs, solver);
+			}
+		
+			if (win) {
+				wins++;
+			}
+
+		}
+		
+		return wins;
+		
+	}
+	
+	private boolean playGame(GameStateModel gs, Solver solver) {
+
+		int state;
+		
+		play: while (true) {
+
+			Action[] moves;
+			try {
+				solver.start();
+				moves = solver.getResult();
+			} catch (Exception e) {
+				System.out.println("Game " + gs.showGameKey() + " has thrown an exception! ");
+				e.printStackTrace();
+				return false;
+			}
+
+			if (moves.length == 0) {
+				System.err.println("No moves returned by the solver for game " + gs.showGameKey());
+				return false;
+			}            
+
+			// play all the moves until all done, or the game is won or lost
+			for (int i=0; i < moves.length; i++) {
+
+				gs.doAction(moves[i]);
+
+				state = gs.getGameState();
+
+				if (state == GameStateModel.LOST || state == GameStateModel.WON) {
+					break play;
+				}
+			}            
+		}
+
+		if (state == GameStateModel.LOST) {
+			return false;
+		} else {
+			return true;
+		}
+
 	}
 	
 }

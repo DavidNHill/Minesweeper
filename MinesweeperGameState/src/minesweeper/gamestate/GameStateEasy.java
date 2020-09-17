@@ -43,14 +43,13 @@ public class GameStateEasy extends GameStateModelViewer {
     @Override
     protected void startHandle(Location m) {
         
-        int i=0;
-        
+      
 		int adjacent = 9;
 		// corners
 		if (m.x == 0 && m.y == 0 || m.x == 0 && m.y == this.height - 1 || m.x == this.width - 1 && m.y == this.height - 1 || m.x == this.width - 1 && m.y == this.height - 1) {
 			adjacent = 4; 
 			// the edge
-		} else if (m.x == 0 || m.y == 0 || m.x == this.width - 1 || m.y == this.height){
+		} else if (m.x == 0 || m.y == 0 || m.x == this.width - 1 || m.y == this.height - 1){
 			adjacent = 6;
 		}
         
@@ -59,6 +58,45 @@ public class GameStateEasy extends GameStateModelViewer {
         	this.mines = this.width * this.height - adjacent;
         }
         
+		// create the tiles
+		Integer[] indices = new Integer[this.width * this.height - adjacent];
+		
+    	// find all the non-mine tile left
+		int index = 0;
+        for (int y=0; y < this.height; y++) {
+        	for (int x=0; x < this.width; x++) {
+            	
+            	if (Math.abs(x - m.x) > 1 || Math.abs(y - m.y) > 1) {
+                	int tile = y * this.width + x;
+                	indices[index++] = tile;
+            	}
+            	
+            }
+        }        
+
+		shuffle(indices, rng);
+		
+		// allocate the bombs and calculate the values
+		for (int i = 0; i < this.mines; i++) {
+			int tile = indices[i];
+			
+			int x = tile % this.width;
+			int y = tile / this.width;
+
+            board[x][y] = GameStateModel.MINE;
+            
+            // tell all the surrounding squares they are next to a mine
+            for (int j=0; j < DX.length; j++) {
+                if (x + DX[j] >= 0 && x + DX[j] < this.width && y + DY[j] >= 0 && y + DY[j] < this.height) {
+                    if (board[x+DX[j]][y+DY[j]] != GameStateModel.MINE) {
+                        board[x+DX[j]][y+DY[j]]++;
+                    }
+                }
+            }
+		}
+        
+		/*
+ 		int i=0;
         while (i < mines) {
             int y1 = (int) rng.random(this.height);
             int x1 = (int) rng.random(this.width);
@@ -85,7 +123,7 @@ public class GameStateEasy extends GameStateModelViewer {
             }
 
         }        
-        
+        */
     }
     
     // in this gamestate there is nothing to do

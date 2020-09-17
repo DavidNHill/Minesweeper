@@ -43,7 +43,7 @@ public class WitnessWeb {
     
     public WitnessWeb(BoardState boardState, List<? extends Location> allWit, Collection<Location> allSqu) {
         
-    	long nanoStart = System.nanoTime();
+    	//long nanoStart = System.nanoTime();
     	
         this.boardState = boardState;
         this.originalWitnesses = allWit;
@@ -91,9 +91,9 @@ public class WitnessWeb {
         }                
 
 
-    	long nanoEnd = System.nanoTime();
+    	//long nanoEnd = System.nanoTime();
         
-    	boardState.display("Created witness web in " + (nanoEnd - nanoStart) + " nano-seconds");
+    	//boardState.display("Created witness web in " + (nanoEnd - nanoStart) + " nano-seconds");
     	
     }
     

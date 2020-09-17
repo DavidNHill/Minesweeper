@@ -3,6 +3,7 @@ package minesweeper.solver.constructs;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
+import java.util.List;
 
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.Solver;
@@ -17,13 +18,13 @@ public class EvaluatedLocation extends Location {
 	private String description = "";
 	private BigDecimal expectedClears;
 	private final int fixedClears;  //number of tiles which are clears regardless of what value is revealed
-	private final boolean isCorner;
+	private List<Box> emptyBoxes;
 	
 	
 	private BigDecimal weighting; 
 
 	public EvaluatedLocation(int x, int y, BigDecimal clearProbability, BigDecimal progressProbability, BigDecimal expectedClears, int fixedClears, 
-			boolean isCorner, BigDecimal maxValueProgress) {
+			List<Box> emptyBoxes, BigDecimal maxValueProgress) {
 		super(x,y);
 		
 		this.clearProbability = clearProbability;
@@ -33,7 +34,7 @@ public class EvaluatedLocation extends Location {
 		this.expectedClears = expectedClears;
 		this.fixedClears = fixedClears;
 		this.maxValueProgress = maxValueProgress;
-		this.isCorner = isCorner;
+		this.emptyBoxes = emptyBoxes;
 		
 		calculateWeighting();
 		
@@ -79,6 +80,11 @@ public class EvaluatedLocation extends Location {
 		return maxValueProgress;
 	}
 	
+	public List<Box> getEmptyBoxes() {
+		return emptyBoxes;
+	}
+	
+	
 	public Action buildAction(MoveMethod method) {
 		
         String comment = description;
@@ -105,7 +111,10 @@ public class EvaluatedLocation extends Location {
 
 			int c = 0;
 			
-			c = -o1.weighting.compareTo(o2.weighting);  // tile with the highest weighting
+			if (c == 0) {
+				c = -o1.weighting.compareTo(o2.weighting);  // tile with the highest weighting
+			}
+
 
 			if (c == 0) {
 				c = -o1.expectedClears.compareTo(o2.expectedClears);  // then highest expected number of clears

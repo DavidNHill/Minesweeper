@@ -1,6 +1,8 @@
 package minesweeper.explorer.main;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -135,12 +137,23 @@ public class TileValuesController {
 
 				stage.setTitle(WINDOW_NAME + " (" + il.x + "," + il.y + ")");
 				
+				BigDecimal riskReward = null;
+				if (il.getProbability().compareTo(BigDecimal.ONE) != 0) {
+					riskReward = il.getProgressProbability().divide(BigDecimal.ONE.subtract(il.getProbability()), 2, RoundingMode.HALF_UP);
+				}
+				
 				for (ByValue bv: il.getByValueData()) {
 					items.add(new TileValueData(bv));
 				}
 				items.add(new TileValueData("Safe", Explorer.PERCENT.format(il.getProbability()), ""));
 				items.add(new TileValueData("Progress", Explorer.PERCENT.format(il.getProgressProbability()), Explorer.TWO_DP.format(il.getExpectedClears())));
 				items.add(new TileValueData("Score", Explorer.PERCENT.format(il.getWeighting()), ""));
+				items.add(new TileValueData("Exp Sol redn", Explorer.PERCENT.format(il.getExpectedSolutionSpaceReduction()), ""));
+				if (riskReward != null) {
+					items.add(new TileValueData("Prog/Risk", riskReward.toPlainString(), ""));
+				}
+
+
 			}
 		});            
 

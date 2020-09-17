@@ -6,12 +6,16 @@ package minesweeperbulk;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.random.DefaultRNG;
+import minesweeper.random.RNGJSF;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Preferences;
@@ -21,6 +25,7 @@ import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
+import minesweeperbulk.Recorder.Value;
 
 /**
  *
@@ -37,7 +42,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 50000;
+	private final static int MAX = 10000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;
@@ -55,6 +60,7 @@ public class MinesweeperBulk {
 	private static boolean[] mastery = new boolean[100];
 	private static int masteryCount = 0;
 	private static int maxMasteryCount = 0;
+	private static boolean masteryDone = false;
 	
 	public static void main(String[] args) {
 
@@ -68,27 +74,30 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 18138477;
-		seed = 259355150;
+		//seed = 1235498239;
+		//seed = -75482458;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
-		//DefaultRNG.setDefaultRNGClass(RNGKiss64.class);
+		//DefaultRNG.setDefaultRNGClass(RNGJSF.class);
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(15,13,62);
+		//GameSettings gameSettings = GameSettings.create(16,16,85);
+		//GameType gameType = GameType.STANDARD;
 		GameType gameType = GameType.STANDARD;
-		//GameType gameType = GameType.EASY;
+		
+		Recorder record3BV = new Recorder();
 		
 		while (played < MAX) {
 
-			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
-			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.nextLong());
+			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setRolloutSolutions(0);
+			GameStateModel gs = GameFactory.create(gameType, gameSettings, Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
 			Solver solver = new Solver(gs, settings, false);
-			
+			solver.setFlagFree(true);
+			solver.setPlayChords(true);
 			//solver.setTestMode();
-			//solver.setStartLocation(new Location(1, 1));
+			//solver.setStartLocation(new Location(5, 5));
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 
@@ -110,13 +119,20 @@ public class MinesweeperBulk {
 			
 			
 			if (result == WON) {
+				//System.out.println(gs.getSeed());
 				mastery[masteryIndex] = true;
 				masteryCount++;
 				maxMasteryCount = Math.max(masteryCount, maxMasteryCount);
+				if (maxMasteryCount == 52 && !masteryDone) {
+					masteryDone = true;
+					System.out.println("got to master " + maxMasteryCount + " after " + (played + 1) + " games played");
+				}
 				wins++;
+				record3BV.add(gs.get3BV(), true);
 			} else if (result == LOST) {
 				mastery[masteryIndex] = false;
 				losses++;
+				record3BV.add(gs.get3BV(), false);
 			} else {
 				mastery[masteryIndex] = false;
 				ignored++;
@@ -128,6 +144,22 @@ public class MinesweeperBulk {
 
 		long duration = System.currentTimeMillis() - start;
 
+		List<Value> histogram = record3BV.getValues();
+		
+		Collections.reverse(histogram);
+		int totalPlayed = 0;
+		int totalWon = 0;
+		for (Value value: histogram) {
+			totalPlayed = totalPlayed + value.played;
+			totalWon = totalWon + value.won;
+			double totalWinRate = (double) totalWon * 100d / (double) totalPlayed;
+			double winRate = (double) value.won * 100d / (double) value.played;
+			//System.out.println("3BV " + value.key + ", played " + value.played + ", won " + value.won + ", win " + MASK.format(winRate) + "%, win accumulated " + MASK.format(totalWinRate)
+			//  + " after " + totalPlayed + " games");
+			System.out.println(value.key + "," + value.played + "," + value.won + "," + winRate + "," + totalWinRate + "," + totalPlayed);
+		}
+		
+		
 		double p = (double) wins / (double) MAX;
 		double err = Math.sqrt(p * ( 1- p) / (double) played) * 1.9599d;
 		System.out.println("Seed " + seed + " played " + MAX + " games, Wins " + wins + " (" + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + "%) after " 
@@ -182,6 +214,11 @@ public class MinesweeperBulk {
 				MoveMethod method = moves[i].getMoveMethod();
 				//double prob = moves[i].getProb();
 				BigDecimal prob = moves[i].getBigProb();
+				
+				// only count games without guesses
+				//if (moves[i].getAction() == Action.CLEAR && !moves[i].isCertainty()) {
+				//	return LOST;
+				//}
 
 				if (prob.compareTo(BigDecimal.ZERO) <= 0 || prob.compareTo(BigDecimal.ONE) > 0) {
 					System.out.println("Game (" + gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].asString());

@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 public class EvaluateLocations {
@@ -243,7 +245,7 @@ public class EvaluateLocations {
 			//int clears = solver.validateLocationUsingLocalCheck(tile, i);
 			//if (clears > 0) {
 
-				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i);
+				SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i, pe.getDeadLocations());
 				BigInteger sol = counter.getSolutionCount();
 				int clears = counter.getClearCount();
 
@@ -283,7 +285,7 @@ public class EvaluateLocations {
 
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile), BigDecimal.ZERO);
+			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, null, BigDecimal.ZERO);
 			
 			if (linkedLocation != null) {
 				boardState.display("Considering with " + linkedLocation.getLinkedLocations().size() + " linked locations");
@@ -328,85 +330,59 @@ public class EvaluateLocations {
 		int maxMines = minesGot + superset.size();
 
 		BigDecimal probThisTile = pe.getProbability(tile);
-		LinkedLocation linkedLocation = pe.getLinkedLocation(tile);
-		int linkedTiles;
-		if (linkedLocation != null) {
-			linkedTiles = linkedLocation.getLinksCount();
-		} else {
-			linkedTiles = 0;
-		}
 
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		//BigDecimal expectedClears = BigDecimal.valueOf(1 + linkedTiles).multiply(probThisTile); 
 		//BigDecimal expectedClears = BigDecimal.ZERO; 
 		BigDecimal expectedClears = probThisTile; 
 
-		//boardState.display(tile.display() + " has " + linkedTiles + " linked tiles");
-
 		BigDecimal maxValueProgress = BigDecimal.ZERO;
 		BigDecimal progressProb = BigDecimal.ZERO;
 
+		Area deadLocations = pe.getDeadLocations();
+		//if (solver.preferences.isTestMode()) {
+		//	deadLocations = pe.getDeadLocations();
+		//} else {
+		//	deadLocations = Area.EMPTY_AREA;
+		//}
+		
+		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
 
-			SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i);
+			SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i, deadLocations);
 
 			BigInteger sol = counter.getSolutionCount();
-			int clears = counter.getClearCount();
+			int clears = counter.getLivingClearCount();
 
 			// keep track of the maximum probability across all valid values
 			if (sol.signum() != 0) {
+				
+				if (commonClears == null) {
+					commonClears = counter.getEmptyNonSingletonBoxes();
+				} else {
+					commonClears = mergeEmptyBoxes(commonClears, counter.getEmptyNonSingletonBoxes());
+				}
 				
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 				
 				maxValueProgress = maxValueProgress.max(prob);
 				
-				if (clears > linkedTiles) {
-					
-					boardState.display(tile.display() + " with value " + i + " has " + clears + " clears with probability " + prob.toPlainString());
+					boardState.display(tile.display() + " with value " + i + " has " + clears + " living clears with probability " + prob.toPlainString());
 
 					// expected clears is the sum of the number of mines cleared * the probability of clearing them
-					expectedClears = expectedClears.add(BigDecimal.valueOf(clears - linkedTiles).multiply(prob));   
+					expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
 
 					if (clears != 0) {
 						progressProb = progressProb.add(prob);
 					}
 					
-				} else {
-					boardState.display(tile.display() + " with value " + i + " only has linked clears");
-				}
-				
 			} else {
 				boardState.display(tile.display() + " with value " + i + " with probability zero");
 			}
-			
-
 
 		}
 
-		//if (linkedTiles > 0) {
-		//	progressProb = probThisTile;
-		//}
-
-		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, isCorner(tile), maxValueProgress);
-		//}
-
-
-		if (linkedLocation != null) {
-			boardState.display("Considering with " + linkedLocation.getLinkedLocations().size() + " linked locations");
-			top: for (Location link: linkedLocation.getLinkedLocations()) {
-				boardState.display("Linked with " + link.display());
-				for (EvaluatedLocation e: evaluated) {
-					if (e.equals(link)) {
-						boardState.display("Found link in evaluated" + link.display());
-						e.merge(result);
-						result = null;
-						break top;
-					}
-				}
-			}			
-		}
-
+		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, 0, commonClears, maxValueProgress);
 
 		long nanoEnd = System.nanoTime();
 
@@ -427,6 +403,54 @@ public class EvaluateLocations {
 
 	}
 
+	private List<Box> mergeEmptyBoxes(List<Box> boxes1, List<Box> boxes2) {
+		
+		if (boxes1.size() == 0) {
+			return boxes1;
+		}
+		
+		if (boxes2.size() == 0) {
+			return boxes2;
+		}
+		
+		List<Box> result = new ArrayList<>();
+		for (Box b1: boxes1) {
+			for (Box b2: boxes2) {
+				if (b1.equals(b2)) {
+					result.add(b1);
+					break;
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	
+	// find a move which 1) is safer than the move given and 2) when move is safe ==> the alternative is safe
+	private EvaluatedLocation findAlternativeMove(EvaluatedLocation move) {
+		
+		if (move.getEmptyBoxes() == null) {
+			return null;
+		}
+		
+		// if one of the common boxes contains a tile which has already been processed then the current tile is redundant
+		for (EvaluatedLocation eval: evaluated) {
+			if (eval.getProbability().subtract(move.getProbability()).compareTo(BigDecimal.valueOf(0.001d)) > 0) {  // the alternative move is at least a bit safe than the current move
+				for (Box b: move.getEmptyBoxes()) {  // see if the move is in the list of empty boxes
+					for (Location l: b.getSquares()) {
+						if (l.equals(eval)) {
+							return eval;
+						}
+					}
+				}
+			}
+		}
+
+		return null;
+		
+	}
+	
 	
 	private boolean isCorner(Location tile) {
 		if ((tile.x == 0 || tile.x == boardState.getGameWidth() - 1) && (tile.y == 0 || tile.y == boardState.getGameHeight() - 1)) {
@@ -454,6 +478,17 @@ public class EvaluateLocations {
 
 
 		EvaluatedLocation evalLoc = evaluated.get(0);
+		
+		// see if this guess has a strictly better guess
+		if (solver.preferences.isDoDomination()) {
+			EvaluatedLocation alternative = findAlternativeMove(evalLoc);
+			
+			if (alternative != null) {
+				boardState.display("Replacing " + evalLoc.display() + " with " + alternative.display());
+				evalLoc = alternative;
+			}			
+		}
+
 
 		Action action = new Action(evalLoc, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "", evalLoc.getProbability());
 

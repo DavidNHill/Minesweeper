@@ -101,6 +101,38 @@ public class Box {
 		
 	}
 	
+	@Override
+    public boolean equals(Object obj) {
+		
+		if (!(obj instanceof Box)) {
+			return false;
+		}
+		
+		Box box = (Box) obj;
+		
+		// to be equal they must have the same number of squares
+		if (this.squares.size() != box.squares.size()) {
+			return false;
+		}
+		
+		for (Square sq1: this.squares) {
+			boolean found = false;
+			for (Square sq2: box.squares) {
+				if (sq1.equals(sq2)) {
+					found = true;
+					break;
+				}
+			}
+			if (!found) {
+				return false;
+			}
+		}
+		
+		return true;
+		
+    }
+	
+	
 	/**
 	 * Add this square to the box
 	 * @param square

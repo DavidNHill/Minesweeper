@@ -9,7 +9,10 @@ import java.util.List;
 import java.util.Map;
 
 import minesweeper.solver.constructs.Box;
+import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.structure.Area;
+import minesweeper.structure.Location;
 
 /**
  * This class uses a non iterative approach to calculating the number of candidate solution in the game. It is driven by a {@link minesweeper.solver.WitnessWeb witness web}.
@@ -19,9 +22,15 @@ public class SolutionCounter {
 
 	private int[][] SMALL_COMBINATIONS = new int[][] {{1}, {1,1}, {1,2,1}, {1,3,3,1}, {1,4,6,4,1}, {1,5,10,10,5,1}, {1,6,15,20,15,6,1}, {1,7,21,35,35,21,7,1}, {1,8,28,56,70,56,28,8,1}};
 	
+	private static final boolean CHECK_FOR_DEAD_LOCATIONS = false;
+	
 	private class MergeSorter implements Comparator<ProbabilityLine> {
 
 		int[] checks;
+		
+		private MergeSorter() {
+			checks = new int[0];
+		}
 		
 		private MergeSorter(List<Box> boxes) {
 			
@@ -45,11 +54,6 @@ public class SolutionCounter {
 			
 			for (int i=0; i < checks.length; i++) {
 				int index = checks[i];
-				
-				//BigInteger c1 = p1.mineBoxCount[index].divide(p1.solutionCount);
-				//BigInteger c2 = p2.mineBoxCount[index].divide(p2.solutionCount);
-				
-				//c = c1.compareTo(c2);
 				
 				c = p1.allocatedMines[index] - p2.allocatedMines[index];
 				
@@ -115,6 +119,20 @@ public class SolutionCounter {
 	
 	}
 	
+	// information about the boxes surrounding a dead candidate
+	private class DeadCandidate {
+		
+		private Location candidate;
+		private Box myBox;
+		private boolean isAlive = false;
+		private List<Box> goodBoxes = new ArrayList<>();
+		private List<Box> badBoxes = new ArrayList<>();
+		
+		private boolean firstCheck = true;
+		private int total;
+	
+	}
+	
 	private long duration;
 	
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
@@ -136,6 +154,8 @@ public class SolutionCounter {
 	
 	private BigInteger finalSolutionsCount;
 	private int clearCount;
+	private int livingClearCount;
+	final private List<Box> emptyBoxes = new ArrayList<>();
 	
 	// these are the limits that can be on the edge
 	final private int minTotalMines;
@@ -143,6 +163,10 @@ public class SolutionCounter {
 	
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
+	// list of locations which are potentially dead
+	private List<DeadCandidate> deadCandidates = new ArrayList<>();
+	private Area deadLocations = Area.EMPTY_AREA;
+	private boolean canDoDeadTileAnalysis;
 	
 	public SolutionCounter(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft) {
 		
@@ -176,7 +200,7 @@ public class SolutionCounter {
 	/**
 	 * Run the solution counter
 	 */
-	public void process() {
+	public void process(Area deadLocations) {
 		
 		if (!web.isWebValid()) {  // if the web is invalid then nothing we can do
 			solver.display("Web is invalid - skipping the SolutionCounter processing");
@@ -185,6 +209,15 @@ public class SolutionCounter {
 		}
 		
 		long startTime = System.currentTimeMillis();
+		
+		// if we compress the probability lines before the edge is completely processed we can't use the data to look for dead tiles
+		canDoDeadTileAnalysis = CHECK_FOR_DEAD_LOCATIONS;
+		
+		if (CHECK_FOR_DEAD_LOCATIONS) {
+			determineCandidateDeadLocations();			
+		} else {
+			this.deadLocations = deadLocations;
+		}
 		
 		// create an initial solution of no mines anywhere
 		heldProbs.add(new ProbabilityLine(BigInteger.ONE));
@@ -218,6 +251,7 @@ public class SolutionCounter {
 		} else {
 			finalSolutionsCount = BigInteger.ZERO;
 			clearCount = 0;
+			livingClearCount = 0;
 		}
 
 		
@@ -388,6 +422,16 @@ public class SolutionCounter {
 			for (int i=0; i < emptyBox.length; i++) {
 				if (emptyBox[i]) {
 					 clearCount = clearCount + boxes.get(i).getSquares().size();
+					 
+					 for (Square sq: boxes.get(i).getSquares()) {
+						 if (!deadLocations.contains(sq)) {
+							 livingClearCount++;
+						 }
+					 }
+					 
+					 if (boxes.get(i).getSquares().size() > 0) {
+						 emptyBoxes.add(boxes.get(i));
+					 }
 				}
 			}						
 		}
@@ -430,7 +474,13 @@ public class SolutionCounter {
 			b.setProcessed(true);
 		}
 
+		//if we haven't compressed yet and we are still a small edge then don't compress
+		if (newProbs.size() < 50 && canDoDeadTileAnalysis) {
+			return newProbs;
+		}
 		
+		// about to compress the line
+		canDoDeadTileAnalysis = false;
 		
 		List<Box> boundaryBoxes = new ArrayList<>();
 		for (Box box: boxes) {
@@ -570,52 +620,9 @@ public class SolutionCounter {
 	// look for the next witness to process
 	private NextWitness findNextWitness(NextWitness prevWitness) {
 		
-		// flag the last set of details as processed
-		//prevWitness.witness.setProcessed(true);
-		//for (Box b: prevWitness.newBoxes) {
-		//	b.setProcessed(true);
-		//}
-
-
 		int bestTodo = 99999;
 		Witness bestWitness = null;
 
-		// find the next witness which reduces the boundary to the smallest
-		/*
-		for (Witness w: witnesses) {
-			if (w.isProcessed()) {
-				continue;
-			}
-			
-			w.setProcessed(true);
-			
-			int boundary = 0;
-			for (Box box: boxes) {
-				boolean notProcessed = false;
-				boolean processed = false;
-				for (Witness wit: box.getWitnesses()) {
-					if (wit.isProcessed()) {
-						processed = true;
-					} else {
-						notProcessed = true;
-					}
-					if (processed && notProcessed) {
-						boundary++;
-						break;
-					}
-				}
-			}
-			
-			w.setProcessed(false);
-			
-			if (boundary < bestTodo) {
-				bestTodo = boundary;
-				bestWitness = w;
-			}
-			
-		}
-		*/
-		
 		// and find a witness which is on the boundary of what has already been processed
 		for (Box b: boxes) {
 			if (b.isProcessed()) {
@@ -648,6 +655,21 @@ public class SolutionCounter {
 		
 		// since we have calculated all the mines in an independent set of witnesses we can crunch them down and store them for later
 		
+		// before we crunch everything down check for dead tiles
+		if (CHECK_FOR_DEAD_LOCATIONS) {
+			checkCandidateDeadLocations(canDoDeadTileAnalysis);
+			//checkEdgeIsDead();
+		}
+		
+		
+		// if we haven't compressed yet then do it now
+		if (canDoDeadTileAnalysis) {
+			MergeSorter sorter = new MergeSorter();
+			workingProbs = crunchByMineCount(workingProbs, sorter);
+		} else {
+			canDoDeadTileAnalysis = true;
+		}
+		
 		// get an unprocessed witness
 		NextWitness nw =  findFirstWitness();
 		
@@ -673,6 +695,232 @@ public class SolutionCounter {
 		
 	}
 	
+	private void checkCandidateDeadLocations(boolean checkPossible) {
+		
+		boolean completeScan;
+		if (squaresLeft == 0) {
+			completeScan = true;   // this indicates that every box has been considered in one sweep (only 1 independent edge)
+			for (int i=0; i < mask.length; i++) {
+				if (!mask[i]) {
+					completeScan = false;
+					break;
+				}
+			}
+			if (completeScan) {
+				display("This is a complete scan");
+			} else {
+				display("This is not a complete scan");
+			}			
+		} else {
+			completeScan = false;
+			display("This is not a complete scan because there are squares off the edge");
+		}
+
+		
+		for (DeadCandidate dc: deadCandidates) {
+			
+			if (dc.isAlive) {  // if this location isn't dead then no need to check any more
+				continue;
+			}
+			
+			// only do the check if all the boxes have been analysed in this probability iteration
+			int boxesInScope = 0;
+			for (Box b: dc.goodBoxes) {
+				if (mask[b.getUID()]) {
+					boxesInScope++;
+				}
+			}
+			for (Box b: dc.badBoxes) {
+				if (mask[b.getUID()]) {
+					boxesInScope++;
+				}
+			}
+			if (boxesInScope == 0) {
+				continue;
+			} else if (boxesInScope != dc.goodBoxes.size() + dc.badBoxes.size()) {
+				display("Location " + dc.candidate.display() + " has some boxes in scope and some out of scope so assumed alive");
+				dc.isAlive = true;
+				continue;
+			}
+			
+			//if we can't do the check because the edge has been compressed mid process then assume alive
+			if (!checkPossible) {
+				display("Location " + dc.candidate.display() + " was on compressed edge so assumed alive");
+				dc.isAlive = true;
+				continue;
+			}
+			
+			boolean okay = true;
+			int mineCount = 0;
+			line: for (ProbabilityLine pl: workingProbs) {
+
+				if (completeScan && pl.mineCount != minesLeft) {
+					continue;
+				}
+				
+				// ignore probability lines where the candidate is a mine
+				//if (pl.mineBoxCount[dc.myBox.getUID()].compareTo(BigInteger.valueOf(dc.myBox.getSquares().size())) == 0) {
+				if (pl.allocatedMines[dc.myBox.getUID()] == dc.myBox.getSquares().size()) {
+					//boardState.display("Location " + dc.candidate.display() + " I'm a mine on this Probability line");
+					mineCount++;
+					continue line;
+				}
+				
+				
+				// all the bad boxes must be zero
+				for (Box b: dc.badBoxes) {
+					
+					BigInteger requiredMines;
+                    //int requiredMines;
+                    if (b.getUID() == dc.myBox.getUID()) {
+                        requiredMines = BigInteger.valueOf(b.getSquares().size() - 1).multiply(pl.solutionCount);
+                    } else {
+                        requiredMines = BigInteger.valueOf(b.getSquares().size()).multiply(pl.solutionCount);
+                    }
+					
+					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].compareTo(requiredMines) != 0) {
+						display("Location " + dc.candidate.display() + " is not dead because a bad box is neither empty nor full of mines");
+						okay = false;
+						break line;
+					}
+				}
+				
+				//BigInteger tally = BigInteger.ZERO;
+				int tally = 0;
+				// the number of mines in the good boxes must always be the same
+				for (Box b: dc.goodBoxes) {
+					//tally = tally.add(pl.mineBoxCount[b.getUID()]);
+					tally = tally + pl.allocatedMines[b.getUID()];
+				}
+				//boardState.display("Location " + dc.candidate.display() + " has mine tally " + tally);
+				if (dc.firstCheck) {
+					dc.total = tally;
+					dc.firstCheck = false;
+				} else {
+					if (dc.total != tally) {
+						display("Location " + dc.candidate.display() + " is not dead because the sum of mines in good boxes is not constant. Was "
+					                       + dc.total + " now " + tally + ". Mines in probability line " + pl.mineCount);
+						okay = false;
+						break;
+					}
+				}
+			}
+			
+			// if a check failed or this tile is a mine for every solution then it is alive
+			if (!okay || mineCount == this.workingProbs.size()) {
+				dc.isAlive = true;
+			} else {
+				// add the dead locations we found 
+				deadLocations = deadLocations.add(dc.candidate);
+				display(dc.candidate.display() + " is dead");
+			}
+			
+		}
+		
+	}
+	
+	private void determineCandidateDeadLocations() {
+		
+		// for each square on the edge
+		for (Square loc: web.getSquares()) {
+			
+			List<Box> boxes = getAdjacentBoxes(loc);
+			
+			if (boxes == null) {  // this happens when the square isn't fully surrounded by boxes
+				continue;
+			}
+			
+			DeadCandidate dc = new DeadCandidate();
+			dc.candidate = loc;
+			dc.myBox = getBox(loc);
+			
+			for (Box box: boxes) {
+				
+				boolean good = true;
+				for (Square square: box.getSquares()) {
+					if (!square.isAdjacent(loc) && !square.equals(loc)) {
+						good = false;
+						break;
+					}
+				}
+				if (good) {
+					dc.goodBoxes.add(box); //  a good adjacent box is where all its Tiles are adjacent to the candidate
+				} else {
+					dc.badBoxes.add(box);  // otherwise it is a bad box
+				}
+				
+			}
+			
+			// if the tile has no boxes adjacent to it then it is already dead (i.e. surrounded by mines and witnesses only)
+			if (dc.goodBoxes.isEmpty() && dc.badBoxes.isEmpty()) {
+				deadLocations = deadLocations.add(dc.candidate);
+				display(dc.candidate.display() + " is dead since it has no open tiles around it");
+			} else {
+				deadCandidates.add(dc);
+			}
+
+		}
+
+		for (DeadCandidate dc: deadCandidates) {
+			display(dc.candidate.display() + " is candidate dead with " + dc.goodBoxes.size() + " good boxes and " + dc.badBoxes.size() + " bad boxes");
+		}
+		
+	}
+	
+	private List<Box> getAdjacentBoxes(Location loc) {
+		
+		List<Box> result = new ArrayList<>();
+		
+		//int sizeOfBoxes = 0;
+		
+		// get each adjacent location
+		for (Location adjLoc: solver.getAdjacentUnrevealedSquares(loc)) {
+			
+			// find the box it is in
+			boolean boxFound = false;
+			for (Box box: web.getBoxes()) {
+				if (box.contains(adjLoc)) {
+					boxFound = true;
+					// is the box already included?
+					boolean found = false;
+					for (Box oldBox: result) {
+						if (box.getUID() == oldBox.getUID()) {
+							found = true;
+							break;
+						}
+					}
+					// if not add it
+					if (!found) {
+						result.add(box);
+					}
+				}
+			}
+			
+			// if a box can't be found for the adjacent square then the location can't be dead
+			if (!boxFound) {
+				return null;
+			}
+			
+		}		
+		
+		return result;
+		
+	}
+	
+	private Box getBox(Location l) {
+		
+		for (Box b: boxes) {
+			if (b.contains(l)) {
+				return b;
+			}
+		}
+		
+		return null;
+	}
+	
+	private void display(String text) {
+		//solver.display(text);
+	}
 	
 	/**
 	 * The number of ways the mines can be placed in the game position
@@ -688,6 +936,22 @@ public class SolutionCounter {
 	 */
 	protected int getClearCount() {
 		return clearCount;
+	}
+	
+	/**
+	 * The number of locations which are definitely clears and also living
+	 * @return
+	 */
+	protected int getLivingClearCount() {
+		return livingClearCount;
+	}
+	
+	/**
+	 * The boxes which contain no mines
+	 * @return
+	 */
+	protected List<Box> getEmptyNonSingletonBoxes() {
+		return emptyBoxes;
 	}
 	
 	/**

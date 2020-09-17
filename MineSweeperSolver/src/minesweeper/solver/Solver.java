@@ -18,6 +18,7 @@ import java.util.Set;
 import Asynchronous.Asynchronous;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.RolloutGenerator.Adversarial;
 import minesweeper.solver.coach.CoachModel;
 import minesweeper.solver.coach.CoachSilent;
 import minesweeper.solver.constructs.CandidateLocation;
@@ -173,9 +174,6 @@ public class Solver implements Asynchronous<Action[]> {
     // when set the solver will gather detailed information about the possible values each tile can have
     // intended for use with the Minesweeper Explorer. Can have significant performance impact.
     //private boolean gatherDetailedInformation = true;
-    
-    // a flag to turn bits on and off if we want to do a comparison run
-    private boolean testMode = false;
     
     /**
      * Start the solver without a coach display
@@ -336,14 +334,6 @@ public class Solver implements Asynchronous<Action[]> {
     
     public boolean isShowProbabilityTree() {
     	return this.showProbabilityTree;
-    }
-    
-    public void setTestMode() {
-    	this.testMode = true;
-    }
-    
-    public boolean isTestMode() {
-    	return this.testMode;
     }
     
     public void setBFDAStartLocations(List<Location> start) {
@@ -688,34 +678,44 @@ public class Solver implements Asynchronous<Action[]> {
             	
                 // determine best way to solver them
                 BruteForceAnalysisModel bfa = cruncher.getBruteForceAnalysis();
-                bfa.process();
-                
-        		// if after trying to process the data we can't complete then abandon it
-        		if (!bfa.isComplete()) {
-        			displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bfa.getNodeCount() + " steps");
-        			bfa = null;
+                if (bfa != null) {
+                    bfa.process();
+                    
+            		// if after trying to process the data we can't complete then abandon it
+            		if (!bfa.isComplete()) {
+            			displayAlways(myGame.showGameKey() + " Abandoned the Brute Force Analysis after " + bfa.getNodeCount() + " steps");
+            			bfa = null;
 
-        		} else { // otherwise try and get the best long term move
-        			
-        			bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
-        			
-        			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
-        			Action move = bruteForceAnalysis.getNextMove(boardState);
-        			if (move != null) {
-        				display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
-        				//newLine("Brute Force Analysis move is " + move.asString());
-        				fm = new FinalMoves(move);
-        				return fm;
-        			} else {
-        				if (bruteForceAnalysis.allDead()) {
-        					display("All Brute Force Analysis moves are dead");
-        					Location anyLocWillDo = cruncher.getCrunchResult().square.get(0);
-            				fm = new FinalMoves(new Action(anyLocWillDo, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(anyLocWillDo)));
+            		} else { // otherwise try and get the best long term move
+            			
+            			bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
+            			
+            			newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
+            			Action move = bruteForceAnalysis.getNextMove(boardState);
+            			if (move != null) {
+            				display(myGame.showGameKey() + " Brute Force Analysis: " + move.asString());
+            				//newLine("Brute Force Analysis move is " + move.asString());
+            				fm = new FinalMoves(move);
             				return fm;
-        				}
-        				display(myGame.showGameKey() + " Brute Force Analysis: no move found!");
-        			}
-        		}            	
+            			} else {
+            				if (bruteForceAnalysis.allDead()) {
+            					display("All Brute Force Analysis moves are dead");
+            					Location anyLocWillDo = null;
+            					for (Location l: bruteForceAnalysis.getDeadLocations().getLocations()) {  // get the first location
+            						anyLocWillDo = l;
+            						break;
+            					}
+            					//Location anyLocWillDo = cruncher.getCrunchResult().square.get(0);
+                				fm = new FinalMoves(new Action(anyLocWillDo, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(anyLocWillDo)));
+                				return fm;
+            				}
+            				display(myGame.showGameKey() + " Brute Force Analysis: no move found!");
+            			}
+            		}            	
+                } else {
+                	display(myGame.showGameKey() + " Brute Force analysis class is null");
+                }
+
             } else {
             	display(myGame.showGameKey() + " Brute Force did not run");
             }
@@ -818,6 +818,27 @@ public class Solver implements Asynchronous<Action[]> {
             }
             display("----- Brute Force finished -----");        	
         }
+        
+        // if we have few enough solutions do an adversarial rollout
+        if (!fm.moveFound && !certainClearFound && !pe.isBestGuessOffEdge() && pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getRolloutSolutions())) < 0) {
+
+        	display("Doing adversarial rollout");
+        	
+        	long nanoStart = System.nanoTime();
+        	WitnessWeb arWholeEdge = new WitnessWeb(boardState, allWitnesses, allWitnessedSquares.getLocations());
+        	 
+        	RolloutGenerator rolloutGenerator = new RolloutGenerator(boardState, arWholeEdge, unrevealed, minesLeft);
+	   	   	rolloutGenerator.process();
+	   	   	
+	   	   	List<Adversarial<CandidateLocation>> rolloutResult = rolloutGenerator.adversarial(bestCandidates);
+	   	   	
+	   	   	fm = new FinalMoves(rolloutResult.get(0).original.buildAction(MoveMethod.ROLLOUT));
+	   	   	
+        	long nanoEnd = System.nanoTime();
+        	
+        	display("Adversarial rollout took " + (nanoEnd - nanoStart) / 1000000 + " milli seconds");
+	   	   	
+        }
 
         // if we haven't got a move from the BFDA
         if (!fm.moveFound) {
@@ -909,6 +930,10 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
+    
+    
+    
+    
     /**
      * This method will find the number of solutions which satisfy the constraints on the board
      */
@@ -935,7 +960,7 @@ public class Solver implements Asynchronous<Action[]> {
 	   	 System.out.println("Mines left=" + minesLeft + " unrevealed=" + unrevealed + " Witnesses=" + allWitnesses.size() + " witnessed tiles=" + allWitnessedSquares.size());
 		 
 	   	 SolutionCounter counter = new SolutionCounter(boardState, wholeEdge, unrevealed, minesLeft);
-	   	 counter.process();
+	   	 counter.process(Area.EMPTY_AREA);
 	   	 
 	   	 return counter.getSolutionCount();
         
@@ -1057,8 +1082,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 		for (int i = minMines; i <= maxMines; i++) {
 
-			SolutionCounter counter = validateLocationUsingSolutionCounter(wholeEdge, tile, i);
-
+			SolutionCounter counter = validateLocationUsingSolutionCounter(wholeEdge, tile, i, probEngine.getDeadLocations());
+			
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getClearCount();
 
@@ -1329,7 +1354,7 @@ public class Solver implements Asynchronous<Action[]> {
      /**
       * Checks whether this location can have the value using a probability engine check
       */
-     protected SolutionCounter validateLocationUsingSolutionCounter(WitnessWeb wholeEdge, Location superLocation, int value) {
+     protected SolutionCounter validateLocationUsingSolutionCounter(WitnessWeb wholeEdge, Location superLocation, int value, Area deadLocations) {
 
     	 // make the move
     	 boardState.setWitnessValue(superLocation, value);
@@ -1348,7 +1373,7 @@ public class Solver implements Asynchronous<Action[]> {
     	 int minesLeft = myGame.getMines() - boardState.getConfirmedFlagCount();
     	 
     	 SolutionCounter counter = new SolutionCounter(boardState, edge, unrevealed, minesLeft);
-    	 counter.process();
+    	 counter.process(deadLocations);
 
     	 //if (engine.getSolutionCount().compareTo(counter.getSolutionCount()) != 0) {
     	 //	 System.out.println("Counts don't agree");

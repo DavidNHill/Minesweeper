@@ -39,6 +39,44 @@ public class GameStateStandard extends GameStateModelViewer {
     @Override
     protected void startHandle(Location m) {
         
+		// create the tiles
+		Integer[] indices = new Integer[this.width * this.height - 1];
+		
+    	// find all the non-mine tile left
+		int index = 0;
+        for (int y=0; y < this.height; y++) {
+        	for (int x=0; x < this.width; x++) {
+            	
+            	if (x != m.x || y != m.y) {
+                	int tile = y * this.width + x;
+                	indices[index++] = tile;
+            	}
+            	
+            }
+        }        
+
+		shuffle(indices, rng);
+		
+		// allocate the bombs and calculate the values
+		for (int i = 0; i < this.mines; i++) {
+			int tile = indices[i];
+			
+			int x = tile % this.width;
+			int y = tile / this.width;
+
+            board[x][y] = GameStateModel.MINE;
+            
+            // tell all the surrounding squares they are next to a mine
+            for (int j=0; j < DX.length; j++) {
+                if (x + DX[j] >= 0 && x + DX[j] < this.width && y + DY[j] >= 0 && y + DY[j] < this.height) {
+                    if (board[x+DX[j]][y+DY[j]] != GameStateModel.MINE) {
+                        board[x+DX[j]][y+DY[j]]++;
+                    }
+                }
+            }
+		}
+    	
+		/*
         int i=0;
         
         while (i < mines) {
@@ -66,7 +104,8 @@ public class GameStateStandard extends GameStateModelViewer {
                 }               
             }
 
-        }        
+        }   
+        */     
         
     }
     

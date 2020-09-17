@@ -7,6 +7,7 @@ package minesweeper.gamestate;
 import java.util.ArrayList;
 import java.util.List;
 
+import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
@@ -557,6 +558,20 @@ abstract public class GameStateModel {
         }        
     	
     }
+    
+    // used to shuffle an array
+    static public <T>  void shuffle(T[] a, RNG rng) {
+
+        for (int i = a.length - 1; i > 0; i--) {
+            int j = (int) rng.random((i + 1));
+            //System.out.println(j);
+            T x = a[i];
+            a[i] = a[j];
+            a[j] = x;
+        }
+ 
+    }    
+    
     
     /**
      * Returns the recommended initial start location for this game type.
