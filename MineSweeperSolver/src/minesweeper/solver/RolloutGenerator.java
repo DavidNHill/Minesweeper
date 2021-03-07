@@ -163,7 +163,7 @@ public class RolloutGenerator {
 	}
 
 	/**
-	 * Run the solution counter
+	 * Run the Rollout generator
 	 */
 	public void process() {
 		
@@ -245,7 +245,7 @@ public class RolloutGenerator {
 		
 		BigInteger million = BigInteger.valueOf(1000000);
 		
-		// display the lines after dividing by Highest common divisor
+		// display the lines with a weight as a part of 1,000,000
 		for (ProbabilityLine pl: workingProbs) {
 			
 			if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid

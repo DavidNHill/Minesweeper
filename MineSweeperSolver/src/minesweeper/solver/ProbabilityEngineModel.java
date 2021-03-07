@@ -16,12 +16,13 @@ abstract public class ProbabilityEngineModel {
 	abstract protected long getDuration();
 	abstract protected long getIndependentGroups();
 	abstract public BigDecimal getProbability(Location l);
-	abstract protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold);
+	abstract protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold, boolean excludeDead);
 	abstract protected BigInteger getSolutionCount();
 	abstract protected BigDecimal getBestOnEdgeProb();
 	abstract protected BigDecimal getOffEdgeProb();
 	abstract protected boolean foundCertainty();
 	abstract protected Area getDeadLocations();
+	abstract protected int getDeadValueDelta(Location l);
 	abstract protected List<Location> getMines();
 	abstract protected List<LinkedLocation> getLinkedLocations();
 	abstract protected LinkedLocation getLinkedLocation(Location tile);

@@ -13,6 +13,7 @@ public class SolverSettings {
     protected boolean doTiebreak = true;
     protected int rolloutSolutions = 0;
     protected boolean doDomination = true;
+    protected boolean do5050Check = true;
     protected boolean testMode = false;
 	
     private boolean locked;
@@ -50,6 +51,15 @@ public class SolverSettings {
     	return this;
     }
     
+    public SolverSettings set5050Check(boolean check) {
+    	
+    	if (!locked) {
+        	this.do5050Check = check;
+    	}
+ 
+    	return this;
+    }
+    
     public SolverSettings setTestMode(boolean isTestMode) {
     	
     	if (!locked) {
@@ -81,6 +91,10 @@ public class SolverSettings {
 
 	public boolean isDoDomination() {
 		return doDomination;
+	}
+	
+	public boolean do5050Check() {
+		return this.do5050Check;
 	}
 	
 	public boolean isTestMode() {

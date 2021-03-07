@@ -42,7 +42,7 @@ public class MinesweeperBulk {
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
-	private final static int MAX = 10000;
+	private final static int MAX = 50000;
 	private final static int STEP = MAX / 5000;
 
 	private static int neverGuessed = 0;
@@ -62,6 +62,8 @@ public class MinesweeperBulk {
 	private static int maxMasteryCount = 0;
 	private static boolean masteryDone = false;
 	
+	private static int count8 = 0;
+	
 	public static void main(String[] args) {
 
 		int wins=0;
@@ -74,17 +76,17 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 1235498239;
-		//seed = -75482458;
+		seed = 1917209746;
+		//seed = -1217056997;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
 		//DefaultRNG.setDefaultRNGClass(RNGJSF.class);
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(16,16,85);
-		//GameType gameType = GameType.STANDARD;
+		//GameSettings gameSettings = GameSettings.create(6,7,33);
 		GameType gameType = GameType.STANDARD;
+		//GameType gameType = GameType.EASY;
 		
 		Recorder record3BV = new Recorder();
 		
@@ -94,10 +96,10 @@ public class MinesweeperBulk {
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
 			Solver solver = new Solver(gs, settings, false);
-			solver.setFlagFree(true);
-			solver.setPlayChords(true);
+			//solver.setFlagFree(true);
+			//solver.setPlayChords(true);
 			//solver.setTestMode();
-			//solver.setStartLocation(new Location(5, 5));
+			//solver.setStartLocation(new Location(1, 1));
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 
@@ -189,6 +191,8 @@ public class MinesweeperBulk {
 		double probability = 1;
 
 		int gameGuesses = 0;
+		
+		boolean has8 = false;
 
 
 		play: while (true) {
@@ -279,7 +283,21 @@ public class MinesweeperBulk {
 			}            
 		}
 
-
+		/*
+		if (state == GameStateModel.WON) {
+			for (int x=0; x < gs.getWidth(); x++) {
+				for (int y=0; y < gs.getHeight(); y++) {
+					
+					Location l = new Location(x,y);
+					int q = gs.query(l);
+					if (q == 8) {
+						System.out.println(gs.getSeed() + " has an 8");
+					}
+				}
+			}
+		}
+		*/
+		
 		if (state == GameStateModel.LOST) {
 			losingGuesses = losingGuesses + gameGuesses;
 			return LOST;

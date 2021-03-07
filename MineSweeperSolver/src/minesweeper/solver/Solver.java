@@ -96,7 +96,7 @@ public class Solver implements Asynchronous<Action[]> {
     //final static BigDecimal PROB_ENGINE_TOLERENCE = new BigDecimal("0.96"); // was 0.96    -- consider tiles on the edge with a threshold of this from the best value
     final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.95");  // was 0.98 --- consider off edge tiles which if they are above the threshold of the best on edge tile
     final static boolean PRUNE_BF_ANALYSIS = true;
-    final static boolean CHECK_FOR_50_50 = true;
+    //final static boolean CHECK_FOR_50_50 = true;
     final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = true;
     
     public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety
@@ -344,11 +344,6 @@ public class Solver implements Asynchronous<Action[]> {
     	return bfdaStartLocations;
     }
     
-    //public void setGatherDetailedInformation(boolean gather) {
-    //	this.gatherDetailedInformation = gather;
-    //}
-
-    
     private FinalMoves newProcess() {
         
     	FinalMoves fm = doNewProcess();
@@ -527,7 +522,7 @@ public class Solver implements Asynchronous<Action[]> {
         }
         result = fm.result;
         
-        
+        /*
         if (obvious + lessObvious == 0 && boardState.getIsolatedDeadTileCount() != 0) {
     		newLine("--------- Unavoidable Guess ---------");
     		newLine("An unavoidable guess has been found - playing now to save time");
@@ -537,10 +532,11 @@ public class Solver implements Asynchronous<Action[]> {
 			Action[] moves = boardState.getActions().toArray(new Action[0]);
 			fm = new FinalMoves(moves);
         }
+        */
         
         // look for a 50-50 guess which can't be avoided
         FinalMoves findFifty = null; 
-        if (obvious + lessObvious == 0 && !fm.moveFound && CHECK_FOR_50_50) {
+        if (obvious + lessObvious == 0 && !fm.moveFound && preferences.do5050Check()) {
         	findFifty = findFiftyFifty();
         	if (findFifty.moveFound) {
         		newLine("--------- Unavoidable Guess ---------");
@@ -586,7 +582,7 @@ public class Solver implements Asynchronous<Action[]> {
  
     	// if all the locations are dead then just use any one (unless there is only one solution)
         if (deadLocations.size() == allWitnessedSquares.size() && deadLocations.size() != 0) {
-        	if (pe.getSolutionCount().signum() == 0) {
+        	if (pe.getSolutionCount().compareTo(BigInteger.ONE) == 0) {
         		display("Only one solution left");
         	} else {
         		display("All locations are dead");
@@ -618,7 +614,7 @@ public class Solver implements Asynchronous<Action[]> {
     	
     	
     	// fetch the best candidates from the edge
-        List<CandidateLocation> bestCandidates = pe.getBestCandidates(PROB_ENGINE_TOLERENCE);
+        List<CandidateLocation> bestCandidates = pe.getBestCandidates(PROB_ENGINE_TOLERENCE, true);
 
         List<Location> allUnrevealedSquares = null;
         
@@ -646,6 +642,7 @@ public class Solver implements Asynchronous<Action[]> {
     	boolean certainClearFound = pe.foundCertainty();
     	
     	// if there are no certain moves then play any isolated dead tiles we have found
+    	/*
         if (!certainClearFound && boardState.getIsolatedDeadTileCount() != 0) {
         	Location isolatedDeadTile = boardState.getIsolatedDeadTile();
         	display("After probability engine: Guessing in an isolated dead zone at " + isolatedDeadTile.display());
@@ -656,6 +653,7 @@ public class Solver implements Asynchronous<Action[]> {
 			fm = new FinalMoves(moves);
 			return fm;
         }
+    	*/
     	
     	// if there are no certain moves then process any Isolated non-dead edges we have found
         if (!certainClearFound && !pe.getIsolatedEdges().isEmpty()) {
@@ -1399,8 +1397,7 @@ public class Solver implements Asynchronous<Action[]> {
 		for (int i=0; i < myGame.getWidth() - 1; i++) {
 			for (int j=0; j < myGame.getHeight(); j++) {
 
-				// need 2 unrevealed squares
-				//if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i + 1, j)) != GameStateModel.HIDDEN) {
+				// need 2 hidden tiles
 				if (!boardState.isUnrevealed(i, j) || !boardState.isUnrevealed(i + 1, j)) {
 					continue;
 				}
@@ -1422,8 +1419,7 @@ public class Solver implements Asynchronous<Action[]> {
 		for (int i=0; i < myGame.getWidth(); i++) {
 			for (int j=0; j < myGame.getHeight() - 1; j++) {
 				
-				// need 2 unrevealed squares
-				//if (myGame.query(new Location(i,j)) != GameStateModel.HIDDEN || myGame.query(new Location(i, j + 1)) != GameStateModel.HIDDEN) {
+				// need 2 hidden tiles
 				if (!boardState.isUnrevealed(i, j) || !boardState.isUnrevealed(i, j + 1)) {
 					continue;
 				}
@@ -1465,7 +1461,7 @@ public class Solver implements Asynchronous<Action[]> {
     // returns whether the witness at this location implies there is at most 1 mine adjacent to it
     private boolean isOnlyOne(int x, int y) {
     	
-    	if (x<0 || x >= myGame.getWidth() || y<0 || y >= myGame.getHeight()) {
+    	if (x < 0 || x >= myGame.getWidth() || y < 0 || y >= myGame.getHeight()) {
     		return false;
     	}
     	

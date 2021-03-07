@@ -61,7 +61,7 @@ public class EvaluateLocations {
 		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
 			for (Location tile: allUnrevealedSquares) {
 				if (!wholeEdge.isOnWeb(tile)) {
-					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0, 0));
+					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
 				}
 			}	
 			evaluateLocations(tileOfInterest);
@@ -86,7 +86,7 @@ public class EvaluateLocations {
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0, 0);
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0);
 					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						tileOfInterest.add(loc);
@@ -106,7 +106,7 @@ public class EvaluateLocations {
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterest.contains(tile)) {
 
-				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0, 0));
+				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
 				
 			}
 
@@ -340,11 +340,6 @@ public class EvaluateLocations {
 		BigDecimal progressProb = BigDecimal.ZERO;
 
 		Area deadLocations = pe.getDeadLocations();
-		//if (solver.preferences.isTestMode()) {
-		//	deadLocations = pe.getDeadLocations();
-		//} else {
-		//	deadLocations = Area.EMPTY_AREA;
-		//}
 		
 		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
@@ -358,23 +353,23 @@ public class EvaluateLocations {
 			if (sol.signum() != 0) {
 				
 				if (commonClears == null) {
-					commonClears = counter.getEmptyNonSingletonBoxes();
+					commonClears = counter.getEmptyBoxes();
 				} else {
-					commonClears = mergeEmptyBoxes(commonClears, counter.getEmptyNonSingletonBoxes());
+					commonClears = mergeEmptyBoxes(commonClears, counter.getEmptyBoxes());
 				}
 				
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 				
 				maxValueProgress = maxValueProgress.max(prob);
 				
-					boardState.display(tile.display() + " with value " + i + " has " + clears + " living clears with probability " + prob.toPlainString());
+				boardState.display(tile.display() + " with value " + i + " has " + clears + " living clears with probability " + prob.toPlainString());
 
-					// expected clears is the sum of the number of mines cleared * the probability of clearing them
-					expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
+				// expected clears is the sum of the number of mines cleared * the probability of clearing them
+				expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
 
-					if (clears != 0) {
-						progressProb = progressProb.add(prob);
-					}
+				if (clears != 0) {
+					progressProb = progressProb.add(prob);
+				}
 					
 			} else {
 				boardState.display(tile.display() + " with value " + i + " with probability zero");
@@ -436,7 +431,7 @@ public class EvaluateLocations {
 		
 		// if one of the common boxes contains a tile which has already been processed then the current tile is redundant
 		for (EvaluatedLocation eval: evaluated) {
-			if (eval.getProbability().subtract(move.getProbability()).compareTo(BigDecimal.valueOf(0.001d)) > 0) {  // the alternative move is at least a bit safe than the current move
+			if (eval.getProbability().subtract(move.getProbability()).compareTo(BigDecimal.valueOf(0.001d)) > 0) {  // the alternative move is at least a bit safer than the current move
 				for (Box b: move.getEmptyBoxes()) {  // see if the move is in the list of empty boxes
 					for (Location l: b.getSquares()) {
 						if (l.equals(eval)) {

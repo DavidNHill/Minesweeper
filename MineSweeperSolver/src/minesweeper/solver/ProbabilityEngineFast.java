@@ -415,7 +415,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 		List<ProbabilityLine> crunched = workingProbs;
 		
-		if (crunched.size() == 1) {
+		if (crunched.size() == 1) { // if the size is one then the number of mines in the area is fixed
 			checkEdgeIsIsolated();
 		}
 
@@ -999,7 +999,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 	
 	
-	protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold) {
+	protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold, boolean excludeDead) {
 		
 		List<CandidateLocation> best = new ArrayList<>();
 		
@@ -1023,18 +1023,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].compareTo(test) >= 0 ) {
-				if (!boxes.get(i).isDominated()) {
-					for (Square squ: boxes.get(i).getSquares()) {
-						if (!deadLocations.contains(squ) || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
-							best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ)));
-						} else {
-							boardState.display("Location " + squ.display() + " is ignored because it is dead");
-						}
+				for (Square squ: boxes.get(i).getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					if (!isDead || !excludeDead || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
+						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead));
+					} else {
+						boardState.display("Location " + squ.display() + " is ignored because it is dead");
 					}
-				} else {
-					boardState.display("Tile " + boxes.get(i).getSquares().get(0).display() + " is ignored because it is dominated");
 				}
-
 			}
 		}
 		
@@ -1170,6 +1166,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	}
 
+	/*
 	// an edge is dead if every tile on the edge is dead
 	private boolean checkEdgeIsDead() {
 		
@@ -1196,8 +1193,10 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		return true;
 	}
+	*/
 	
-	// an edge is isolated if every tile on it is completely surrounded by boxes also on the same edge
+	// an edge is isolated if every tile on it is completely surrounded by boxes also on the same edge 
+	// (we have already established this area has a fixed numebr of mines)
 	private boolean checkEdgeIsIsolated() {
 		
 		Set<Location> edgeTiles = new HashSet<>();
@@ -1391,6 +1390,24 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	// get the dead locations provided to the probability engine with any new ones dicovered
 	protected Area getDeadLocations() {
 		return this.deadLocations;
+	}
+	
+	// returns the number of additional mines surrounding this location
+	protected int getDeadValueDelta(Location l) {
+		
+		for (DeadCandidate dc: deadCandidates) {
+			if (dc.candidate.equals(l)) {
+				if (!dc.isAlive) {
+					return dc.total;
+				} else {
+					System.out.println(l.display() + " wants the dead value delta but isn't dead");
+					return 0;
+				}
+			}
+		}
+		
+		System.out.println(l.display() + " wants the dead value delta but isn't dead");
+		return 0;
 	}
 	
 	protected List<BruteForce> getIsolatedEdges() {

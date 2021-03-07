@@ -950,7 +950,7 @@ public class SolutionCounter {
 	 * The boxes which contain no mines
 	 * @return
 	 */
-	protected List<Box> getEmptyNonSingletonBoxes() {
+	protected List<Box> getEmptyBoxes() {
 		return emptyBoxes;
 	}
 	

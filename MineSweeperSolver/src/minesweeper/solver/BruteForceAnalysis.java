@@ -293,7 +293,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			//if we can never exceed the cutoff then no point continuing
 			if (Solver.PRUNE_BF_ANALYSIS && this.getSolutionSize() - move.mineCount <= this.winningLines) {
 				move.pruned = true;
-				return 0;
+				return (this.getSolutionSize() - move.mineCount);
 			}
 			
 			int winningLines = getWinningLines(1, move, this.winningLines);
@@ -319,7 +319,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			// if the max possible winning lines is less than the current cutoff then no point doing the analysis
 			if (Solver.PRUNE_BF_ANALYSIS && notMines <= cutoff) {
 				move.pruned = true;
-				return 0;
+				return notMines;
 			}
 			
 			// we're going to have to do some work
@@ -358,9 +358,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 							
 							// now calculate the winning lines for each of these children
 							int winningLines = child.getWinningLines(depth + 1, childMove, child.winningLines);
-							if (child.winningLines < winningLines || (child.bestLiving != null && child.winningLines == winningLines && child.bestLiving.mineCount < childMove.mineCount)) {
-								child.winningLines = winningLines;
-								child.bestLiving = childMove;
+							if (!childMove.pruned) {
+								if (child.winningLines < winningLines || (child.bestLiving != null && child.winningLines == winningLines && child.bestLiving.mineCount < childMove.mineCount)) {
+									child.winningLines = winningLines;
+									child.bestLiving = childMove;
+								}
 							}
 							
 							// if there are no mines then this is a 100% safe move, so skip any further analysis since it can't be any better
@@ -404,7 +406,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
 				if (Solver.PRUNE_BF_ANALYSIS && result + notMines <= cutoff) {
 					move.pruned = true;
-					return 0;
+					return (result + notMines);
 				}
 				
 			}
@@ -607,15 +609,17 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 
 			int winningLines = top.getWinningLines(move);  // calculate the number of winning lines if this move is played
 			
-			if (best < winningLines || (top.bestLiving != null && best == winningLines && top.bestLiving.mineCount < move.mineCount)) {
-				best = winningLines;
-				top.bestLiving = move;
+			if (!move.pruned) {
+				if (best < winningLines || (top.bestLiving != null && best == winningLines && top.bestLiving.mineCount < move.mineCount)) {
+					best = winningLines;
+					top.bestLiving = move;
+				}
 			}
 			
 			BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
 			
 			if (move.pruned) {
-				solver.display(move.index + " " + locations.get(move.index).display() + " is living with " + move.count + " possible values and probability " + percentage(singleProb) + ", this location was pruned");
+				solver.display(move.index + " " + locations.get(move.index).display() + " is living with " + move.count + " possible values and probability " + percentage(singleProb) + ", this location was pruned (max winning lines " + winningLines + ")");
 			} else {
 				solver.display(move.index + " " + locations.get(move.index).display() + " is living with " + move.count + " possible values and probability " + percentage(singleProb) + ", winning lines " + winningLines);
 			}

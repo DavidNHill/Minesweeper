@@ -61,7 +61,7 @@ public class BoardState {
 	private int testMoveBalance = 0;
 	
 	private Set<Location> livingWitnesses = new HashSet<>();
-	private Set<Location> isolatedDeadTiles = new HashSet<>();
+	//private Set<Location> isolatedDeadTiles = new HashSet<>();
 	
 	public BoardState(Solver solver) {
 
@@ -179,7 +179,7 @@ public class BoardState {
 						// if this is a new unrevealed location then set it up and inform it's neighbours they have one less unrevealed adjacent location
 						if (!revealed[i][j]) {
 
-							isolatedDeadTiles.remove(location);   // remove 
+							//isolatedDeadTiles.remove(location);   // remove 
 							
 							livingWitnesses.add(location);  // add this to living witnesses
 							//display("Location (" + i + "," + j + ") is revealed");
@@ -413,24 +413,24 @@ public class BoardState {
 	/**
 	 * Add a isolated dead tile
 	 */
-	protected void addIsolatedDeadTile(Location loc) {
-		isolatedDeadTiles.add(loc);
-	}
+	//protected void addIsolatedDeadTile(Location loc) {
+	//	isolatedDeadTiles.add(loc);
+	//}
 	
-	public int getIsolatedDeadTileCount() {
-		return this.isolatedDeadTiles.size();
-	}
+	//public int getIsolatedDeadTileCount() {
+	//	return this.isolatedDeadTiles.size();
+	//}
 	
 	/**
 	 * Returns and removes the first Isolated Dead Tile in the set
 	 */
-	public Location getIsolatedDeadTile() {
-		for (Location loc: isolatedDeadTiles) {
-			//isolatedDeadTiles.remove(loc);
-			return loc;
-		}
-		return null;
-	}
+	//public Location getIsolatedDeadTile() {
+	//	for (Location loc: isolatedDeadTiles) {
+	//		//isolatedDeadTiles.remove(loc);
+	//		return loc;
+	//	}
+	//	return null;
+	//}
 
 	protected List<Location> getWitnesses(Collection<? extends Location> square) {
 		return new ArrayList<Location>(getWitnessesArea(square).getLocations());
@@ -724,7 +724,7 @@ public class BoardState {
 		totalFlagsConfirmed++;
 		flagConfirmed[loc.x][loc.y] = true;
 
-		isolatedDeadTiles.remove(loc);   // remove a tile which is definitely a mine from the Isolated Dead Tiles set
+		//isolatedDeadTiles.remove(loc);   // remove a tile which is definitely a mine from the Isolated Dead Tiles set
 		
 		// if the flag isn't already on the board then this is also another on the total of all flags
 		if (!flagOnBoard[loc.x][loc.y]) {

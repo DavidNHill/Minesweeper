@@ -12,20 +12,20 @@ public class CandidateLocation extends Location {
 	private String description = "";
 	private final int adjSquares;
 	private final int adjFlags;
-	private final int count;  // the number of different values this square can be (other than a mine)
+	private final boolean dead;  // Whether the tile is dead
 	
 	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags) {
-		this(x,y, prob, adjSquares, adjFlags, 0);
+		this(x, y, prob, adjSquares, adjFlags, false);
 		
 	}
 
-	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags, int count) {
+	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags, boolean dead) {
 		super(x,y);
 		
 		this.prob = prob;
 		this.adjSquares = adjSquares;
 		this.adjFlags = adjFlags;
-		this.count = count;
+		this.dead = dead;
 		
 	}
 	
@@ -33,8 +33,8 @@ public class CandidateLocation extends Location {
 		return this.prob;
 	}
 	
-	public int getCount() {
-		return this.count;
+	public boolean isDead() {
+		return this.dead;
 	}
 	
 	public void setDescription(String desc) {
@@ -77,14 +77,11 @@ public class CandidateLocation extends Location {
 			
 			c = -o1.prob.compareTo(o2.prob);  // highest probability first
 			if (c == 0) {
-				c = -(o1.count  - o2.count);
+				c = -(o1.adjFlags - o2.adjFlags);  // highest number of flags 2nd
 				if (c == 0) {
-					c = -(o1.adjFlags - o2.adjFlags);  // highest number of flags 2nd
+					c=  o1.adjSquares - o2.adjSquares;  // lowest adjacent free squares
 					if (c == 0) {
-						c=  o1.adjSquares - o2.adjSquares;  // lowest adjacent free squares
-						if (c == 0) {
-							c = o1.sortOrder - o2.sortOrder;  // location order
-						}
+						c = o1.sortOrder - o2.sortOrder;  // location order
 					}
 				}
 			}
