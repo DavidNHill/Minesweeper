@@ -85,10 +85,10 @@ public class GameStateX extends GameStateModelViewer {
 		int value = scanner.getValue(m.x, m.y);
 		
 		if (value == ScreenScanner.HIDDEN) {
-			System.out.println("value at " + m.display() + " is hidden and yet queried!");
+			System.out.println("value at " + m.toString() + " is hidden and yet queried!");
 		}
 		if (value == ScreenScanner.FLAG) {
-			System.out.println("value at " + m.display() + " is a flag and yet queried!");
+			System.out.println("value at " + m.toString() + " is a flag and yet queried!");
 		}
 		
 		

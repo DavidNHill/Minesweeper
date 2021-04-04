@@ -5,7 +5,6 @@ import java.math.BigInteger;
 import minesweeper.explorer.gamestate.GameStateExplorer;
 import minesweeper.explorer.structure.Board;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SolverSettings;

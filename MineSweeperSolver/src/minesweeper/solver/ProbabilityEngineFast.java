@@ -18,6 +18,8 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.utility.Logger;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
@@ -164,7 +166,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private boolean offEdgeBest = true;
 	private BigDecimal offEdgeProbability;
 	private BigDecimal bestProbability;
-	private BigDecimal cutoffProbability;
+	//private BigDecimal cutoffProbability;
 
 	//when set to true indicates that the box has been part of this analysis
 	private boolean[] mask;           
@@ -181,6 +183,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private List<BruteForce> isolatedEdges = new ArrayList<>();
 	
 	final private BoardState boardState;
+	private final Logger logger;
 	final private WitnessWeb web;
 	final private int boxCount;
 	final private List<Witness> witnesses;
@@ -194,6 +197,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private boolean canDoDeadTileAnalysis;
 	
 	private BigInteger finalSolutionsCount;
+	private int clearCount;
+	private int livingClearCount;
+	final private List<Box> emptyBoxes = new ArrayList<>();
 	
 	// these are the limits that can be on the edge
 	final private int minTotalMines;
@@ -202,10 +208,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	//final private Set<Integer> mineCounts = new HashSet<>();
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
 	
-	
 	public ProbabilityEngineFast(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
+		this(boardState, web, squaresLeft, minesLeft, boardState.getLogger());
+		
+	}
+	public ProbabilityEngineFast(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft, Logger logger) {
 		
 		this.boardState = boardState;
+		this.logger = logger;
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
@@ -357,7 +367,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 		result.add(current);
 
-		boardState.display(target.size() + " Probability Lines compressed to " + result.size()); 
+		logger.log(Level.DEBUG, "%d Probability Lines compressed to %d", target.size(), result.size()); 
 			
 		return result;
 		
@@ -524,9 +534,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
 				
 				if (mineCounts.put(pl.mineCount, pl.solutionCount) != null) {
-					System.out.println("Duplicate mines in probability Engine");
+					logger.log(Level.WARN, "Duplicate mines in probability Engine (merging probability lines not working?)");
 				}
-					
 				
 				BigInteger mult = Solver.combination(minesLeft - pl.mineCount, squaresLeft);  //# of ways the rest of the board can be formed
 				
@@ -543,7 +552,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 		}		
 		
-		boardState.display("Total Candidate solutions " + totalTally);
+		logger.log(Level.INFO, "Total Candidate solutions found %d", totalTally);
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (totalTally.signum() != 0) {
@@ -612,6 +621,25 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 		finalSolutionsCount = totalTally;
 
+		// determine how many clear squares there are
+		if (totalTally.signum() > 0) {
+			for (int i=0; i < tally.length; i++) {
+				if (tally[i].signum() == 0) {
+					 clearCount = clearCount + boxes.get(i).getSquares().size();
+					 
+					 for (Square sq: boxes.get(i).getSquares()) {
+						 if (!deadLocations.contains(sq)) {
+							 livingClearCount++;
+						 }
+					 }
+					 
+					 if (boxes.get(i).getSquares().size() > 0) {
+						 emptyBoxes.add(boxes.get(i));
+					 }
+				}
+			}						
+		}
+		
 		// see if we can find a guess which is better than outside the boxes
 		BigDecimal hwm = offEdgeProbability;
 		
@@ -635,21 +663,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			}
 		}
 		
-		//for (BigDecimal bd: boxProb) {
-		//	if (hwm.compareTo(bd) <= 0) {
-		//		offEdgeBest = false;
-		//		hwm = bd;
-		//	}
-		//	hwm = hwm.max(bd);
-		//}
+
 		
 		bestProbability = hwm;
 		
-		if (bestProbability.compareTo(BigDecimal.ONE) == 0) {
-			cutoffProbability = BigDecimal.ONE;
-		} else {
-			cutoffProbability = bestProbability.multiply(Solver.PROB_ENGINE_TOLERENCE);
-		}
+
 		
 		
 		//solver.display("probability off web is " + outsideProb);
@@ -742,7 +760,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			boardState.display("Probability Engine recursion = " + recursions);
+			logger.log(Level.WARN, "Probability Engine recursion exceeding %d iterations", recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();
@@ -857,7 +875,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		BigInteger[] divide = result.divideAndRemainder(pl.solutionCount);
 		if (divide[1].signum() != 0) {
-			System.out.println("Min Box Count divide has non-zero remainder " + divide[1]);
+			logger.log(Level.WARN, "Min Box Count divide has non-zero remainder &d", divide[1]);
 		}
 		
 		
@@ -1019,7 +1037,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			test = bestProbability.multiply(freshhold);
 		}
 
-		boardState.display("Best probability is " + bestProbability + " freshhold is " + test);
+		logger.log(Level.INFO, "Best probability is %f, cutoff freshhold is %f", bestProbability, test);
 		
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].compareTo(test) >= 0 ) {
@@ -1028,7 +1046,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					if (!isDead || !excludeDead || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
 						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead));
 					} else {
-						boardState.display("Location " + squ.display() + " is ignored because it is dead");
+						logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
 					}
 				}
 			}
@@ -1054,13 +1072,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				}
 			}
 			if (completeScan) {
-				boardState.display("This is a complete scan");
+				logger.log(Level.DEBUG, "This is a complete scan");
 			} else {
-				boardState.display("This is not a complete scan");
+				logger.log(Level.DEBUG, "This is not a complete scan");
 			}			
 		} else {
 			completeScan = false;
-			boardState.display("This is not a complete scan because there are squares off the edge");
+			logger.log(Level.DEBUG, "This is not a complete scan because there are squares off the edge");
 		}
 
 		
@@ -1085,14 +1103,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			if (boxesInScope == 0) {
 				continue;
 			} else if (boxesInScope != dc.goodBoxes.size() + dc.badBoxes.size()) {
-				boardState.display("Location " + dc.candidate.display() + " has some boxes in scope and some out of scope so assumed alive");
+				logger.log(Level.DEBUG, "Tile %s has some boxes in scope and some out of scope so assumed alive", dc.candidate);
 				dc.isAlive = true;
 				continue;
 			}
 			
 			//if we can't do the check because the edge has been compressed mid process then assume alive
 			if (!checkPossible) {
-				boardState.display("Location " + dc.candidate.display() + " was on compressed edge so assumed alive");
+				logger.log(Level.DEBUG, "Tile %s was on compressed edge so assumed alive", dc.candidate);
 				dc.isAlive = true;
 				continue;
 			}
@@ -1126,7 +1144,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
                     }
 					
 					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].compareTo(requiredMines) != 0) {
-						boardState.display("Location " + dc.candidate.display() + " is not dead because a bad box is neither empty nor full of mines");
+						logger.log(Level.DEBUG, "Tile %s is not dead because a bad box is neither empty nor full of mines", dc.candidate);
 						okay = false;
 						break line;
 					}
@@ -1145,8 +1163,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					dc.firstCheck = false;
 				} else {
 					if (dc.total != tally) {
-						boardState.display("Location " + dc.candidate.display() + " is not dead because the sum of mines in good boxes is not constant. Was "
-					                       + dc.total + " now " + tally + ". Mines in probability line " + pl.mineCount);
+						logger.log(Level.DEBUG, "Tile %s is not dead because the sum of mines in good boxes is not constant. Was %d now %d. Mines in probability line %d", dc.candidate, dc.total, tally, pl.mineCount);
 						okay = false;
 						break;
 					}
@@ -1159,7 +1176,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			} else {
 				// add the dead locations we found 
 				deadLocations = deadLocations.add(dc.candidate);
-				boardState.display(dc.candidate.display() + " is dead");
+				logger.log(Level.INFO, "%s is dead", dc.candidate);
 			}
 			
 		}
@@ -1216,7 +1233,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
         // if this edge is everything then it isn't an isolated edge
         if (everything) {
-        	boardState.display("Not isolated because the edge is everything");
+        	logger.log(Level.DEBUG, "Not isolated because the edge is everything");
         	return false;
         }
         
@@ -1226,14 +1243,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
             if (this.mask[i]) {   
             	for (Square tile: boxes.get(i).getSquares()) {
             		if (!edgeTiles.containsAll(boardState.getAdjacentUnrevealedSquares(tile))) {
-            			boardState.display("Not isolated because a tile's adjacent tiles isn't on the edge: " + tile.display());
+            			logger.log(Level.DEBUG, "Not isolated because a tile's adjacent tiles isn't on the edge: %s", tile);
             			return false;
             		}
             	}
             }
         }
 
-        boardState.display("*** Isolated Edge found ***");
+        logger.log(Level.INFO, "Isolated Edge found");
         
         List<Location> tiles = new ArrayList<>(edgeTiles);
         List<Location> witnesses = new ArrayList<>(edgeWitnesses);
@@ -1287,7 +1304,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				//Set<Location> newDead = new HashSet<>();
 				//newDead.add(dc.candidate);
 				deadLocations = deadLocations.add(dc.candidate);
-				boardState.display(dc.candidate.display() + " is dead since it has no open tiles around it");
+				logger.log(Level.INFO, "Tile %s is dead since it is isolated", dc.candidate);
 			} else {
 				deadCandidates.add(dc);
 			}
@@ -1295,7 +1312,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		}
 
 		for (DeadCandidate dc: deadCandidates) {
-			boardState.display(dc.candidate.display() + " is candidate dead with " + dc.goodBoxes.size() + " good boxes and " + dc.badBoxes.size() + " bad boxes");
+			logger.log(Level.DEBUG, "%s is candidate dead with %d good boxes and %d bad boxes", dc.candidate, dc.goodBoxes.size(), dc.badBoxes.size());
 		}
 		
 	}
@@ -1368,6 +1385,32 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	}
 	
 	/**
+	 * The number of locations which are definitely clears
+	 * @return
+	 */
+	protected int getClearCount() {
+		return clearCount;
+	}
+	
+	/**
+	 * The number of locations which are definitely clears and also living
+	 * @return
+	 */
+	@Override
+	protected int getLivingClearCount() {
+		return livingClearCount;
+	}
+	
+	/**
+	 * The boxes which contain no mines
+	 * @return
+	 */
+	@Override
+	protected List<Box> getEmptyBoxes() {
+		return emptyBoxes;
+	}
+	
+	/**
 	 * The duration to do the processing in milliseconds
 	 * @return
 	 */
@@ -1400,13 +1443,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				if (!dc.isAlive) {
 					return dc.total;
 				} else {
-					System.out.println(l.display() + " wants the dead value delta but isn't dead");
+					logger.log(Level.WARN, "Request for Tile %s Dead value delta but it isn't dead!", l);
 					return 0;
 				}
 			}
 		}
 		
-		System.out.println(l.display() + " wants the dead value delta but isn't dead");
+		logger.log(Level.WARN, "Request for Tile %s Dead value delta but isn't dead", l);
 		return 0;
 	}
 	

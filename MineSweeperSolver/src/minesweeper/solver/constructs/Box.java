@@ -25,6 +25,9 @@ public class Box {
 	
 	private boolean dominated = false;
 	
+	// this is used to indicate how many tiles in the box must not contain mine.
+	private int emptyTiles = 0;
+	
 	public Box(Square square, int uid) {
 		
 		this.uid = uid;
@@ -180,22 +183,38 @@ public class Box {
 		return this.dominated;
 	}
 	
+	public int getEmptyTiles() {
+		return emptyTiles;
+	}
+
+
+	public void incrementEmptyTiles() {
+		this.emptyTiles++;
+		// can't have more mines than there are squares to put them
+		if (this.maxMines > this.squares.size() - this.emptyTiles) {
+			this.maxMines = this.squares.size() - this.emptyTiles;
+		}
+	}
+	
 	public void display() {
 		
 		System.out.print("Box Witnesses: ");
 		for (Witness w: adjWitnesses) {
-			System.out.print(w.display());
+			System.out.print(w.toString());
 		}
 		System.out.println("");
 		
 		System.out.print("Box Squares: ");
 		for (Square squ: squares) {
-			System.out.print(squ.display());
+			System.out.print(squ.toString());
 		}
 		System.out.println("");
 		System.out.println("Mines: max " + maxMines + " min " + minMines);
 		
 	}
+
+
+
 	
 	
 }

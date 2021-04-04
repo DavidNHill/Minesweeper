@@ -11,6 +11,7 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.iterator.WitnessWebIterator;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Location;
 
 public class BruteForce {
@@ -56,11 +57,11 @@ public class BruteForce {
 
 	public void process() {
 
-		boardState.display("Brute force on " + web.getSquares().size() + " Squares with " + mines + " mines");
+		solver.logger.log(Level.INFO, "Brute force on %d Squares with %d mines", web.getSquares().size(), mines);
 		
 		// if we have no mines to place then everything must be a clear
 		if (mines == 0 ) {
-			boardState.display("brute force but already found all the mines - clear all the remaining squares");
+			solver.logger.log(Level.INFO, "brute force but already found all the mines - clear all the remaining squares");
 			for (Square squ: web.getSquares()) {
 				results.add(new CandidateLocation(squ.x, squ.y, BigDecimal.ONE, boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ)));
 			}
@@ -101,9 +102,9 @@ public class BruteForce {
 					actIterations = actIterations + i.getIterations();
 				}
 
-				boardState.display("Expected iterations = " + iterations + " Actual iterations = " + actIterations);
+				solver.logger.log(Level.DEBUG, "Expected iterations %d Actual iterations %d", iterations, actIterations);
 
-				boardState.display("Found " + crunchResult.bigGoodCandidates + " candidate solutions in the " + scope);
+				solver.logger.log(Level.INFO, "Found %d candidate solutions in the %s", crunchResult.bigGoodCandidates, scope);
 				
 				certainClear = findCertainClear(crunchResult);
 				if (certainClear) {
@@ -144,11 +145,11 @@ public class BruteForce {
 				*/
 
 			} else {
-				boardState.display("Brute Force too large with " + iterations + " iterations");
+				solver.logger.log(Level.WARN, "Brute Force too large with %d iterations", iterations);
 			}
 
 		} else {                             
-			boardState.display("Brute Force not performed since there are no witnesses");
+			solver.logger.log(Level.INFO, "Brute Force not performed since there are no witnesses");
 		}
 
 	}
@@ -156,18 +157,18 @@ public class BruteForce {
 	// break a witness web search into a number of non-overlapping iterators
 	private WitnessWebIterator[] buildParallelIterators(int mines, BigInteger totalIterations) {
 
-		boardState.display("Building parallel iterators");
+		solver.logger.log(Level.DEBUG, "Building parallel iterators");
 
 		//WitnessWebIterator[] result1 = new WitnessWebIterator[1];
 		//result1[0] = new WitnessWebIterator(web, mines);
 		//return result1;
 
-		boardState.display("Non independent iterations = " + web.getNonIndependentIterations(mines));
+		solver.logger.log(Level.DEBUG, "Non independent iterations %d", web.getNonIndependentIterations(mines));
 
 
 		// if there is only one cog then we can't lock it,so send back a single iterator
 		if (web.getIndependentWitnesses().size() == 1 && web.getIndependentMines() >= mines || totalIterations.compareTo(Solver.PARALLEL_MINIMUM) < 0 || web.getPrunedWitnesses().size() == 0) {
-			boardState.display("Only a single iterator will be used");
+			solver.logger.log(Level.DEBUG, "Only a single iterator will be used");
 			WitnessWebIterator[] result = new WitnessWebIterator[1];
 			result[0] = new WitnessWebIterator(web, mines);
 			return result;
@@ -180,7 +181,7 @@ public class BruteForce {
 
 		int iter = bigIterations.intValue();
 
-		boardState.display("The first cog has " + iter + " iterations, so parallel processing is possible");
+		solver.logger.log(Level.DEBUG, "The first cog has %d iterations, so parallel processing is possible", iter);
 
 		WitnessWebIterator[] result = new WitnessWebIterator[iter];
 
@@ -197,7 +198,7 @@ public class BruteForce {
 	// process the iterators in parallel
 	private CrunchResult crunchParallel(List<Square> square, List<Witness> witness, boolean calculateDistribution, WitnessWebIterator... iterator) {
 
-		boardState.display("At parallel crunch");
+		solver.logger.log(Level.DEBUG, "At parallel iterator processing");
 
 		Cruncher[] crunchers = new Cruncher[iterator.length];
 
@@ -211,7 +212,7 @@ public class BruteForce {
 		try {
 			monitor.startAndWait();
 		} catch (Exception ex) {
-			System.out.println("Parallel processing caused an error!");
+			solver.logger.log(Level.ERROR, "Parallel processing caused an error: %s", ex.getMessage());
 			ex.printStackTrace();
 		}
 

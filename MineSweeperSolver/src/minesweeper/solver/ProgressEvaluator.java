@@ -15,11 +15,12 @@ import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.constructs.LinkedLocation;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
-public class EvaluateLocations {
+public class ProgressEvaluator implements LocationEvaluator {
 
 	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_PROGRESS_PROBABILITY;  // this works well
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
@@ -35,9 +36,10 @@ public class EvaluateLocations {
 	private final Solver solver;
 
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
-	EvaluatedLocation best;
-
-	public EvaluateLocations(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe) {
+	private EvaluatedLocation best;
+	private boolean certainProgress = false;
+	
+	public ProgressEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe) {
 
 		this.boardState = boardState;
 		this.wholeEdge = wholeEdge;
@@ -69,7 +71,7 @@ public class EvaluateLocations {
 		}
 
 		int[][] offsets;
-		if (isHighDensity()) {
+		if (boardState.isHighDensity()) {
 			offsets = OFFSETS_ALL;
 		} else {
 			offsets = OFFSETS;
@@ -132,12 +134,12 @@ public class EvaluateLocations {
 	 */
 	public void evaluateLocation(CandidateLocation tile) {
 
-		if (best != null) {
-			if (tile.getProbability().multiply(Solver.PROGRESS_MULTIPLIER).compareTo(best.getWeighting()) <= 0) {
-				boardState.display(tile.display() + " is ignored because it can not do better than the best");
-				return;
-			}
-		}
+		//if (best != null & !this.solver.preferences.isExperimentalScoring()) {
+		//	if (tile.getProbability().multiply(Solver.PROGRESS_MULTIPLIER).compareTo(best.getWeighting()) <= 0) {
+		//		boardState.getLogger().log(Level.INFO, "%s is ignored because it can not do better than the best", tile);
+		//		return;
+		//	}
+		//}
 
 		//EvaluatedLocation evalTile = doEvaluateTile(tile);
 		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
@@ -154,6 +156,7 @@ public class EvaluateLocations {
 	/**
 	 * Evaluate this tile and return its EvaluatedLocation
 	 */
+	/*
 	private EvaluatedLocation doEvaluateTile(Location tile) {
 
 		//long nanoStart = System.nanoTime();
@@ -285,7 +288,7 @@ public class EvaluateLocations {
 
 
 		//if (expectedClears.compareTo(BigDecimal.ZERO) > 0) {
-			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, null, BigDecimal.ZERO);
+			result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, linkedTiles, null, BigDecimal.ZERO, this.solver.preferences.isExperimentalScoring());
 			
 			if (linkedLocation != null) {
 				boardState.display("Considering with " + linkedLocation.getLinkedLocations().size() + " linked locations");
@@ -310,7 +313,8 @@ public class EvaluateLocations {
 		return result;
 
 	}
-
+	*/
+	
 	/**
 	 * Evaluate this tile and return its EvaluatedLocation
 	 */
@@ -334,6 +338,8 @@ public class EvaluateLocations {
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		//BigDecimal expectedClears = BigDecimal.valueOf(1 + linkedTiles).multiply(probThisTile); 
 		//BigDecimal expectedClears = BigDecimal.ZERO; 
+		
+		//TODO is this correct?
 		BigDecimal expectedClears = probThisTile; 
 
 		BigDecimal maxValueProgress = BigDecimal.ZERO;
@@ -341,9 +347,22 @@ public class EvaluateLocations {
 
 		Area deadLocations = pe.getDeadLocations();
 		
+		BigDecimal probThisTileLeft = probThisTile;
+		
 		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
 
+			// calculate the weight
+			BigDecimal bonus = BigDecimal.ONE.add(progressProb.add(probThisTileLeft).multiply(Solver.PROGRESS_VALUE));
+			BigDecimal weight = probThisTile.multiply(bonus);
+			
+			// if the remaining safe component for the tile can now never reach the best if if 100% safe for all future values then abandon analysis
+			if (best != null && weight.compareTo(best.getWeighting()) < 0) {
+				result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
+				result.setPruned();
+				return result;
+			}
+			
 			SolutionCounter counter = solver.validateLocationUsingSolutionCounter(wholeEdge, tile, i, deadLocations);
 
 			BigInteger sol = counter.getSolutionCount();
@@ -360,9 +379,10 @@ public class EvaluateLocations {
 				
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 				
-				maxValueProgress = maxValueProgress.max(prob);
+				maxValueProgress = maxValueProgress.max(prob);  // mini-max
+				//maxValueProgress = maxValueProgress.add(prob.multiply(prob)); // sum of prob^2 = expected solution space left
 				
-				boardState.display(tile.display() + " with value " + i + " has " + clears + " living clears with probability " + prob.toPlainString());
+				boardState.getLogger().log(Level.INFO, "%s with value %d has %d living clears with probability %f", tile, i, clears, prob);
 
 				// expected clears is the sum of the number of mines cleared * the probability of clearing them
 				expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
@@ -372,16 +392,25 @@ public class EvaluateLocations {
 				}
 					
 			} else {
-				boardState.display(tile.display() + " with value " + i + " with probability zero");
+				boardState.getLogger().log(Level.INFO, "Tile %s with value %d is not valid", tile, i);
 			}
 
 		}
 
-		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, progressProb, expectedClears, 0, commonClears, maxValueProgress);
+		if (!commonClears.isEmpty()) {
+			solver.logger.log(Level.DEBUG, "%s has certain progress if survive", tile);
+			certainProgress = true;
+		}
+		
+		// calculate the weight
+		BigDecimal bonus = BigDecimal.ONE.add(progressProb.multiply(Solver.PROGRESS_VALUE));
+		BigDecimal weighting = probThisTile.multiply(bonus);
+		
+		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weighting, expectedClears, 0, commonClears, maxValueProgress);
 
 		long nanoEnd = System.nanoTime();
 
-		boardState.display("Duration = " + (nanoEnd - nanoStart) + " nano-seconds");
+		solver.logger.log(Level.DEBUG, "Duration %d nano-seconds", (nanoEnd - nanoStart));
 
 		return result;
 
@@ -391,9 +420,9 @@ public class EvaluateLocations {
 
 		evaluated.sort(SORT_ORDER);
 
-		boardState.display("--- evaluated locations ---");
+		solver.logger.log(Level.INFO, "--- evaluated locations ---");
 		for (EvaluatedLocation el: evaluated) {
-			boardState.display(el.display());
+			solver.logger.log(Level.INFO, "%s", el);
 		}
 
 	}
@@ -446,15 +475,7 @@ public class EvaluateLocations {
 		
 	}
 	
-	
-	private boolean isCorner(Location tile) {
-		if ((tile.x == 0 || tile.x == boardState.getGameWidth() - 1) && (tile.y == 0 || tile.y == boardState.getGameHeight() - 1)) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	
+	@Override
 	public Action[] bestMove() {
 
 		if (evaluated.isEmpty()) {
@@ -462,15 +483,13 @@ public class EvaluateLocations {
 		}
 
 		// for high density board guess safety and then minimax probability of tile value
-		if (isHighDensity()) {
-			boardState.display("High density evaluation being used");
+		if (boardState.isHighDensity() && !certainProgress) {
+			solver.logger.log(Level.INFO, "High density evaluation being used");
 			evaluated.sort(EvaluatedLocation.SORT_BY_SAFETY_MINIMAX);
 		} else {
 			// other wise weigh safety and progress
 			evaluated.sort(SORT_ORDER);
 		}
-		//evaluated.sort(SORT_ORDER);
-
 
 		EvaluatedLocation evalLoc = evaluated.get(0);
 		
@@ -479,7 +498,8 @@ public class EvaluateLocations {
 			EvaluatedLocation alternative = findAlternativeMove(evalLoc);
 			
 			if (alternative != null) {
-				boardState.display("Replacing " + evalLoc.display() + " with " + alternative.display());
+				solver.logger.log(Level.INFO, "Replacing %s ...", evalLoc);
+				solver.logger.log(Level.INFO, "...  with %s", alternative);
 				evalLoc = alternative;
 			}			
 		}
@@ -498,16 +518,10 @@ public class EvaluateLocations {
 
 	}
 
+	@Override
 	public List<EvaluatedLocation> getEvaluatedLocations() {
 		return evaluated;
 	}
 	
-	private boolean isHighDensity() {
-		
-		int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
-		int tilesLeft = boardState.getTotalUnrevealedCount();
-		
-		return (minesLeft * 5 > tilesLeft * 2) && Solver.CONSIDER_HIGH_DENSITY_STRATEGY;
-	}
-
+	
 }

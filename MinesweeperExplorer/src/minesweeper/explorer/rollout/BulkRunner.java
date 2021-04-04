@@ -1,9 +1,10 @@
 package minesweeper.explorer.rollout;
 
+import java.math.BigDecimal;
 import java.util.Random;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.Preferences;
+import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.solver.settings.SolverSettings;
@@ -16,6 +17,7 @@ public class BulkRunner implements Runnable {
 	private final int maxSteps;
 	private final RolloutController controller;
 	private final Location startLocation;
+	private final Location safeTile;
 	private final RolloutGenerator rollout;
 	private final SolverSettings preferences;
 	private final long seed;
@@ -24,11 +26,20 @@ public class BulkRunner implements Runnable {
 	private int steps = 0;
 	private int wins = 0;
 	
+	private boolean[] mastery = new boolean[100];
+	private int masteryCount = 0;
+	private int maxMasteryCount = 0;
+	private int winStreak;
+	private int maxWinStreak;
+	
+	private int guesses;
+	private double fairness = 0;
+	
 	//private ResultsController resultsController;
 	private boolean showGames;
 	private boolean winsOnly;
 	
-	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, SolverSettings preferences, long seed) {
+	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, boolean safeStart, SolverSettings preferences, long seed) {
 		
 		this.controller = controller;
 		this.maxSteps = iterations;
@@ -36,6 +47,12 @@ public class BulkRunner implements Runnable {
 		this.startLocation = startLocation;
 		this.preferences = preferences;
 		this.seed = seed;
+		
+		if (safeStart) {
+			this.safeTile = startLocation;
+		} else {
+			this.safeTile = null;
+		}
 		
 		if (showGames) {
 			//resultsController = ResultsController.launch(null, gameSettings, gameType);
@@ -52,10 +69,8 @@ public class BulkRunner implements Runnable {
 		Random seeder = new Random(seed);
 		
 		while (!stop && steps < maxSteps) {
-			
-			steps++;
-			
-			GameStateModel gs = rollout.generateGame(seeder.nextLong());
+
+			GameStateModel gs = rollout.generateGame(seeder.nextLong(), safeTile);
 
 			Solver solver = new Solver(gs, preferences, false);
 			
@@ -69,8 +84,27 @@ public class BulkRunner implements Runnable {
 				 win = playGame(gs, solver);
 			}
 		
+			// reduce mastery if the game 100 ago was a win
+			int masteryIndex = steps % 100;
+			if (mastery[masteryIndex]) {
+				masteryCount--;
+			}
+			
 			if (win) {
 				wins++;
+				
+				// update win streak
+				winStreak++;
+				maxWinStreak = Math.max(maxWinStreak, winStreak);
+				
+				// update mastery
+				mastery[masteryIndex] = true;
+				masteryCount++;
+				maxMasteryCount = Math.max(masteryCount, maxMasteryCount);
+				
+			} else {
+				winStreak = 0;
+				mastery[masteryIndex] = false;
 			}
 
 			/*
@@ -83,7 +117,9 @@ public class BulkRunner implements Runnable {
 			}
 			*/
 			
-			controller.update(steps, maxSteps, wins);
+			steps++;
+			
+			controller.update(steps, maxSteps, wins, guesses, fairness, maxWinStreak, maxMasteryCount);
 			
 		}
 		
@@ -123,6 +159,21 @@ public class BulkRunner implements Runnable {
 
 				state = gs.getGameState();
 
+				// keep track of how many guesses and their fairness
+				if (state == GameStateModel.STARTED || state == GameStateModel.WON) {
+					if (!moves[i].isCertainty() ) { 
+						guesses++;
+						fairness = fairness + 1d;
+					}
+				} else { // otherwise the guess resulted in a loss
+					if (!moves[i].isCertainty()) {
+						guesses++;
+						BigDecimal prob = moves[i].getBigProb();
+						fairness = fairness - prob.doubleValue() / (1d - prob.doubleValue());
+					}                    
+				}
+				
+				
 				if (state == GameStateModel.LOST || state == GameStateModel.WON) {
 					break play;
 				}

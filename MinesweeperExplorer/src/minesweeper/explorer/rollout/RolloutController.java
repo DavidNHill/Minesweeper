@@ -1,6 +1,5 @@
 package minesweeper.explorer.rollout;
 
-import java.awt.Color;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.Random;
@@ -12,6 +11,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
@@ -36,10 +36,16 @@ public class RolloutController {
 	@FXML private TextField gameCount;
 	@FXML private TextField gameSeed;
 	@FXML private Label winPercentage;
+	@FXML private Label fairnessPercentage;
+	@FXML private Label bestWinStreak;
+	@FXML private Label bestMastery;
+	@FXML private Label totalGuesses;
+	
 	@FXML private ProgressBar progressRun;
 	@FXML private Label progressRunLabel;
 	@FXML private TextField startLocX;
 	@FXML private TextField startLocY;
+	@FXML private CheckBox safeStart;
 	
 	private Stage stage;
 	private Scene scene;
@@ -116,7 +122,7 @@ public class RolloutController {
 				int startY = Integer.parseInt(startLocY.getText().trim());
 				if (startX >= 0 && startX < generator.getWidth() && startY >= 0 && startY < generator.getHeight()) {
 					startLocation = new Location(startX, startY);
-					System.out.println("Start location set to " + startLocation.display());
+					System.out.println("Start location set to " + startLocation.toString());
 				} else {
 					System.out.println("Start location out of bounds");
 				}
@@ -137,7 +143,7 @@ public class RolloutController {
 			
 			gameSeed.setText(String.valueOf(gameGenerator));
 			
-			bulkRunner = new BulkRunner(this, gamesMax, generator, startLocation, preferences, gameGenerator);
+			bulkRunner = new BulkRunner(this, gamesMax, generator, startLocation, safeStart.isSelected(), preferences, gameGenerator);
 			new Thread(bulkRunner, "Bulk Run").start();
 		}
 		
@@ -180,8 +186,6 @@ public class RolloutController {
 		}
 
 		custom.generator = generator;
-		//custom.gameSettings = gameSettings;
-		//custom.gameType = gameType;
 		custom.preferences = preferences;
 		
 		custom.scene = new Scene(root);
@@ -231,7 +235,7 @@ public class RolloutController {
 		return wasCancelled;
 	}
 	
-	public void update(int steps, int maxSteps, int wins) {
+	public void update(int steps, int maxSteps, int wins, int guesses, double fairness, int winStreak, int mastery) {
 		
         Platform.runLater(new Runnable() {
             @Override public void run() {
@@ -245,6 +249,21 @@ public class RolloutController {
             	double err = Math.sqrt(winPerc * ( 1- winPerc) / (double) steps) * 1.9599d;
             	
             	winPercentage.setText(PERCENT.format(winPerc) + " +/- " + PERCENT.format(err));
+            	
+            	totalGuesses.setText(String.valueOf(guesses));
+            	
+            	String fairnessText;
+            	if (guesses == 0) { 
+            		fairnessText = "--";
+            	} else {
+            		fairnessText = PERCENT.format(fairness / guesses);
+            	}
+            	
+            	fairnessPercentage.setText(fairnessText);
+            	bestWinStreak.setText(String.valueOf(winStreak));
+            	bestMastery.setText(String.valueOf(mastery));
+
+            	
         }
       });            
 		

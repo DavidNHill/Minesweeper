@@ -21,7 +21,6 @@ public class Tile extends StackPane {
 
 		@Override
 		public void handle(MouseEvent event) {
-
 			
 			Tile tile = (Tile) event.getSource();
 			
@@ -33,7 +32,6 @@ public class Tile extends StackPane {
 				} else {
 					tile.board.setFlag(tile , true);
 				}
-				
 			}
 			
 			if (event.getButton() == MouseButton.PRIMARY) {
@@ -42,8 +40,8 @@ public class Tile extends StackPane {
 
 				} else {  // otherwise toggle between covered and uncovered
 					tile.setCovered(!tile.isCovered());
+					tile.board.setDraggedTile(tile);  // let the board know which tile is being dragged (if it is)
 				}
-				
 			}
 			
 		}
@@ -93,6 +91,9 @@ public class Tile extends StackPane {
 		this.image = new ImageView();
 		this.text = new Text("");
 		
+		this.text.setScaleX(graphicsSet.getSize() / 24d);
+		this.text.setScaleY(graphicsSet.getSize() / 24d);
+		
 		this.getChildren().addAll(image, text);
 		
 		this.board = board;
@@ -106,7 +107,7 @@ public class Tile extends StackPane {
 		
 		reset();
 		
-		this.setOnMouseClicked(CLICKED);
+		this.setOnMousePressed(CLICKED);
 		this.setOnScroll(SCROLLED);
 		
 	}
@@ -132,6 +133,22 @@ public class Tile extends StackPane {
 		flagged = false;
 		value = 0;
 		doDraw();
+	}
+	
+	public void resizeTile(GraphicsSet graphicsSet) {
+		
+		if (this.graphicsSet.getSize() == graphicsSet.getSize()) {
+			return;
+		}
+	
+		this.graphicsSet = graphicsSet;
+		
+		this.text.setScaleX(graphicsSet.getSize() / 24d);
+		this.text.setScaleY(graphicsSet.getSize() / 24d);
+		
+		this.relocate(x * graphicsSet.getSize(), y * graphicsSet.getSize());
+		doDraw();
+		
 	}
 	
 	
@@ -236,7 +253,9 @@ public class Tile extends StackPane {
 		doDraw();
 	}
 	
-	public String asText() {
+	@Override
+	public String toString() {
+		
 		String text = "(" + this.x + "," + this.y + ")";
 		return text;
 	}

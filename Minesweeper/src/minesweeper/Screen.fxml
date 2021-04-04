@@ -13,7 +13,7 @@
 <AnchorPane id="AnchorPane" fx:id="window" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="424.0" prefWidth="591.0" style="-fx-background-color: green;" styleClass="mainFxmlClass" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.ScreenController">
   <children>
     <Pane fx:id="myPane" minWidth="-1.0" onMousePressed="#mouseDown" onMouseReleased="#mouseUp" pickOnBounds="true" prefHeight="261.0" prefWidth="455.0" style="&#10;" AnchorPane.bottomAnchor="35.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="70.0" />
-    <MenuBar prefWidth="455.0" style="-fx-background-color: DARKGREEN;" stylesheets="@Screen.css" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+    <MenuBar prefWidth="455.0" style="-fx-background-color: white;" stylesheets="@Screen.css" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
       <menus>
         <Menu mnemonicParsing="false" text="Game">
           <items>
@@ -60,6 +60,16 @@
             <Menu mnemonicParsing="false" text="Options">
               <items>
                   <MenuItem mnemonicParsing="false" onAction="#handleCopyToClipboard" text="Copy seed to clipboard" />
+                  <Menu mnemonicParsing="false" text="Guessing method">
+                    <items>
+                        <RadioMenuItem fx:id="standardGuess" mnemonicParsing="false" selected="true" text="Standard method">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="GuessType" />
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="experimentalGuess" mnemonicParsing="false" text="Experimental method" toggleGroup="$GuessType" />
+                    </items>
+                  </Menu>
                   <Menu mnemonicParsing="false" text="Random numbers">
                     <items>
                         <RadioMenuItem fx:id="rngJava" mnemonicParsing="false" selected="true" text="Java random numbers">

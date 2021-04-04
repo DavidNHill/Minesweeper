@@ -1,0 +1,375 @@
+package minesweeper.solver;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.constructs.Box;
+import minesweeper.solver.constructs.CandidateLocation;
+import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.utility.Logger.Level;
+import minesweeper.structure.Action;
+import minesweeper.structure.Location;
+
+public class SecondarySafetyEvaluator implements LocationEvaluator {
+
+	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");
+	
+	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
+	
+	private final static int[][] OFFSETS = {{2, 0}, {-2, 0}, {0, 2}, {0, -2}};
+
+	private final static int[][] OFFSETS_ALL = {{2,-2}, {2,-1}, {2,0}, {2,1}, {2,2}, {-2,-2}, {-2,-1}, {-2,0}, {-2,1}, {-2,2}, {-1,2}, {0,2}, {1,2}, {-1,-2}, {0,-2}, {1,-2}};
+	
+	private final BoardState boardState;
+	private final WitnessWeb wholeEdge;
+	private final ProbabilityEngineModel pe;
+	private final Solver solver;
+
+	private List<EvaluatedLocation> evaluated = new ArrayList<>();
+	private EvaluatedLocation best;
+	private boolean certainProgress = false;
+	
+	public SecondarySafetyEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe) {
+
+		this.boardState = boardState;
+		this.wholeEdge = wholeEdge;
+		this.pe = pe;
+		this.solver = solver;
+
+	}
+
+	/**
+	 * Look for off edge positions which are good for breaking open new areas
+	 */
+	public void evaluateOffEdgeCandidates(List<Location> allUnrevealedSquares) {
+
+		
+		Set<CandidateLocation> tileOfInterest = new HashSet<>();
+		
+		//int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+		// || allUnrevealedSquares.size() - minesLeft < 6
+		
+		// if there are only a small number of tiles off the edge then consider them all
+		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
+			for (Location tile: allUnrevealedSquares) {
+				if (!wholeEdge.isOnWeb(tile)) {
+					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+				}
+			}	
+			evaluateLocations(tileOfInterest);
+			return;
+		}
+
+		int[][] offsets;
+		if (boardState.isHighDensity()) {
+			offsets = OFFSETS_ALL;
+		} else {
+			offsets = OFFSETS;
+		}
+		
+		// look for potential super locations
+		for (Location tile: wholeEdge.getOriginalWitnesses()) {
+
+			//boardState.display(tile.display() + " is an original witness");
+
+			for (int[] offset: offsets) {
+
+				int x1 = tile.x + offset[0];
+				int y1 = tile.y + offset[1];
+				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
+
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0);
+					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
+						//boardState.display(loc.display() + " is of interest");
+						tileOfInterest.add(loc);
+					}
+
+				}
+			}
+		}
+
+
+
+		// look for potential off edge squares with not many neighbours and calculate their probability of having no more flags around them
+		for (Location tile: allUnrevealedSquares) {
+
+			int adjMines = boardState.countAdjacentConfirmedFlags(tile);
+			int adjUnrevealed = boardState.countAdjacentUnrevealed(tile);
+
+			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterest.contains(tile)) {
+
+				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+				
+			}
+
+		}		
+
+		evaluateLocations(tileOfInterest);
+		
+	}
+
+	/**
+	 * Evaluate a set of tiles to see the expected number of clears it will provide
+	 */
+	public void evaluateLocations(Collection<? extends CandidateLocation> tiles) {
+
+		for (CandidateLocation tile: tiles) {
+			evaluateLocation(tile);
+		}
+
+	}
+
+	/**
+	 * Evaluate a tile to see the expected number of clears it will provide
+	 */
+	public void evaluateLocation(CandidateLocation tile) {
+
+		/*
+		if (best != null & !this.solver.preferences.isExperimentalScoring()) {
+			if (tile.getProbability().compareTo(best.getWeighting()) <= 0) {
+				boardState.display(tile.display() + " is ignored because it can not do better than the best");
+				return;
+			}
+		}
+		*/
+		
+		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
+
+
+		if (evalTile != null) {
+			if (best == null || evalTile.getWeighting().compareTo(best.getWeighting()) > 0) {
+				best = evalTile;
+			}
+			evaluated.add(evalTile);
+		}
+	}
+
+
+	/**
+	 * Evaluate this tile and return its EvaluatedLocation
+	 */
+	private EvaluatedLocation doFullEvaluateTile(Location tile) {
+
+		long nanoStart = System.nanoTime();
+
+		EvaluatedLocation result = null;
+
+		List<Location> superset = boardState.getAdjacentUnrevealedSquares(tile);
+		int minesGot = boardState.countAdjacentConfirmedFlags(tile);
+
+		int minMines = minesGot;
+		int maxMines = minesGot + superset.size();
+
+		BigDecimal probThisTile = pe.getProbability(tile);
+		
+
+		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
+		BigDecimal expectedClears = BigDecimal.ZERO;
+
+		BigDecimal maxValueProgress = BigDecimal.ZERO;
+		BigDecimal secondarySafety = BigDecimal.ZERO;
+		//BigDecimal miniMaxSafety = BigDecimal.ONE;
+		BigDecimal progressProb = BigDecimal.ZERO;
+		
+		BigDecimal probThisTileLeft = probThisTile;
+		
+		List<Box> commonClears = null;
+		for (int i = minMines; i <= maxMines; i++) {
+
+			// calculate the weight
+			BigDecimal bonus = BigDecimal.ONE.add(progressProb.add(probThisTileLeft).multiply(PROGRESS_CONTRIBUTION));
+			BigDecimal weight = secondarySafety.add(probThisTileLeft).multiply(bonus);
+			
+			// if the remaining safe component for the tile can now never reach the best if if 100% safe for all future values then abandon analysis
+			if (best != null && weight.compareTo(best.getWeighting()) < 0) {
+				result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
+				result.setPruned();
+				return result;
+			}
+			
+			ProbabilityEngineModel counter = solver.runProbabilityEngine(wholeEdge, tile, i);
+
+			BigInteger sol = counter.getSolutionCount();
+			int clears = counter.getLivingClearCount();
+
+			// keep track of the maximum probability across all valid values
+			if (sol.signum() != 0) {
+				
+				if (commonClears == null) {
+					commonClears = counter.getEmptyBoxes();
+				} else {
+					commonClears = mergeEmptyBoxes(commonClears, counter.getEmptyBoxes());
+				}
+				
+				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+				
+				maxValueProgress = maxValueProgress.max(prob);  // mini-max
+
+				// expected clears is the sum of the number of mines cleared * the probability of clearing them
+				expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
+				
+				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ONE, true);
+				
+				BigDecimal safety;
+				if (bestCandidates.size() == 0 ) { 
+					safety = counter.getOffEdgeProb();
+				} else {
+					safety = bestCandidates.get(0).getProbability();
+				}
+
+				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f and secondary safety %f", tile, i, clears, prob, safety);
+				
+				// find the lowest safest move available across all values
+				//miniMaxSafety = miniMaxSafety.min(safety);
+				
+				secondarySafety = secondarySafety.add(prob.multiply(safety));
+
+				if (clears != 0) {
+					progressProb = progressProb.add(prob);
+				}
+				
+				// reduce the remaining safe probability
+				probThisTileLeft = probThisTileLeft.subtract(prob);
+					
+			} else {
+				solver.logger.log(Level.DEBUG, "%s with value %d is not valid", tile, i);
+			}
+
+		}
+
+		if (!commonClears.isEmpty()) {
+			solver.logger.log(Level.DEBUG, "%s has certain progress if survive", tile);
+			certainProgress = true;
+		}
+		
+		// calculate the weight
+		BigDecimal bonus = BigDecimal.ONE.add(progressProb.multiply(PROGRESS_CONTRIBUTION));
+		BigDecimal weight = secondarySafety.multiply(bonus);
+		
+		//result = new EvaluatedLocation(tile.x, tile.y, probThisTile, secondarySafety, expectedClears, 0, commonClears, maxValueProgress);
+		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
+
+		long nanoEnd = System.nanoTime();
+
+		solver.logger.log(Level.DEBUG, "Duration %d nano-seconds", (nanoEnd - nanoStart));
+
+		return result;
+
+	}
+
+	public void showResults() {
+
+		evaluated.sort(SORT_ORDER);
+
+		solver.logger.log(Level.INFO, "--- evaluated locations ---");
+		for (EvaluatedLocation el: evaluated) {
+			solver.logger.log(Level.INFO, "%s", el);
+		}
+
+	}
+
+	private List<Box> mergeEmptyBoxes(List<Box> boxes1, List<Box> boxes2) {
+		
+		if (boxes1.size() == 0) {
+			return boxes1;
+		}
+		
+		if (boxes2.size() == 0) {
+			return boxes2;
+		}
+		
+		List<Box> result = new ArrayList<>();
+		for (Box b1: boxes1) {
+			for (Box b2: boxes2) {
+				if (b1.equals(b2)) {
+					result.add(b1);
+					break;
+				}
+			}
+		}
+		
+		return result;
+	}
+	
+	
+	// find a move which 1) is safer than the move given and 2) when move is safe ==> the alternative is safe
+	private EvaluatedLocation findAlternativeMove(EvaluatedLocation move) {
+		
+		if (move.getEmptyBoxes() == null) {
+			return null;
+		}
+		
+		// if one of the common boxes contains a tile which has already been processed then the current tile is redundant
+		for (EvaluatedLocation eval: evaluated) {
+			if (eval.getProbability().subtract(move.getProbability()).compareTo(BigDecimal.valueOf(0.001d)) > 0) {  // the alternative move is at least a bit safer than the current move
+				for (Box b: move.getEmptyBoxes()) {  // see if the move is in the list of empty boxes
+					for (Location l: b.getSquares()) {
+						if (l.equals(eval)) {
+							return eval;
+						}
+					}
+				}
+			}
+		}
+
+		return null;
+		
+	}
+	
+	@Override
+	public Action[] bestMove() {
+
+		if (evaluated.isEmpty()) {
+			return new Action[0];
+		}
+
+		// for high density board guess safety and then minimax probability of tile value
+		if (boardState.isHighDensity() && !certainProgress) {
+			solver.logger.log(Level.INFO, "High density evaluation being used");
+			evaluated.sort(EvaluatedLocation.SORT_BY_SAFETY_MINIMAX);
+		} else {
+			// other wise weigh safety and progress
+			evaluated.sort(SORT_ORDER);
+		}
+
+		EvaluatedLocation evalLoc = evaluated.get(0);
+		
+		// see if this guess has a strictly better guess
+		if (solver.preferences.isDoDomination()) {
+			EvaluatedLocation alternative = findAlternativeMove(evalLoc);
+			
+			if (alternative != null) {
+				solver.logger.log(Level.INFO, "Replacing %s ...", evalLoc);
+				solver.logger.log(Level.INFO, "...  with %s", alternative);
+				evalLoc = alternative;
+			}			
+		}
+
+
+		Action action = new Action(evalLoc, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "", evalLoc.getProbability());
+
+		// let the boardState decide what to do with this action
+		boardState.setAction(action);
+
+		Action[] result = boardState.getActions().toArray(new Action[0]);
+
+		//display("Best Guess: " + action.asString());
+
+		return result;
+
+	}
+
+	@Override
+	public List<EvaluatedLocation> getEvaluatedLocations() {
+		return evaluated;
+	}
+	
+}

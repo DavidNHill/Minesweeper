@@ -18,6 +18,7 @@ import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
@@ -115,7 +116,7 @@ public class RolloutGenerator {
 		this.minTotalMines = Math.max(0, minesLeft - this.tilesOfEdge);  //we can't use so few mines that we can't fit the remainder elsewhere on the board
 		this.maxTotalMines = minesLeft;    // we can't use more mines than are left in the game
 		
-		boardState.display("Total mines " + minTotalMines + " to " + maxTotalMines);
+		boardState.getLogger().log(Level.DEBUG, "Total mines %d to %d", minTotalMines, maxTotalMines);
 		
 		web.generateBoxes();
 		
@@ -142,7 +143,7 @@ public class RolloutGenerator {
 		
 		offWebTiles = new ArrayList<>(offWeb);
 		
-		boardState.display("Total tiles off web " + offWebTiles.size());
+		boardState.getLogger().log(Level.INFO, "Total tiles off web %d", offWebTiles.size());
 		
 	   	int width = boardState.getGameWidth();
     	int height = boardState.getGameHeight();
@@ -158,8 +159,8 @@ public class RolloutGenerator {
     		}
     	}
     	
-    	boardState.display("Total tiles revealed " + revealedTiles.size());
-    	boardState.display("Total mines placed " + placedMines.size());
+    	boardState.getLogger().log(Level.INFO, "Total tiles revealed %d", revealedTiles.size());
+    	boardState.getLogger().log(Level.INFO, "Total mines placed %d", placedMines.size());
 	}
 
 	/**
@@ -168,7 +169,7 @@ public class RolloutGenerator {
 	public void process() {
 		
 		if (!web.isWebValid()) {  // if the web is invalid then nothing we can do
-			boardState.display("Web is invalid - exiting the Rollout generator processing");
+			boardState.getLogger().log(Level.INFO, "Web is invalid - exiting the Rollout generator processing");
 			valid = false;
 			return;
 		}
@@ -213,7 +214,7 @@ public class RolloutGenerator {
 	// here we calculate the total number of candidate solutions left in the game
 	private void calculateBoxProbabilities() {
 		
-		boardState.display("showing " + workingProbs.size() + " probability Lines...");
+		boardState.getLogger().log(Level.INFO, "showing %d probability Lines...", workingProbs.size());
 		
 		// total game tally
 		BigInteger totalTally = BigInteger.ZERO;
@@ -261,7 +262,7 @@ public class RolloutGenerator {
 					
 				}
 
-				boardState.display(display);
+				boardState.getLogger().log(Level.INFO, display);
 				
 			}
 		}		
@@ -309,7 +310,7 @@ public class RolloutGenerator {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			boardState.display("Solution counter recursion = " + recursions);
+			boardState.getLogger().log(Level.WARN, "Probability Engine recursion exceeding %d iterations", recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();
@@ -456,6 +457,10 @@ public class RolloutGenerator {
 	}
 	
 	public synchronized GameStateModelViewer generateGame(long seed) {
+		return generateGame(seed, null);
+	}
+	
+	public synchronized GameStateModelViewer generateGame(long seed, Location safeTile) {
 		
 		GameStateModelViewer result;
 		
@@ -498,8 +503,13 @@ public class RolloutGenerator {
 				
 				Collections.shuffle(boxTiles, rng);
 				
-				for (int j=0; j < line.allocatedMines[i]; j++) {
-					mines.add(boxTiles.get(j));
+				int toGet = line.allocatedMines[i];
+				for (int j=0; j < toGet; j++) {    
+					if (safeTile == null || !boxTiles.get(j).equals(safeTile)) {  // don't place a mine in the safe tile
+						mines.add(boxTiles.get(j));
+					} else {
+						toGet++;  // if this mine is no good then we need to look for an extra one
+					}
 				}
 			}
 			
@@ -510,8 +520,18 @@ public class RolloutGenerator {
 		List<Location> owt = new ArrayList<>(offWebTiles);
 		
 		Collections.shuffle(owt, rng);
-		for (int j=0; j < mineCount; j++) {
-			mines.add(owt.get(j));
+		
+		int toGet = mineCount;
+		for (int j=0; j < toGet; j++) {
+			if (safeTile == null || !owt.get(j).equals(safeTile)) {  // don't place a mine in the safe tile
+				mines.add(owt.get(j));
+			} else {
+				toGet++;   // if this mine is no good then we need to look for an extra one
+			}
+		}
+		
+		if (mines.size() != this.minesLeft) {
+			System.out.println("Logic error: Mines generated " + mines.size() + " does not equal mines left " + this.minesLeft);
 		}
 		
 		result = GameStateReader.loadMines(width, height, mines, revealedTiles);
@@ -606,9 +626,6 @@ public class RolloutGenerator {
 				
 				workers[i] = new RolloutWork(player, plays);
 				
-				//int wins = playGames(player.original, plays);
-				//player.wins = player.wins + wins;
-				//player.played = player.played + plays;
 			}
 
 			AsynchMonitor monitor = new AsynchMonitor(workers);
@@ -629,7 +646,7 @@ public class RolloutGenerator {
 		}
 
 		for (Adversarial<T> player: players) {
-			boardState.display(player.original.display() + " had " + player.wins + " wins out of " + player.played);
+			boardState.getLogger().log(Level.INFO, "%s had %d wins out of %d", player.original, player.wins, player.played);
 		}
 		
 		return players;

@@ -13,6 +13,8 @@ import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.BoardStateCache.AdjacentSquares;
 import minesweeper.solver.BoardStateCache.Cache;
 import minesweeper.solver.constructs.ChordLocation;
+import minesweeper.solver.utility.Logger;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -239,10 +241,10 @@ public class BoardState {
 			unplayedMoves[a.getMoveMethod().ordinal()]++;
 		}
 
-		display("Moves left to play = " + actionList.size());
+		getLogger().log(Level.INFO, "Moves left to play is %d", actionList.size());
 		for (int i=0; i < unplayedMoves.length; i++) {
 			if (unplayedMoves[i] != 0) {
-				display("   " + MoveMethod.values()[i] + " has " + unplayedMoves[i] + " moves unplayed");
+				getLogger().log(Level.INFO, "   %s has %d moves unplayed",MoveMethod.values()[i], unplayedMoves[i]);
 			}
 		}
 
@@ -715,7 +717,7 @@ public class BoardState {
 		flagOnBoard[x][y] = true;
 	}
 
-	private void setFlagConfirmed(Location loc) {
+	protected void setFlagConfirmed(Location loc) {
 
 		if (isConfirmedFlag(loc)) {
 			return;
@@ -739,6 +741,29 @@ public class BoardState {
 		
 	}
 
+	protected void unsetFlagConfirmed(Location loc) {
+
+		if (!isConfirmedFlag(loc)) {
+			return;
+		}
+
+		totalFlagsConfirmed--;
+		flagConfirmed[loc.x][loc.y] = false;
+
+
+		// if the flag isn't already on the board then this is also another on the total of all flags
+		if (!flagOnBoard[loc.x][loc.y]) {
+			totalFlags--;
+		}
+
+		// let all the adjacent squares know they have one less mine next to them and one more unrevealed location
+		for (Location a: getAdjacentSquaresIterable(loc)) {
+			adjFlagsConfirmed[a.x][a.y]--;
+			adjUnrevealed[a.x][a.y]++;
+		}
+		
+	}
+	
 	/**
 	 * Since Flag Free is a thing, we can't rely on the GameState to tell us where the flags are,
 	 * so this replaces that.
@@ -892,7 +917,7 @@ public class BoardState {
 				// if there is an unconfirmed flag on the board but the solver
 				// thinks it is clear then the flag is wrong
 				if (isUnconfirmedFlag(i,j) && action[i][j] != null && action[i][j].getAction() == Action.CLEAR) {
-					display("Flag in Error at " + i + " " + j + " confirmed CLEAR");
+					getLogger().log(Level.INFO, "Flag in Error at (%d, %d) confirmed CLEAR", i, j);
 					return false;
 				}
 
@@ -901,7 +926,7 @@ public class BoardState {
 
 					// if we have too many flags by a revealed square then a mistake has been made
 					if (getWitnessValue(i,j) < flags) {
-						display("Flag in Error at witness " + i + " " + j + " Overloads: Flags = " + flags);
+						getLogger().log(Level.INFO, "Flag in Error at witness (%d, %d) Overloads: Flags %d" ,i, j, flags);
 						return false;
 					}
 				}
@@ -914,6 +939,18 @@ public class BoardState {
 
 	}
 
+	/**
+	 * Returns true if the board is consider high mine density
+	 * @return
+	 */
+	public boolean isHighDensity() {
+		
+		int minesLeft = getMines() - getConfirmedFlagCount();
+		int tilesLeft = getTotalUnrevealedCount();
+		
+		return (minesLeft * 5 > tilesLeft * 2) && Solver.CONSIDER_HIGH_DENSITY_STRATEGY;
+	}
+	
 	/**
 	 * Inform the board state that this location might benefit from using a clear all move, returns true if the move is accepted as a clear all
 	 * @param loc
@@ -948,9 +985,13 @@ public class BoardState {
 		return this.testMoveBalance;
 	}
 	
-	protected void display(String text) {
-		solver.display(text);
+	protected Logger getLogger() {
+		return solver.logger;
 	}
+	
+	//protected void display(String text) {
+	//	solver.display(text);
+	//}
 
 	protected Solver getSolver() {
 		return solver;

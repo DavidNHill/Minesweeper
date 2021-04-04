@@ -57,7 +57,6 @@ import minesweeper.random.RNGJSF;
 import minesweeper.random.RNGJava;
 import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameType;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.settings.SettingsFactory;
@@ -109,6 +108,9 @@ public class ScreenController {
     
     @FXML private RadioMenuItem sol400;
     @FXML private RadioMenuItem sol4000;
+    
+    @FXML private RadioMenuItem experimentalGuess;
+    @FXML private RadioMenuItem standardGuess;
     
     @FXML private CheckMenuItem showMove;
     @FXML private CheckMenuItem showTooltips;
@@ -704,7 +706,7 @@ public class ScreenController {
             success = doMove(move[nextMove]);
 
             if (move[nextMove].getBigProb().signum() > 0 && move[nextMove].getBigProb().compareTo(BigDecimal.ONE) < 0) {
-                System.out.println(move[nextMove].asString());
+                System.out.println(move[nextMove].toString());
                 combProb = combProb.multiply(move[nextMove].getBigProb());
                 System.out.println("Combined probability is " + combProb);
             }
@@ -1127,9 +1129,9 @@ public class ScreenController {
         newGameButton.setLayoutX(offsetX);
         
         if (sol4000.isSelected()) {
-        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setRolloutSolutions(10000000);
+        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setExperimentalScoring(experimentalGuess.isSelected());
         } else {
-        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(experimentalGuess.isSelected());
         }
         
         // create a new solver

@@ -1,79 +1,43 @@
 package minesweeper.solver.constructs;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
 import minesweeper.gamestate.MoveMethod;
-import minesweeper.solver.Solver;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
 public class EvaluatedLocation extends Location {
 	
-	private final BigDecimal clearProbability;
-	private BigDecimal progressProbability;
+	private final BigDecimal safeProbability;
+	private BigDecimal weight;
 	private final BigDecimal maxValueProgress;
 	private String description = "";
 	private BigDecimal expectedClears;
 	private final int fixedClears;  //number of tiles which are clears regardless of what value is revealed
 	private List<Box> emptyBoxes;
-	
-	
-	private BigDecimal weighting; 
+	private boolean pruned = false;
 
-	public EvaluatedLocation(int x, int y, BigDecimal clearProbability, BigDecimal progressProbability, BigDecimal expectedClears, int fixedClears, 
+	public EvaluatedLocation(int x, int y, BigDecimal safeProbability, BigDecimal weight, BigDecimal expectedClears, int fixedClears, 
 			List<Box> emptyBoxes, BigDecimal maxValueProgress) {
 		super(x,y);
 		
-		this.clearProbability = clearProbability;
-		//this.progressProbability = progressProbability.divide(clearProbability, Solver.DP, RoundingMode.HALF_UP);
-		//this.progressProbability = progressProbability.multiply(clearProbability);
-		this.progressProbability = progressProbability;
+		this.safeProbability = safeProbability;
+		this.weight = weight;
 		this.expectedClears = expectedClears;
 		this.fixedClears = fixedClears;
 		this.maxValueProgress = maxValueProgress;
 		this.emptyBoxes = emptyBoxes;
-		
-		calculateWeighting();
-		
-	}
 	
-	public void merge(EvaluatedLocation link) {
-		
-		expectedClears = this.expectedClears.add(link.expectedClears);
-		
-		BigDecimal pp1 = BigDecimal.ONE.subtract(this.progressProbability);
-		BigDecimal pp2 = BigDecimal.ONE.subtract(link.progressProbability);
-		
-		this.progressProbability = BigDecimal.ONE.subtract(pp1.multiply(pp2));
-		
-		calculateWeighting();
-		
-	}
-	
-	private void calculateWeighting() {
-		
-		BigDecimal bonus = BigDecimal.ONE.add(progressProbability.multiply(Solver.PROGRESS_VALUE));
-		
-		this.weighting = this.clearProbability.multiply(bonus);
-		
-		//this.weighting = this.progressProbability.divide(BigDecimal.ONE.subtract(this.clearProbability), Solver.DP, RoundingMode.HALF_UP);
-	}
-	
-	public void mergeOld(EvaluatedLocation link) {
-		
-		expectedClears = this.expectedClears.add(link.expectedClears);
-		
 	}
 	
 	public BigDecimal getProbability() {
-		return this.clearProbability;
+		return this.safeProbability;
 	}
 	
 	public BigDecimal getWeighting() {
-		return this.weighting;
+		return this.weight;
 	}
 	
 	public BigDecimal getMaxValueProgress() {
@@ -89,15 +53,26 @@ public class EvaluatedLocation extends Location {
 		
         String comment = description;
         
-        return new Action(this, Action.CLEAR, method, comment, clearProbability);		
+        return new Action(this, Action.CLEAR, method, comment, safeProbability);		
 		
 	}
 	
+	public void setPruned() {
+		this.pruned = true;
+	}
+	
 	@Override
-	public String display() {
+	public String toString() {
 		
-		return super.display() + " Fixed clears is " + fixedClears + " expected clears is " + expectedClears.toPlainString() 
-		+ ", progress prob is " + progressProbability + ", final weight is " + weighting + ", maximum tile value prob is " + maxValueProgress;
+		String prunedString;
+		if (this.pruned) {
+			prunedString = " Pruned";
+		} else {
+			prunedString = "";
+		}
+		
+		return super.toString() + " Fixed clears is " + fixedClears + " expected clears is " + expectedClears.toPlainString() 
+		+ ", final weight is " + weight + ", maximum tile value prob is " + maxValueProgress + prunedString;
 		
 	}
 	
@@ -112,7 +87,7 @@ public class EvaluatedLocation extends Location {
 			int c = 0;
 			
 			if (c == 0) {
-				c = -o1.weighting.compareTo(o2.weighting);  // tile with the highest weighting
+				c = -o1.weight.compareTo(o2.weight);  // tile with the highest weighting
 			}
 
 
@@ -132,7 +107,7 @@ public class EvaluatedLocation extends Location {
 
 			int c = 0;
 			
-			c = -o1.clearProbability.compareTo(o2.clearProbability);  // safest tiles
+			c = -o1.safeProbability.compareTo(o2.safeProbability);  // safest tiles
 
 			if (c == 0) {
 				c = o1.maxValueProgress.compareTo(o2.maxValueProgress);  // then lowest max value ... the Minimax;

@@ -2,7 +2,6 @@ package minesweeper.explorer.structure;
 
 import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -27,8 +26,8 @@ public class Expander extends Circle {
 			toolTip.setX(event.getScreenX() + 10);
 			toolTip.setY(event.getScreenY() - 10);
 			
-			int boardX = (int) (xy.getX() / 24);
-			int boardY = (int) (xy.getY() / 24);
+			int boardX = (int) (xy.getX() / size);
+			int boardY = (int) (xy.getY() / size);
 			
 			String text = "(" + boardX + "," + boardY + ")";
 			
@@ -72,16 +71,16 @@ public class Expander extends Circle {
 	
     private Popup toolTip = new Popup();
     private Text popupText = new Text();
-
+    private double size;
 	
 	
-	public Expander(int x, int y, int radius, Color fill) {
-		super(x * 24, y * 24, radius, fill);
+	public Expander(int x, int y, int radius, double size, Color fill) {
+		super(x * size, y * size, radius, fill);
 		
         toolTip.getContent().addAll(popupText);
         popupText.setText("Test");
         popupText.setFont(new Font(20));
-		
+		this.size = size;
 		this.setOnMouseDragged(DRAGGED);
 		this.setOnMouseReleased(DRAG_ENDED);
 		//this.setOnMouseEntered(ENTERED);

@@ -13,6 +13,8 @@ import java.util.List;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.utility.Logger;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Location;
 
 /**
@@ -27,6 +29,8 @@ public class WitnessWeb {
     final private List<Box> boxes = new ArrayList<>();
     
     final private List<Witness> independentWitness = new ArrayList<>();
+    private final Logger logger;
+    
     private int independentMines;
     private BigInteger independentIterations = BigInteger.ONE;
     private int remainingSquares;
@@ -42,14 +46,17 @@ public class WitnessWeb {
     private List<CrunchResult> solutions = new ArrayList<>();
     
     public WitnessWeb(BoardState boardState, List<? extends Location> allWit, Collection<Location> allSqu) {
+    	this(boardState, allWit, allSqu, boardState.getLogger());
+    }
+    
+    public WitnessWeb(BoardState boardState, List<? extends Location> allWit, Collection<Location> allSqu, Logger logger) {
         
     	//long nanoStart = System.nanoTime();
     	
+    	this.logger = logger;
         this.boardState = boardState;
         this.originalWitnesses = allWit;
         
-        //GameStateModel gs = solver.getGame();
-
         // create squares for all the Square locations provided
         for (Location squ: allSqu) {
             squares.add(new Square(squ));
@@ -69,7 +76,7 @@ public class WitnessWeb {
                 	adjSqu.add(squ);
                 }
             }
-            if (mines > adjSqu.size()) {
+            if (mines > adjSqu.size() || mines < 0) {
             	validWeb = false;
             	return;
             }
@@ -129,7 +136,7 @@ public class WitnessWeb {
         for (Witness w: prunedWitnesses) {
             if (w.equivalent(wit)) {
             	if (boardState.getWitnessValue(w) - boardState.countAdjacentConfirmedFlags(w) != boardState.getWitnessValue(wit) - boardState.countAdjacentConfirmedFlags(wit)) {
-            		boardState.display(w.display() + " and " + wit.display() + " share unrevealed squares but have different mine totals!");
+            		logger.log(Level.WARN, "%s and %s share unrevealed squares but have different mine totals!", w, wit);
             		validWeb = false;
             	}
                 pruned++;

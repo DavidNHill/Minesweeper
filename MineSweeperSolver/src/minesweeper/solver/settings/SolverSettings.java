@@ -15,6 +15,7 @@ public class SolverSettings {
     protected boolean doDomination = true;
     protected boolean do5050Check = true;
     protected boolean testMode = false;
+    protected boolean experimentalScoring = false;
 	
     private boolean locked;
     
@@ -69,6 +70,15 @@ public class SolverSettings {
     	return this;
     }
     
+    public SolverSettings setExperimentalScoring(boolean isExperimental) {
+    	
+    	if (!locked) {
+        	this.experimentalScoring = isExperimental;
+    	}
+ 
+    	return this;
+    }
+    
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
 	}
@@ -93,12 +103,16 @@ public class SolverSettings {
 		return doDomination;
 	}
 	
-	public boolean do5050Check() {
+	public boolean isDo5050Check() {
 		return this.do5050Check;
 	}
 	
 	public boolean isTestMode() {
 		return testMode;
+	}
+	
+	public boolean isExperimentalScoring() {
+		return this.experimentalScoring;
 	}
 	
 	public int getRolloutSolutions() {

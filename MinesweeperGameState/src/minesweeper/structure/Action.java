@@ -88,9 +88,10 @@ public class Action extends Location {
     	return this.moveMethod;
     }
     
-    public String asString() {
+    @Override
+    public String toString() {
         
-        String result = Action.ACTION[this.action] + " at " + super.display() + " by " + moveMethod.description + " " + comment; 
+        String result = Action.ACTION[this.action] + " at " + super.toString() + " by " + moveMethod.description + " " + comment; 
         
         if (bigProb.compareTo(BigDecimal.ONE) < 0) {
             result = result + " with a probability of " + FORMAT_2DP.format(bigProb.multiply(ONE_HUNDRED)) + "%";

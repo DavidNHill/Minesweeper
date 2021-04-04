@@ -18,7 +18,6 @@ import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNGJSF;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.Solver;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.settings.SettingsFactory;
@@ -76,15 +75,15 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 1917209746;
-		//seed = -1217056997;
+		//seed = 1927791915;
+		seed = -1625713109;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 
 		//DefaultRNG.setDefaultRNGClass(RNGJSF.class);
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(6,7,33);
+		//GameSettings gameSettings = GameSettings.create(35,21,143);
 		GameType gameType = GameType.STANDARD;
 		//GameType gameType = GameType.EASY;
 		
@@ -92,7 +91,7 @@ public class MinesweeperBulk {
 		
 		while (played < MAX) {
 
-			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setRolloutSolutions(0);
+			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(true);
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
 			Solver solver = new Solver(gs, settings, false);
@@ -103,8 +102,6 @@ public class MinesweeperBulk {
 			//Solver solver = new Solver(gs, Preferences.MEDIUM_BRUTE_FORCE, false);
 			//Solver solver = new Solver(gs, Preferences.NO_BRUTE_FORCE, false);
 
-			//solver.setFlagFree(true);
-			
 			if (played % STEP == 0) {
 				double p = (double) wins / (double) played;
 				double err = Math.sqrt(p * ( 1- p) / (double) played) * 1.9599d;
@@ -112,6 +109,7 @@ public class MinesweeperBulk {
 						+ guesses + "(" + winningGuesses + "," + losingGuesses + ") guesses(winning, losing), fairness ratio=" + MASK5DP.format(fairness / fairGuesses) + "." );
 			}
 
+			//System.out.println(gs.getSeed());
 			int result = playGame(gs, solver);
 			
 			int masteryIndex = played % 100;
@@ -225,7 +223,7 @@ public class MinesweeperBulk {
 				//}
 
 				if (prob.compareTo(BigDecimal.ZERO) <= 0 || prob.compareTo(BigDecimal.ONE) > 0) {
-					System.out.println("Game (" + gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].asString());
+					System.out.println("Game (" + gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].toString());
 				} else if (!moves[i].isCertainty()) {
 					certain = false;
 					probability = probability * prob.doubleValue();
@@ -274,7 +272,7 @@ public class MinesweeperBulk {
 				}
 
 				if (state == GameStateModel.LOST && moves[i].isCertainty()) {
-					System.out.println("Game (" + gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].asString());
+					System.out.println("Game (" + gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].toString());
 				}
 
 				if (state == GameStateModel.LOST || state == GameStateModel.WON) {

@@ -7,10 +7,10 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane prefHeight="240.0" prefWidth="400.0" style="-fx-background-color: lightgrey;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.rollout.RolloutController">
+<AnchorPane prefHeight="285.0" prefWidth="400.0" style="-fx-background-color: lightgrey;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.rollout.RolloutController">
    <children>
-      <Button layoutX="317.0" layoutY="203.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
-      <ProgressBar fx:id="progressRun" layoutX="96.0" layoutY="171.0" prefHeight="25.0" prefWidth="293.0" progress="0.21" style="-fx-control-inner-background: lightgrey; -fx-accent: lightgreen;" />
+      <Button layoutX="317.0" layoutY="246.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
+      <ProgressBar fx:id="progressRun" layoutX="94.0" layoutY="213.0" prefHeight="25.0" prefWidth="293.0" progress="0.21" style="-fx-control-inner-background: lightgrey; -fx-accent: lightgreen;" />
       <TextField fx:id="gameCount" layoutX="95.0" layoutY="18.0" style="-fx-background-color: silver;" />
       <Label layoutX="15.0" layoutY="132.0" prefHeight="25.0" prefWidth="72.0" text="Win rate">
          <font>
@@ -21,12 +21,12 @@
             <Font size="14.0" />
          </font>
       </Label>
-      <Label layoutX="15.0" layoutY="171.0" prefHeight="25.0" prefWidth="72.0" text="Progress" textAlignment="RIGHT">
+      <Label layoutX="13.0" layoutY="213.0" prefHeight="25.0" prefWidth="72.0" text="Progress" textAlignment="RIGHT">
          <font>
             <Font size="14.0" />
          </font>
       </Label>
-      <Label fx:id="progressRunLabel" alignment="CENTER" layoutX="112.0" layoutY="171.0" prefHeight="25.0" prefWidth="267.0" text="590/1000">
+      <Label fx:id="progressRunLabel" alignment="CENTER" layoutX="110.0" layoutY="213.0" prefHeight="25.0" prefWidth="267.0" text="590/1000">
          <font>
             <Font name="System Bold" size="16.0" />
          </font>
@@ -55,5 +55,50 @@
          </font>
       </Label>
       <TextField fx:id="startLocY" layoutX="165.0" layoutY="100.0" prefHeight="25.0" prefWidth="43.0" style="-fx-background-color: silver;" />
+      <Label layoutX="193.0" layoutY="158.0" prefHeight="25.0" prefWidth="72.0" text="Fairness">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <Label fx:id="fairnessPercentage" layoutX="288.0" layoutY="157.0" prefHeight="27.0" prefWidth="98.0">
+         <font>
+            <Font name="System Bold" size="16.0" />
+         </font>
+      </Label>
+      <Label layoutX="15.0" layoutY="184.0" prefHeight="25.0" prefWidth="72.0" text="Best streak">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <Label fx:id="bestWinStreak" layoutX="96.0" layoutY="183.0" prefHeight="27.0" prefWidth="84.0">
+         <font>
+            <Font name="System Bold" size="16.0" />
+         </font>
+      </Label>
+      <Label fx:id="bestMastery" layoutX="288.0" layoutY="183.0" prefHeight="27.0" prefWidth="98.0">
+         <font>
+            <Font name="System Bold" size="16.0" />
+         </font>
+      </Label>
+      <Label layoutX="193.0" layoutY="184.0" prefHeight="25.0" prefWidth="92.0" text="Best mastery">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <Label fx:id="totalGuesses" layoutX="95.0" layoutY="157.0" prefHeight="27.0" prefWidth="84.0">
+         <font>
+            <Font name="System Bold" size="16.0" />
+         </font>
+      </Label>
+      <Label layoutX="14.0" layoutY="158.0" prefHeight="25.0" prefWidth="72.0" text="Guesses">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
+      <CheckBox fx:id="safeStart" layoutX="229.0" layoutY="104.0" mnemonicParsing="false" prefHeight="20.0" prefWidth="98.0" text="Ensure safe">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </CheckBox>
    </children>
 </AnchorPane>

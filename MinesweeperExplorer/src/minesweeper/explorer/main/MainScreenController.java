@@ -51,7 +51,7 @@ public class MainScreenController {
 	private class Indicator extends Rectangle {
 		
 		public Indicator(Action action) {
-			super(action.x * 24, action.y * 24, 24d, 24d);
+			super(action.x * graphicsSet.getSize(), action.y * graphicsSet.getSize(), graphicsSet.getSize(), graphicsSet.getSize());
 
     		setMouseTransparent(true);    
 			
@@ -74,7 +74,7 @@ public class MainScreenController {
 		}
 		
 		public Indicator(Location action, Paint colour) {
-			super(action.x * 24, action.y * 24, 24d, 24d);
+			super(action.x * graphicsSet.getSize(), action.y * graphicsSet.getSize(), graphicsSet.getSize(), graphicsSet.getSize());
 
     		setMouseTransparent(true);    
 			
@@ -91,12 +91,21 @@ public class MainScreenController {
 	@FXML private Button buttonAnalyse;
 	@FXML private Button buttonRollout;
 	@FXML private CheckBox checkBoxLockMineCount;
-	@FXML private RadioMenuItem rolloutStrong;
-	@FXML private RadioMenuItem rolloutWeak;
+	@FXML private RadioMenuItem rollout4000;
+	@FXML private RadioMenuItem rollout400;
+	@FXML private RadioMenuItem rollout40;
+	@FXML private RadioMenuItem rolloutNoBF;
+	
+	@FXML private RadioMenuItem tileSize16;
+	@FXML private RadioMenuItem tileSize24;
+	@FXML private RadioMenuItem tileSize32;
+	
+	@FXML private RadioMenuItem experimentalTiebreakScoring;
 	
 	private TileValuesController tileValueController;
+	private Graphics graphics;
 	private GraphicsSet graphicsSet;
-	private Expander boardExpander = new Expander(0, 0, 6, Color.BLACK);
+	private Expander boardExpander = new Expander(0, 0, 6, 24, Color.BLACK);
 	private Board currentBoard;
 	private LedDigits minesToFind;
 	private LedDigits minesPlaced;
@@ -153,6 +162,35 @@ public class MainScreenController {
 		newBoard(30, 16, 99);
 	}
 	
+	@FXML
+	public void resizeBoard() {
+		
+		System.out.println("Resizing the board");
+		
+		if (tileSize16.isSelected()) {
+			this.graphicsSet = new Graphics().getGraphicsSet(16);
+
+		} else if (tileSize24.isSelected()) {
+			this.graphicsSet = new Graphics().getGraphicsSet(24);
+
+		} else {
+			this.graphicsSet = new Graphics().getGraphicsSet(32);
+		}
+		
+		currentBoard.resizeBoard(graphicsSet);
+		
+		//remove, recreate and add the board expander
+		getBoardDisplayArea().getChildren().remove(boardExpander);
+		boardExpander = new Expander(0, 0, 6, graphicsSet.getSize(), Color.BLACK);
+		boardExpander.setCenterX(currentBoard.getGameWidth() * graphicsSet.getSize());
+		boardExpander.setCenterY(currentBoard.getGameHeight() * graphicsSet.getSize());
+		getBoardDisplayArea().getChildren().add(boardExpander);
+		
+		// remove all the indicators
+		removeIndicators();
+		
+	}
+	
 	@FXML 
 	public void loadBoard() {
 		
@@ -195,8 +233,8 @@ public class MainScreenController {
 	@FXML 
 	public void newCustomBoard() {
 		
-		int boardWidth = (int) (boardExpander.getCenterX() / 24);
-		int boardHeight = (int) (boardExpander.getCenterY() / 24);
+		int boardWidth = (int) (boardExpander.getCenterX() / this.graphicsSet.getSize());
+		int boardHeight = (int) (boardExpander.getCenterY() / this.graphicsSet.getSize());
 		
 		newBoard(boardWidth,boardHeight, 0);
 		
@@ -214,15 +252,17 @@ public class MainScreenController {
 		}
 
 		SolverSettings settings;
-		if (rolloutWeak.isSelected()) {
-			System.out.println("Weak selected");
-			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setTieBreak(false);
+		if (rolloutNoBF.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+		} else if (rollout40.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+		} else if (rollout400.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
 		} else {
-			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
 		}
 		
 		Solver solver = new Solver(gs, settings, true);
-		
 		
 		try {
 			RolloutGenerator gen = solver.getRolloutGenerator();
@@ -248,7 +288,7 @@ public class MainScreenController {
 		}
 
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
-		Solver solver = new Solver(gs, settings, true);
+		Solver solver = new Solver(gs, settings, false);
 		ProgressMonitor pm = new ProgressMonitor();
 		
 		// run this task in parallel while locking the screen against any other actions
@@ -304,7 +344,7 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setRolloutSolutions(1000000);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
 		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
 		Solver solver = new Solver(gs, settings, true);
 		
@@ -325,7 +365,7 @@ public class MainScreenController {
 							messageLine.setText("No suggestion returned by the solver");
 						} else {
 							Action a = actions[0];
-							messageLine.setText(a.asString());
+							messageLine.setText(a.toString());
 							
 							removeIndicators();
 							for (Action action: actions) {
@@ -394,65 +434,6 @@ public class MainScreenController {
 
 		BusyController.launch(boardDisplayArea.getScene().getWindow(), pt, null);
 		
-		/*
-		Action[] actions = pt.getResult();
-		
-		if (actions.length == 0) {
-			messageLine.setText("No suggestion returned by the solver");
-		} else {
-			Action a = actions[0];
-			messageLine.setText(a.asString());
-			
-			//currentBoard.getChildren().removeAll(indicators);
-			//indicators.clear();
-			removeIndicators();
-			for (Action action: actions) {
-				indicators.add(new Indicator(action));
-			}
-			
-	    	List<EvaluatedLocation> els = solver.getEvaluatedLocations();
-	    	if (els != null) {
-	        	for (EvaluatedLocation el: els) {
-	        		
-	        		// don't show evaluated positions which are actually chosen to be played
-	        		boolean ignore = false;
-	        		for (Action action: actions) {
-	        			if (el.equals(action)) {
-	        				ignore = true;
-	        			}
-	        		}
-	        		
-	        		if (!ignore) {
-	        			indicators.add(new Indicator(el, Color.ORANGE));
-	        		}
-
-	        		
-	        	}    		
-	    	}
-			
-	    	Area dead = solver.getDeadLocations();
-	    	if (dead != null) {
-	        	for (Location loc: dead.getLocations()) {
-	        		
-	        		// don't show evaluated positions which are actually chosen to be played
-	        		boolean ignore = false;
-	        		for (Action action: actions) {
-	        			if (loc.equals(action)) {
-	        				ignore = true;
-	        			}
-	        		}
-	        		
-	        		if (!ignore) {
-	        			indicators.add(new Indicator(loc, Color.BLACK));
-	        		}
-
-	        	}    		
-	    	}
-			
-			
-			currentBoard.getChildren().addAll(indicators);
-		}
-		*/
 	}
 	
 	protected void removeIndicators() {
@@ -618,8 +599,8 @@ public class MainScreenController {
 
 		checkBoxLockMineCount.setSelected(minesLeft != 0);
 	
-		boardExpander.setCenterX(board.getGameWidth() * 24);
-		boardExpander.setCenterY(board.getGameHeight() * 24);
+		boardExpander.setCenterX(board.getGameWidth() * graphicsSet.getSize());
+		boardExpander.setCenterY(board.getGameHeight() * graphicsSet.getSize());
 		
 		getBoardDisplayArea().getChildren().addAll(currentBoard, boardExpander);
 
@@ -704,8 +685,11 @@ public class MainScreenController {
 		return minesToFind;
 	}
 	
-	public void setGraphicsSet(GraphicsSet graphicsSet) {
-		this.graphicsSet = graphicsSet;
+	public void setGraphicsSet(Graphics graphics) {
+		this.graphics = graphics;
+		this.graphicsSet = graphics.getGraphicsSet(24);
+		
+		boardExpander = new Expander(0, 0, 6, graphicsSet.getSize(), Color.BLACK);
 	}
 	
 	public GraphicsSet getGraphicsSet() {

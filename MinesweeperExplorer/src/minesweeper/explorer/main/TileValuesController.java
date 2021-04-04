@@ -80,7 +80,7 @@ public class TileValuesController {
 		
 		tileValuesController.stage.getIcons().add(Graphics.ICON);
 		
-		tileValuesController.stage.setResizable(false);
+		tileValuesController.stage.setResizable(true);
 
 		//custom.stage.initOwner(owner);
 		//custom.stage.initModality(Modality.WINDOW_MODAL);
@@ -137,23 +137,39 @@ public class TileValuesController {
 
 				stage.setTitle(WINDOW_NAME + " (" + il.x + "," + il.y + ")");
 				
-				BigDecimal riskReward = null;
-				if (il.getProbability().compareTo(BigDecimal.ONE) != 0) {
-					riskReward = il.getProgressProbability().divide(BigDecimal.ONE.subtract(il.getProbability()), 2, RoundingMode.HALF_UP);
+				BigDecimal safe2Prog = il.getSecondarySafety().multiply(BigDecimal.ONE.add(il.getProgressProbability().multiply(new BigDecimal("0.1"))));  // = 2nd Safety * (1 + progress*0.1);
+				BigDecimal essrSafe = null;
+
+				if (il.getProbability().compareTo(BigDecimal.ZERO) != 0) {
+					essrSafe = il.getExpectedSolutionSpaceReduction().divide(il.getProbability(), 3, RoundingMode.HALF_UP);
 				}
+				
 				
 				for (ByValue bv: il.getByValueData()) {
 					items.add(new TileValueData(bv));
 				}
-				items.add(new TileValueData("Safe", Explorer.PERCENT.format(il.getProbability()), ""));
+				items.add(new TileValueData("Safety", Explorer.PERCENT.format(il.getProbability()), ""));
 				items.add(new TileValueData("Progress", Explorer.PERCENT.format(il.getProgressProbability()), Explorer.TWO_DP.format(il.getExpectedClears())));
-				items.add(new TileValueData("Score", Explorer.PERCENT.format(il.getWeighting()), ""));
-				items.add(new TileValueData("Exp Sol redn", Explorer.PERCENT.format(il.getExpectedSolutionSpaceReduction()), ""));
-				if (riskReward != null) {
-					items.add(new TileValueData("Prog/Risk", riskReward.toPlainString(), ""));
+				items.add(new TileValueData("Safety.prog20%", Explorer.PERCENT.format(il.getWeighting()), ""));
+				items.add(new TileValueData("2nd Safety", Explorer.PERCENT.format(il.getSecondarySafety()), ""));
+				items.add(new TileValueData("2nd Safety.prog10%", Explorer.PERCENT.format(safe2Prog), ""));
+				
+				items.add(new TileValueData("Exp Soln left", Explorer.PERCENT.format(il.getExpectedSolutionSpaceReduction()), ""));
+				if (essrSafe != null) {
+					items.add(new TileValueData("ESL/Safe", essrSafe.toPlainString(), ""));
 				}
-
-
+				if (il.getMTanzerRatio() != null) {
+					items.add(new TileValueData("prog/(1-safe)", il.getMTanzerRatio().toPlainString(), ""));
+				} else {
+					items.add(new TileValueData("prog/(1-safe)", "Infinity", ""));
+				}
+				
+				//if (il.getPoweredRatio() != null) {
+				//	items.add(new TileValueData("Power/(1-safe)", il.getPoweredRatio().toPlainString(), ""));
+				//} else {
+				//	items.add(new TileValueData("Power/(1-safe)", "Infinity", ""));
+				//}
+				
 			}
 		});            
 

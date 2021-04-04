@@ -12,6 +12,7 @@ import java.util.Map;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -578,8 +579,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 
 		long start = System.currentTimeMillis();
 		
-		solver.display("----- Brute Force Deep Analysis starting ----");
-		solver.display(allSolutions.size() + " solutions in BruteForceAnalysis");
+		solver.logger.log(Level.INFO, "----- Brute Force Deep Analysis starting ----");
+		solver.logger.log(Level.INFO, "%d solutions in BruteForceAnalysis", allSolutions.size());
 		
 		// create the top node 
 		Node top = buildTopNode(allSolutions);
@@ -602,7 +603,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					}
 				}
 				if (!found) {  // if not then skip this move
-					solver.display(move.index + " " + locations.get(move.index).display() + " is not a starting location");
+					solver.logger.log(Level.INFO, "%d %s is not a starting location", move.index, locations.get(move.index));
 					continue;
 				}				
 			}
@@ -619,9 +620,9 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
 			
 			if (move.pruned) {
-				solver.display(move.index + " " + locations.get(move.index).display() + " is living with " + move.count + " possible values and probability " + percentage(singleProb) + ", this location was pruned (max winning lines " + winningLines + ")");
+				solver.logger.log(Level.INFO, "%d %s is living with %d possible values and probability %s, this location was pruned (max winning lines %d)", move.index, locations.get(move.index), move.count, percentage(singleProb),  winningLines);
 			} else {
-				solver.display(move.index + " " + locations.get(move.index).display() + " is living with " + move.count + " possible values and probability " + percentage(singleProb) + ", winning lines " + winningLines);
+				solver.logger.log(Level.INFO, "%d %s is living with %d possible values and probability %s, winning lines %d", move.index, locations.get(move.index), move.count, percentage(singleProb),  winningLines);
 			}
 			
 			
@@ -645,9 +646,9 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		cache.clear();
 		
 		long end = System.currentTimeMillis();
-		solver.display("Total nodes in cache = " + cacheSize + ", total cache hits = " + cacheHit + ", total winning lines saved = " + this.cacheWinningLines );
-		solver.display("process took " + (end - start) + " milliseconds and explored " + processCount + " nodes" );
-		solver.display("----- Brute Force Deep Analysis finished ----");
+		solver.logger.log(Level.INFO, "Total nodes in cache %d, total cache hits %d, total winning lines saved %d", cacheSize, cacheHit, this.cacheWinningLines);
+		solver.logger.log(Level.INFO, "process took %d milliseconds and explored %d nodes", (end - start), processCount);
+		solver.logger.log(Level.INFO, "----- Brute Force Deep Analysis finished ----");
 	}
 	
 	/**
@@ -707,9 +708,9 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				living.add(alive);
 			} else {
 				if (mines == result.getSolutionSize()) {
-					solver.display(locations.get(i).display() + " is a mine");
+					solver.logger.log(Level.INFO, "Tile %s is a mine", locations.get(i));
 				} else {
-					solver.display(locations.get(i).display() + " is dead with value " + minValue);
+					solver.logger.log(Level.INFO, "Tile %s is dead with value %d", locations.get(i), minValue);
 					deadLocations.add(locations.get(i));
 				}
 			}
@@ -770,7 +771,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			
 		}
 		
-		solver.display("mines = "  + bestLiving.mineCount + " solutions = " + currentNode.getSolutionSize());
+		solver.logger.log(Level.INFO, "Solutions with mines is %d out of %d", bestLiving.mineCount, currentNode.getSolutionSize());
 		for (int i=0; i < bestLiving.children.length; i++) {
 			if (bestLiving.children[i] == null) {
 				//solver.display("Value of " + i + " is not possible");
@@ -783,7 +784,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			} else {
 				probText = Action.FORMAT_2DP.format(bestLiving.children[i].getProbability().multiply(ONE_HUNDRED)) + "%";
 			}
-			solver.display("Value of " + i + " leaves " + bestLiving.children[i].getSolutionSize() + " solutions and winning probability " + probText + " (work size " + bestLiving.children[i].work + ")");
+			solver.logger.log(Level.INFO, "Value of %d leaves %d solutions and winning probability %s", i, bestLiving.children[i].getSolutionSize(), probText);
 		}
 		
 		String text = " (solve " + scope + " " + Action.FORMAT_2DP.format(currentNode.getProbability().multiply(ONE_HUNDRED)) + "%)";
@@ -823,7 +824,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(node.bestLiving.mineCount).divide(BigDecimal.valueOf(node.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 		
 		
-		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.display() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Solve chance " + Action.FORMAT_2DP.format(node.getProbability().multiply(ONE_HUNDRED)) + "%";
+		String line = INDENT.substring(0, depth*3) + condition + " play " + loc.toString() + " Survival chance " + Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%, Solve chance " + Action.FORMAT_2DP.format(node.getProbability().multiply(ONE_HUNDRED)) + "%";
 		
 		System.out.println(line);
 		solver.newLine(line);

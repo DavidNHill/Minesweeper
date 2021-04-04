@@ -25,7 +25,6 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.random.DefaultRNG;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
-import minesweeper.solver.Preferences;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Location;
 
@@ -118,7 +117,7 @@ public class BulkController {
 				int startY = Integer.parseInt(startLocY.getText().trim());
 				if (startX >= 0 && startX < gameSettings.width && startY >= 0 && startY < gameSettings.height) {
 					startLocation = new Location(startX, startY);
-					System.out.println("Start location set to " + startLocation.display());
+					System.out.println("Start location set to " + startLocation.toString());
 				}
 				
 			} catch (NumberFormatException e) {

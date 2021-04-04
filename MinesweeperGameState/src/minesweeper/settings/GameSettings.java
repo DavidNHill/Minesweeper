@@ -5,8 +5,17 @@ import java.util.List;
 
 public class GameSettings {
 
+	/**
+	 * 9x9/10
+	 */
 	final static public GameSettings BEGINNER = new GameSettings(9, 9, 10, "Beginner");
+	/**
+	 * 16x6/40
+	 */
 	final static public GameSettings ADVANCED = new GameSettings(16, 16, 40, "Advanced");
+	/**
+	 * 30x16/99
+	 */
 	final static public GameSettings EXPERT = new GameSettings(30, 16, 99, "Expert");
 	
 	final static private List<GameSettings> standardSettings = Arrays.asList(BEGINNER, ADVANCED, EXPERT);

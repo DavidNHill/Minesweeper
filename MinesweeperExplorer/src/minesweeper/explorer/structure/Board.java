@@ -45,6 +45,14 @@ public class Board extends AnchorPane {
 			
 			Tile tile = tiles[boardX][boardY];
 			
+			if (event.isPrimaryButtonDown()  && !tile.equals(draggedTile)) {
+				draggedTile = tile;
+				if (tile.isFlagged()) {   // if flagged do nothing
+				} else {  // otherwise toggle between covered and uncovered
+					tile.setCovered(!tile.isCovered());
+				}
+			}
+
 			if (!tile.isCovered() || tile.isFlagged()) {   // flag or not hidden
 				hideTooltip();
 			} else {
@@ -72,6 +80,9 @@ public class Board extends AnchorPane {
     private Popup toolTip = new Popup();
     private Text tooltipText = new Text();
     
+    // details for controlling dragging behavour;
+	private Tile draggedTile;
+	
     
 	private final int width;
 	private final int height;
@@ -109,6 +120,8 @@ public class Board extends AnchorPane {
         this.setOnMouseMoved(TOOLTIP);
         this.setOnMouseEntered(TOOLTIP);
         this.setOnMouseExited(TOOLTIP);
+        
+        this.setOnMouseDragged(TOOLTIP);
 		
 	}
 	
@@ -283,8 +296,30 @@ public class Board extends AnchorPane {
 		
 	}
 	
+	public void resizeBoard(GraphicsSet graphicsSet) {
+		
+		if (this.graphicsSet.getSize() == graphicsSet.getSize() ) {
+			return;
+		}
+		
+		this.graphicsSet = graphicsSet;
+		
+		for (int x=0; x < this.width; x++) {
+			for (int y=0; y < this.height; y++) {
+				tiles[x][y].resizeTile(graphicsSet);
+			}
+		}		
+		
+		
+	}
+	
+	
    public ReadOnlyIntegerProperty getMinesPlacedProperty() {
       return flagsPlaced.getReadOnlyProperty();
+   }
+   
+   public void setDraggedTile(Tile tile) {
+	   this.draggedTile = tile;
    }
    
    public int getFlagsPlaced() {

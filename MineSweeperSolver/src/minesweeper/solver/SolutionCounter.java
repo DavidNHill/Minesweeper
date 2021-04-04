@@ -11,6 +11,7 @@ import java.util.Map;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
@@ -141,7 +142,7 @@ public class SolutionCounter {
 	//when set to true indicates that the box has been part of this analysis
 	private boolean[] mask;           
 	
-	final private BoardState solver;
+	final private BoardState boardState;
 	final private WitnessWeb web;
 	final private int boxCount;
 	final private List<Witness> witnesses;
@@ -168,9 +169,11 @@ public class SolutionCounter {
 	private Area deadLocations = Area.EMPTY_AREA;
 	private boolean canDoDeadTileAnalysis;
 	
-	public SolutionCounter(BoardState solver, WitnessWeb web, int squaresLeft, int minesLeft) {
+	private boolean valid = true;
+	
+	public SolutionCounter(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
 		
-		this.solver = solver;
+		this.boardState = boardState;
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
@@ -202,8 +205,8 @@ public class SolutionCounter {
 	 */
 	public void process(Area deadLocations) {
 		
-		if (!web.isWebValid()) {  // if the web is invalid then nothing we can do
-			solver.display("Web is invalid - skipping the SolutionCounter processing");
+		if (!web.isWebValid() || !this.valid) {  // if the web is invalid then nothing we can do
+			boardState.getLogger().log(Level.INFO, "Web is invalid - skipping the SolutionCounter processing");
 			finalSolutionsCount = BigInteger.ZERO;
 			return;
 		}
@@ -515,19 +518,22 @@ public class SolutionCounter {
 		
 		recursions++;
 		if (recursions % 10000 == 0) {
-			solver.display("Solution counter recursion = " + recursions);
+			boardState.getLogger().log(Level.WARN, "Probability Engine recursion exceeding %d iterations", recursions);
 		}
 		
 		List<ProbabilityLine> result = new ArrayList<>();
 		
+		Box box = nw.newBoxes.get(index);
+		
 		// if there is only one box left to put the missing mines we have reach this end of this branch of recursion
 		if (nw.newBoxes.size() - index == 1) {
 			// if there are too many for this box then the probability can't be valid
-			if (nw.newBoxes.get(index).getMaxMines() < missingMines) {
+			if (box.getMaxMines() < missingMines) {
 				return result;
 			}
+			
 			// if there are too few for this box then the probability can't be valid
-			if (nw.newBoxes.get(index).getMinMines() > missingMines) {
+			if (box.getMinMines() > missingMines) {
 				return result;
 			}
 			// if there are too many for this game then the probability can't be valid
@@ -536,20 +542,20 @@ public class SolutionCounter {
 			}			
 			
 			// otherwise place the mines in the probability line
-			result.add(extendProbabilityLine(pl, nw.newBoxes.get(index), missingMines));
+			result.add(extendProbabilityLine(pl, box, missingMines));
 			return result;
 		}
 		
-		
 		// this is the recursion
-		int maxToPlace = Math.min(nw.newBoxes.get(index).getMaxMines(), missingMines);
+		int maxToPlace = Math.min(box.getMaxMines(), missingMines);
 		
-		for (int i=nw.newBoxes.get(index).getMinMines(); i <= maxToPlace; i++) {
-			ProbabilityLine npl = extendProbabilityLine(pl, nw.newBoxes.get(index), i);
+		for (int i=box.getMinMines(); i <= maxToPlace; i++) {
+			ProbabilityLine npl = extendProbabilityLine(pl, box, i);
 			
 			result.addAll(distributeMissingMines(npl, nw, missingMines - i, index + 1));
 		}
-		
+
+
 		return result;
 		
 	}
@@ -738,14 +744,14 @@ public class SolutionCounter {
 			if (boxesInScope == 0) {
 				continue;
 			} else if (boxesInScope != dc.goodBoxes.size() + dc.badBoxes.size()) {
-				display("Location " + dc.candidate.display() + " has some boxes in scope and some out of scope so assumed alive");
+				display("Location " + dc.candidate.toString() + " has some boxes in scope and some out of scope so assumed alive");
 				dc.isAlive = true;
 				continue;
 			}
 			
 			//if we can't do the check because the edge has been compressed mid process then assume alive
 			if (!checkPossible) {
-				display("Location " + dc.candidate.display() + " was on compressed edge so assumed alive");
+				display("Location " + dc.candidate.toString() + " was on compressed edge so assumed alive");
 				dc.isAlive = true;
 				continue;
 			}
@@ -779,7 +785,7 @@ public class SolutionCounter {
                     }
 					
 					if (pl.mineBoxCount[b.getUID()].signum() != 0 && pl.mineBoxCount[b.getUID()].compareTo(requiredMines) != 0) {
-						display("Location " + dc.candidate.display() + " is not dead because a bad box is neither empty nor full of mines");
+						display("Location " + dc.candidate.toString() + " is not dead because a bad box is neither empty nor full of mines");
 						okay = false;
 						break line;
 					}
@@ -798,7 +804,7 @@ public class SolutionCounter {
 					dc.firstCheck = false;
 				} else {
 					if (dc.total != tally) {
-						display("Location " + dc.candidate.display() + " is not dead because the sum of mines in good boxes is not constant. Was "
+						display("Location " + dc.candidate.toString() + " is not dead because the sum of mines in good boxes is not constant. Was "
 					                       + dc.total + " now " + tally + ". Mines in probability line " + pl.mineCount);
 						okay = false;
 						break;
@@ -812,7 +818,7 @@ public class SolutionCounter {
 			} else {
 				// add the dead locations we found 
 				deadLocations = deadLocations.add(dc.candidate);
-				display(dc.candidate.display() + " is dead");
+				display(dc.candidate.toString() + " is dead");
 			}
 			
 		}
@@ -854,7 +860,7 @@ public class SolutionCounter {
 			// if the tile has no boxes adjacent to it then it is already dead (i.e. surrounded by mines and witnesses only)
 			if (dc.goodBoxes.isEmpty() && dc.badBoxes.isEmpty()) {
 				deadLocations = deadLocations.add(dc.candidate);
-				display(dc.candidate.display() + " is dead since it has no open tiles around it");
+				display(dc.candidate.toString() + " is dead since it has no open tiles around it");
 			} else {
 				deadCandidates.add(dc);
 			}
@@ -862,7 +868,7 @@ public class SolutionCounter {
 		}
 
 		for (DeadCandidate dc: deadCandidates) {
-			display(dc.candidate.display() + " is candidate dead with " + dc.goodBoxes.size() + " good boxes and " + dc.badBoxes.size() + " bad boxes");
+			display(dc.candidate.toString() + " is candidate dead with " + dc.goodBoxes.size() + " good boxes and " + dc.badBoxes.size() + " bad boxes");
 		}
 		
 	}
@@ -874,7 +880,7 @@ public class SolutionCounter {
 		//int sizeOfBoxes = 0;
 		
 		// get each adjacent location
-		for (Location adjLoc: solver.getAdjacentUnrevealedSquares(loc)) {
+		for (Location adjLoc: boardState.getAdjacentUnrevealedSquares(loc)) {
 			
 			// find the box it is in
 			boolean boxFound = false;
@@ -921,6 +927,24 @@ public class SolutionCounter {
 	private void display(String text) {
 		//solver.display(text);
 	}
+
+	// forces a box to contain a tile chich isn't a mine.  If the location isn't in a box false is returned. If the box can't support zero mines false is returned.
+	public boolean setMustBeEmpty(Location loc) {
+		Box box = getBox(loc);
+		
+		if (box == null) {
+			//this.valid = false;
+			//return false;
+		} else if (box.getMinMines() != 0) {
+			this.valid = false;
+			return false;
+		} else {
+			box.incrementEmptyTiles();
+		}
+		
+		return true;
+	}
+	
 	
 	/**
 	 * The number of ways the mines can be placed in the game position

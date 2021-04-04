@@ -27,6 +27,7 @@ import minesweeper.gamestate.msx.GameStateX;
 import minesweeper.gamestate.msx.ScreenScanner;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
+import minesweeper.solver.Solver;
 
 /**
  *
@@ -34,9 +35,9 @@ import minesweeper.settings.GameType;
  */
 public class Minesweeper extends Application {
     
-	public final static String VERSION = "1.04a";
+	public final static String VERSION = "1.04b";
 	
-	public static final String TITLE = "Minesweeper coach (" + VERSION + ")";
+	public static final String TITLE = "Minesweeper coach (" + VERSION + ") Solver version " + Solver.VERSION;
 	
     private static GameStateModelViewer myGame;
     private static GameSettings gameSettings;

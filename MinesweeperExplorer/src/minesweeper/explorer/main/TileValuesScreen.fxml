@@ -5,13 +5,13 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane prefHeight="368.0" prefWidth="294.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.main.TileValuesController">
+<AnchorPane prefHeight="552.0" prefWidth="348.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.main.TileValuesController">
    <children>
       <TableView fx:id="resultsTable" prefHeight="514.0" prefWidth="446.0" AnchorPane.bottomAnchor="40.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <columns>
-            <TableColumn fx:id="columnValue" prefWidth="79.0" style="-fx-alignment: CENTER;" text="Value" />
-          <TableColumn fx:id="columnProbability" prefWidth="119.0" style="-fx-alignment: CENTER;" text="Probability" />
-          <TableColumn fx:id="columnClears" prefWidth="96.0" style="-fx-alignment: CENTER;" text="Clears" />
+            <TableColumn fx:id="columnValue" prefWidth="159.0" style="-fx-alignment: CENTER;" text="Value" />
+          <TableColumn fx:id="columnProbability" prefWidth="96.0" style="-fx-alignment: CENTER;" text="Probability" />
+          <TableColumn fx:id="columnClears" prefWidth="91.0" style="-fx-alignment: CENTER;" text="Living clears" />
         </columns>
       </TableView>
    </children>

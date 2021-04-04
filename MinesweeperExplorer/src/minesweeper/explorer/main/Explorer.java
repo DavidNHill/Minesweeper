@@ -32,6 +32,8 @@ public class Explorer extends Application {
 
 	private static Stage primaryStage;
 	
+	private static final Graphics graphics = new Graphics();
+	
 	@Override
 	public void start(Stage primaryStage) {
 		
@@ -41,8 +43,8 @@ public class Explorer extends Application {
 			System.out.println("MainScreen.fxml not found");
 		}
 
-		Graphics graphics = new Graphics();
-		GraphicsSet graphicsSet = graphics.getGraphicsSet(tileSize);
+		//Graphics graphics = new Graphics();
+		//GraphicsSet graphicsSet = graphics.getGraphicsSet(tileSize);
 		
 		// create the helper screen
 		FXMLLoader loader = new FXMLLoader(Explorer.class.getResource("MainScreen.fxml"));
@@ -76,7 +78,7 @@ public class Explorer extends Application {
 			System.out.println("MainScreenController not found");
 		}
 		
-		mainScreenController.setGraphicsSet(graphicsSet);
+		mainScreenController.setGraphicsSet(graphics);
 		mainScreenController.newExpertBoard();
 		
 		BoardMonitor monitor = new BoardMonitor(mainScreenController);

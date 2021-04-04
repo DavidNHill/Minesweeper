@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 
+import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.structure.Area;
@@ -28,5 +29,7 @@ abstract public class ProbabilityEngineModel {
 	abstract protected LinkedLocation getLinkedLocation(Location tile);
 	abstract protected List<BruteForce> getIsolatedEdges();
 	abstract protected boolean isBestGuessOffEdge();
-
+	abstract protected int getLivingClearCount();
+	abstract protected List<Box> getEmptyBoxes();
+	
 }

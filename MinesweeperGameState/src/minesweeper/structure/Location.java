@@ -20,11 +20,12 @@ public class Location implements Comparable<Location> {
         this.x = x;
         this.y = y;
         
-        this.sortOrder = y + x * 10000;
+        this.sortOrder = y * 10000 + x;
         
     }
     
-    public String display() {
+    @Override
+    public String toString() {
         return "(" + x + "," + y + ")";
     }
     

@@ -27,9 +27,9 @@
                   </Menu>
                   <Menu mnemonicParsing="false" text="New board">
                     <items>
-                      <MenuItem mnemonicParsing="false" onAction="#newBeginnerBoard" text="9x9x10" />
-                        <MenuItem mnemonicParsing="false" onAction="#newIntermediateBoard" text="16x16x40" />
-                        <MenuItem mnemonicParsing="false" onAction="#newExpertBoard" text="30x16x99" />
+                      <MenuItem mnemonicParsing="false" onAction="#newBeginnerBoard" text="9x9/10" />
+                        <MenuItem mnemonicParsing="false" onAction="#newIntermediateBoard" text="16x16/40" />
+                        <MenuItem mnemonicParsing="false" onAction="#newExpertBoard" text="30x16/99" />
                         <MenuItem mnemonicParsing="false" onAction="#newCustomBoard" text="Custom size" />
                     </items>
                   </Menu>
@@ -43,15 +43,32 @@
             </Menu>
           <Menu mnemonicParsing="false" text="Settings">
             <items>
+                  <Menu mnemonicParsing="false" text="Tile size">
+                    <items>
+                        <RadioMenuItem fx:id="tileSize16" mnemonicParsing="false" onAction="#resizeBoard" text="16 pixels">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="tilesize" />
+                           </toggleGroup></RadioMenuItem>
+                        <RadioMenuItem fx:id="tileSize24" mnemonicParsing="false" onAction="#resizeBoard" selected="true" text="24 Pixels" toggleGroup="$tilesize" />
+                        <RadioMenuItem fx:id="tileSize32" mnemonicParsing="false" onAction="#resizeBoard" text="32 pixels" toggleGroup="$tilesize" />
+                    </items>
+                  </Menu>
                   <Menu mnemonicParsing="false" text="Rollout Strength">
                      <items>
-                        <RadioMenuItem fx:id="rolloutWeak" mnemonicParsing="false" selected="true" text="Weakest (fastest)">
+                        <RadioMenuItem fx:id="rolloutNoBF" mnemonicParsing="false" text="No Brute force">
                            <toggleGroup>
                               <ToggleGroup fx:id="rolloutStrength" />
                            </toggleGroup>
                         </RadioMenuItem>
-                        <RadioMenuItem fx:id="rolloutStrong" mnemonicParsing="false" text="Strongest (slowest)" toggleGroup="$rolloutStrength" />
+                        <RadioMenuItem fx:id="rollout40" mnemonicParsing="false" text="Brute force 40 solns" toggleGroup="$rolloutStrength" />
+                        <RadioMenuItem fx:id="rollout400" mnemonicParsing="false" selected="true" text="Brute force 400 solns" toggleGroup="$rolloutStrength" />
+                        <RadioMenuItem fx:id="rollout4000" mnemonicParsing="false" text="Brute force 4000 solns" toggleGroup="$rolloutStrength" />
                      </items>
+                  </Menu>
+                  <Menu mnemonicParsing="false" text="Development settings">
+                    <items>
+                        <RadioMenuItem fx:id="experimentalTiebreakScoring" mnemonicParsing="false" text="Experimental Guessing method" />
+                    </items>
                   </Menu>
             </items>
           </Menu>
