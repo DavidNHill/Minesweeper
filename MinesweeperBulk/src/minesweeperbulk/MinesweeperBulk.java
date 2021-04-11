@@ -12,18 +12,17 @@ import java.util.Random;
 
 import minesweeper.gamestate.GameFactory;
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.gamestate.GameStateStandardWith8;
 import minesweeper.gamestate.MoveMethod;
-import minesweeper.random.DefaultRNG;
-import minesweeper.random.RNGJSF;
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Solver;
-import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.bulk.BulkEvent;
+import minesweeper.solver.bulk.BulkListener;
+import minesweeper.solver.bulk.BulkPlayer;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Action;
-import minesweeper.structure.Location;
 import minesweeperbulk.Recorder.Value;
 
 /**
@@ -76,14 +75,33 @@ public class MinesweeperBulk {
 		long seed = (new Random()).nextInt();
 
 		//seed = 1927791915;
-		seed = -1625713109;
+		//seed = -388370871;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
+		
+		//GameSettings gameSettings = GameSettings.EXPERT;
+		GameSettings gameSettings = GameSettings.create(47,44,471);
+		
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		
+		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 3);
+		controller.registerListener(new BulkListener() {
+			@Override
+			public void intervalAction(BulkEvent event) {
+				System.out.println("Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", won " + event.getGamesWon() + ", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() +
+						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery());
+			}
+			
+		});
+	
+		controller.run();
+		
+		System.exit(0);
 
 		//DefaultRNG.setDefaultRNGClass(RNGJSF.class);
-		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(35,21,143);
+		gameSettings = GameSettings.EXPERT;
+		//GameSettings gameSettings = GameSettings.create(30,16,154);
 		GameType gameType = GameType.STANDARD;
 		//GameType gameType = GameType.EASY;
 		
@@ -91,7 +109,6 @@ public class MinesweeperBulk {
 		
 		while (played < MAX) {
 
-			SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(true);
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 			//GameStateModel gs = new GameStateStandardWith8(gameSettings, seeder.nextLong());
 			Solver solver = new Solver(gs, settings, false);

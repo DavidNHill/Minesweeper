@@ -62,12 +62,12 @@
                   <MenuItem mnemonicParsing="false" onAction="#handleCopyToClipboard" text="Copy seed to clipboard" />
                   <Menu mnemonicParsing="false" text="Guessing method">
                     <items>
-                        <RadioMenuItem fx:id="standardGuess" mnemonicParsing="false" selected="true" text="Standard method">
+                        <RadioMenuItem fx:id="standardGuess" mnemonicParsing="false" text="Safety with progress">
                            <toggleGroup>
                               <ToggleGroup fx:id="GuessType" />
                            </toggleGroup>
                         </RadioMenuItem>
-                        <RadioMenuItem fx:id="experimentalGuess" mnemonicParsing="false" text="Experimental method" toggleGroup="$GuessType" />
+                        <RadioMenuItem fx:id="experimentalGuess" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$GuessType" />
                     </items>
                   </Menu>
                   <Menu mnemonicParsing="false" text="Random numbers">

@@ -132,6 +132,7 @@ public class Tile extends StackPane {
 		//mine = false;
 		flagged = false;
 		value = 0;
+		textValue = "";
 		doDraw();
 	}
 	

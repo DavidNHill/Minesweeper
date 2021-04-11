@@ -5,6 +5,18 @@ import java.math.BigInteger;
 
 public class SolverSettings {
 
+	public enum GuessMethod {
+		SAFETY_PROGRESS("Safety with progress"),
+		SECONDARY_SAFETY_PROGRESS("Secondary safety with progress");
+		
+		public final String name;
+		
+		private GuessMethod(String name) {
+			this.name = name;
+		}
+	}
+	
+	
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
 	protected int bruteForceTreeDepth = 50;
@@ -15,7 +27,8 @@ public class SolverSettings {
     protected boolean doDomination = true;
     protected boolean do5050Check = true;
     protected boolean testMode = false;
-    protected boolean experimentalScoring = false;
+    //protected boolean experimentalScoring = false;
+    protected GuessMethod guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
 	
     private boolean locked;
     
@@ -70,6 +83,15 @@ public class SolverSettings {
     	return this;
     }
     
+	public SolverSettings setGuessMethod(GuessMethod guessMethod) {
+		
+    	if (!locked) {
+    		this.guessMethod = guessMethod;
+    	}
+    	return this;
+	}
+    
+    /*
     public SolverSettings setExperimentalScoring(boolean isExperimental) {
     	
     	if (!locked) {
@@ -78,6 +100,7 @@ public class SolverSettings {
  
     	return this;
     }
+    */
     
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
@@ -111,9 +134,11 @@ public class SolverSettings {
 		return testMode;
 	}
 	
+	/*
 	public boolean isExperimentalScoring() {
 		return this.experimentalScoring;
 	}
+	*/
 	
 	public int getRolloutSolutions() {
 		return this.rolloutSolutions;
@@ -122,5 +147,11 @@ public class SolverSettings {
 	public boolean isLocked() {
 		return locked;
 	}
+
+	public GuessMethod getGuessMethod() {
+		return guessMethod;
+	}
+
+
     
 }

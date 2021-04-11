@@ -29,6 +29,7 @@ import minesweeper.solver.constructs.WitnessData;
 import minesweeper.solver.iterator.Iterator;
 import minesweeper.solver.iterator.SequentialIterator;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Binomial;
 import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
@@ -615,7 +616,7 @@ public class Solver implements Asynchronous<Action[]> {
         List<Location> allUnrevealedSquares = null;
         
     	//  evaluate positions
-        if (preferences.isExperimentalScoring()) {
+        if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
         	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe);
         } else {
         	evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);

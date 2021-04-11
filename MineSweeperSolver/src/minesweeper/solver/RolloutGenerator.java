@@ -734,4 +734,8 @@ public class RolloutGenerator {
 
 	}
 	
+	@Override
+	public String toString() {
+		return this.getWidth() + "x" + this.getHeight() + "/" + (this.minesLeft + this.placedMines.size());
+	}
 }

@@ -37,6 +37,7 @@ import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.utility.ProgressMonitor;
 import minesweeper.structure.Action;
@@ -100,7 +101,8 @@ public class MainScreenController {
 	@FXML private RadioMenuItem tileSize24;
 	@FXML private RadioMenuItem tileSize32;
 	
-	@FXML private RadioMenuItem experimentalTiebreakScoring;
+	@FXML private RadioMenuItem secondarySafetyProgress;
+	@FXML private RadioMenuItem safetyProgress;
 	
 	private TileValuesController tileValueController;
 	private Graphics graphics;
@@ -112,7 +114,9 @@ public class MainScreenController {
 	private List<Indicator> indicators = new ArrayList<>();
     private FileChooser fileChooser = new FileChooser();
     private File fileSelected = null;
-
+    private RolloutController rolloutController;
+    
+    
 	@FXML
 	void initialize() {
 		System.out.println("Entered Main Screen Controller initialize method");
@@ -251,15 +255,23 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
+		
+		GuessMethod guessMethod;
+		if (secondarySafetyProgress.isSelected()) {
+			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
+		} else {
+			guessMethod = GuessMethod.SAFETY_PROGRESS;
+		}
+		
 		SolverSettings settings;
 		if (rolloutNoBF.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod);
 		} else if (rollout40.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+			settings = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setGuessMethod(guessMethod);
 		} else if (rollout400.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setGuessMethod(guessMethod);
 		} else {
-			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setGuessMethod(guessMethod);
 		}
 		
 		Solver solver = new Solver(gs, settings, true);
@@ -267,7 +279,10 @@ public class MainScreenController {
 		try {
 			RolloutGenerator gen = solver.getRolloutGenerator();
 			
-	        RolloutController.launch(boardDisplayArea.getScene().getWindow(), gen, settings);
+			if (rolloutController == null) {
+		        rolloutController = RolloutController.launch(boardDisplayArea.getScene().getWindow(), gen, settings);
+			}
+			rolloutController.show(gen, settings);
 			
 		} catch (Exception e1) {
 			e1.printStackTrace();
@@ -344,7 +359,14 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setExperimentalScoring(experimentalTiebreakScoring.isSelected());
+		GuessMethod guessMethod;
+		if (secondarySafetyProgress.isSelected()) {
+			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
+		} else {
+			guessMethod = GuessMethod.SAFETY_PROGRESS;
+		}
+		
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
 		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
 		Solver solver = new Solver(gs, settings, true);
 		

@@ -284,41 +284,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			
 		}
 		
-		// we have now processed all the independent sets of witness and they are being held in our list of list
-		
-		/*
-		for (Box b: boxes) {
-			System.out.print(b.getSquares().size() + " ");
-		}
-		System.out.println("");
-		
-		// display what we have found
-		System.out.println("pre crunch by mine count");
-		for (ProbabilityLine pl: probs) {
-			System.out.print("Mines = " + pl.mineCount + " solutions = " + pl.solutionCount + " mines: ");
-			for (int i=0; i < pl.mineBoxCount.length; i++) {
-				System.out.print(" " + pl.mineBoxCount[i]);
-			}
-			System.out.println("");
-		}
-		*/
-		
-		//workingProbs = crunchByMineCount();
-		
 		
 		calculateBoxProbabilities();
-		
-		/*
-		System.out.println("post crunch by mine count");
-		// display what we have found
-		for (ProbabilityLine pl: probs) {
-			System.out.print("Mines = " + pl.mineCount + " solutions = " + pl.solutionCount + " boxes: ");
-			for (int i=0; i < pl.mineBoxCount.length; i++) {
-				System.out.print(" " + pl.mineBoxCount[i]);
-			}
-			System.out.println("");
-		}
-		*/
 		
 		/*
 		for (Box b: boxes) {

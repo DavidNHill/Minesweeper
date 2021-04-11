@@ -7,11 +7,11 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.AnchorPane?>
 
-<AnchorPane prefHeight="285.0" prefWidth="400.0" style="-fx-background-color: lightgrey;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.rollout.RolloutController">
+<AnchorPane prefHeight="277.0" prefWidth="400.0" style="-fx-background-color: lightgrey;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="minesweeper.explorer.rollout.RolloutController">
    <children>
       <Button layoutX="317.0" layoutY="246.0" mnemonicParsing="false" onAction="#handleOkayButton" prefHeight="25.0" prefWidth="72.0" text="Start" />
       <ProgressBar fx:id="progressRun" layoutX="94.0" layoutY="213.0" prefHeight="25.0" prefWidth="293.0" progress="0.21" style="-fx-control-inner-background: lightgrey; -fx-accent: lightgreen;" />
-      <TextField fx:id="gameCount" layoutX="95.0" layoutY="18.0" style="-fx-background-color: silver;" />
+      <TextField fx:id="gameCount" layoutX="95.0" layoutY="18.0" prefHeight="25.0" prefWidth="149.0" style="-fx-background-color: silver;" />
       <Label layoutX="15.0" layoutY="132.0" prefHeight="25.0" prefWidth="72.0" text="Win rate">
          <font>
             <Font size="14.0" />
@@ -100,5 +100,11 @@
             <Font size="14.0" />
          </font>
       </CheckBox>
+      <ChoiceBox fx:id="threadsCombo" layoutX="257.0" layoutY="18.0" prefHeight="25.0" prefWidth="122.0" />
+      <Label fx:id="messageBox" layoutX="13.0" layoutY="246.0" prefHeight="25.0" prefWidth="301.0" textAlignment="RIGHT">
+         <font>
+            <Font size="14.0" />
+         </font>
+      </Label>
    </children>
 </AnchorPane>

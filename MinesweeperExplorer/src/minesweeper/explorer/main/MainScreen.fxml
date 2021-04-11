@@ -65,9 +65,13 @@
                         <RadioMenuItem fx:id="rollout4000" mnemonicParsing="false" text="Brute force 4000 solns" toggleGroup="$rolloutStrength" />
                      </items>
                   </Menu>
-                  <Menu mnemonicParsing="false" text="Development settings">
+                  <Menu mnemonicParsing="false" text="Guess method">
                     <items>
-                        <RadioMenuItem fx:id="experimentalTiebreakScoring" mnemonicParsing="false" text="Experimental Guessing method" />
+                        <RadioMenuItem fx:id="safetyProgress" mnemonicParsing="false" text="Safety with progress">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="guessMethod" />
+                           </toggleGroup></RadioMenuItem>
+                        <RadioMenuItem fx:id="secondarySafetyProgress" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$guessMethod" />
                     </items>
                   </Menu>
             </items>

@@ -119,7 +119,7 @@ public class BulkRunner implements Runnable {
 			
 			steps++;
 			
-			controller.update(steps, maxSteps, wins, guesses, fairness, maxWinStreak, maxMasteryCount);
+			//controller.update(steps, maxSteps, wins, guesses, fairness, maxWinStreak, maxMasteryCount);
 			
 		}
 		

@@ -391,6 +391,9 @@ public class ProgressEvaluator implements LocationEvaluator {
 					progressProb = progressProb.add(prob);
 				}
 					
+				// reduce the remaining safe probability
+				probThisTileLeft = probThisTileLeft.subtract(prob);
+				
 			} else {
 				boardState.getLogger().log(Level.INFO, "Tile %s with value %d is not valid", tile, i);
 			}

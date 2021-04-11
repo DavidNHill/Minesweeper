@@ -62,6 +62,7 @@ import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.settings.SettingsFactory.Setting;
+import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -109,7 +110,7 @@ public class ScreenController {
     @FXML private RadioMenuItem sol400;
     @FXML private RadioMenuItem sol4000;
     
-    @FXML private RadioMenuItem experimentalGuess;
+    @FXML private RadioMenuItem secondarySafetyGuess;
     @FXML private RadioMenuItem standardGuess;
     
     @FXML private CheckMenuItem showMove;
@@ -1128,10 +1129,17 @@ public class ScreenController {
          
         newGameButton.setLayoutX(offsetX);
         
+		GuessMethod guessMethod;
+		if (secondarySafetyGuess.isSelected()) {
+			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
+		} else {
+			guessMethod = GuessMethod.SAFETY_PROGRESS;
+		}
+        
         if (sol4000.isSelected()) {
-        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setExperimentalScoring(experimentalGuess.isSelected());
+        	preferences = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setGuessMethod(guessMethod);
         } else {
-        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(experimentalGuess.isSelected());
+        	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setGuessMethod(guessMethod);
         }
         
         // create a new solver

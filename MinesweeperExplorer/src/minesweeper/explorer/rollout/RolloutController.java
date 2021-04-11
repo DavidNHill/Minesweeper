@@ -12,6 +12,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
@@ -23,13 +24,20 @@ import javafx.stage.WindowEvent;
 import minesweeper.explorer.main.Explorer;
 import minesweeper.explorer.main.Graphics;
 import minesweeper.solver.RolloutGenerator;
+import minesweeper.solver.bulk.BulkEvent;
+import minesweeper.solver.bulk.BulkListener;
+import minesweeper.solver.bulk.BulkRollout;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SolverSettings.GuessMethod;
+import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Location;
 
 public class RolloutController {
 
 	private final static DecimalFormat PERCENT = new DecimalFormat("#0.000%");
 	private final static int DEFAULT_ROLLOUTS = 10000;
+	private final static String[] THREAD_DROPDOWN = {"on 1 Thread", "on 2 Threads", "on 3 Threads", "on 4 Threads"};
+	
 	
 	@FXML private AnchorPane window;
 
@@ -47,6 +55,9 @@ public class RolloutController {
 	@FXML private TextField startLocY;
 	@FXML private CheckBox safeStart;
 	
+	@FXML private Label messageBox;
+	@FXML private ChoiceBox<String> threadsCombo;
+	
 	private Stage stage;
 	private Scene scene;
 
@@ -62,7 +73,9 @@ public class RolloutController {
 	
 	//private ResultsController resultsController;
 	
-	private BulkRunner bulkRunner;
+	//private BulkRunner bulkRunner;
+	
+	private BulkRollout bulkRunner;
 	
 	private boolean wasCancelled = false;
 
@@ -143,8 +156,29 @@ public class RolloutController {
 			
 			gameSeed.setText(String.valueOf(gameGenerator));
 			
-			bulkRunner = new BulkRunner(this, gamesMax, generator, startLocation, safeStart.isSelected(), preferences, gameGenerator);
+			String dropdown = threadsCombo.getValue();
+			int threads = 2;
+			for (int i = 0; i < THREAD_DROPDOWN.length; i++) {
+				if (dropdown.equals(THREAD_DROPDOWN[i])) {
+					threads = i + 1;
+					break;
+				} 
+			}
+			
+			bulkRunner = new BulkRollout(new Random(gameGenerator), gamesMax, generator, startLocation, safeStart.isSelected(), preferences, threads);
+			bulkRunner.registerListener(new BulkListener() {
+				@Override
+				public void intervalAction(BulkEvent event) {
+					update(event);
+				}
+				
+			});
+			
+			messageBox.setText("Starting...");
 			new Thread(bulkRunner, "Bulk Run").start();
+			
+
+			
 		}
 		
 	}
@@ -158,6 +192,16 @@ public class RolloutController {
 
 	}
 
+	public void show(RolloutGenerator generator, SolverSettings preferences ) {
+		
+		this.generator = generator;
+		this.preferences = preferences;
+		
+		this.stage.setTitle("Rollout - " + generator + " - " + preferences.getGuessMethod().name);
+		
+		this.stage.show();
+		
+	}
 
 	public static RolloutController launch(Window owner, RolloutGenerator generator, SolverSettings preferences ) {
 
@@ -185,8 +229,8 @@ public class RolloutController {
 			System.out.println("Root is null");
 		}
 
-		custom.generator = generator;
-		custom.preferences = preferences;
+		//custom.generator = generator;
+		//custom.preferences = preferences;
 		
 		custom.scene = new Scene(root);
 
@@ -208,9 +252,9 @@ public class RolloutController {
 			public void handle(WindowEvent event) {
 				System.out.println("Entered OnCloseRequest handler");
 				
-				if (custom.bulkRunner != null) {
-					custom.bulkRunner.forceStop();
-				}		
+				if (custom.bulkRunner != null && !custom.bulkRunner.isFinished()) {
+					custom.bulkRunner.stop();
+				}
 				
 				System.gc();
 			
@@ -222,7 +266,10 @@ public class RolloutController {
 		custom.progressRun.setProgress(0d);
 		custom.progressRunLabel.setText("");
 		
-		custom.getStage().show();
+		custom.threadsCombo.getItems().addAll(THREAD_DROPDOWN);
+		custom.threadsCombo.setValue(THREAD_DROPDOWN[1]);
+		
+		//custom.getStage().show();
 
 		return custom;
 	}
@@ -235,6 +282,44 @@ public class RolloutController {
 		return wasCancelled;
 	}
 	
+	private void update(BulkEvent event) {
+		
+        Platform.runLater(new Runnable() {
+            @Override public void run() {
+            	double prog = (double) event.getGamesPlayed() / (double) event.getGamesToPlay();
+            	progressRun.setProgress(prog);
+            	
+            	progressRunLabel.setText(event.getGamesPlayed() + "(" + event.getGamesWon() + ") /" + event.getGamesToPlay());
+            	
+            	double winPerc = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+            	
+            	double err = Math.sqrt(winPerc * ( 1- winPerc) / (double) event.getGamesPlayed()) * 1.9599d;
+            	
+            	winPercentage.setText(PERCENT.format(winPerc) + " +/- " + PERCENT.format(err));
+            	
+            	totalGuesses.setText(String.valueOf(event.getTotalGuesses()));
+            	
+            	String fairnessText = PERCENT.format(event.getFairness());
+            	
+            	fairnessPercentage.setText(fairnessText);
+            	bestWinStreak.setText(String.valueOf(event.getWinStreak()));
+            	bestMastery.setText(String.valueOf(event.getMastery()));
+            	
+            	if (event.getGamesPlayed() == event.getGamesToPlay()) {
+            		messageBox.setText("Duration " + Timer.humanReadable(event.getTimeSoFar()));
+            	} else if (event.isFinished()) {
+            		messageBox.setText("Stopped after " + Timer.humanReadable(event.getTimeSoFar()));
+            	} else {
+                	messageBox.setText("Time left " + Timer.humanReadable(event.getEstimatedTimeLeft()));
+            	}
+            	
+        }
+      });            
+		
+		
+	}
+	
+	/*
 	public void update(int steps, int maxSteps, int wins, int guesses, double fairness, int winStreak, int mastery) {
 		
         Platform.runLater(new Runnable() {
@@ -269,6 +354,6 @@ public class RolloutController {
 		
 		
 	}
-	
+	*/
 
 }
