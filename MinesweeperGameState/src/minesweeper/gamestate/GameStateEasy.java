@@ -251,6 +251,10 @@ public class GameStateEasy extends GameStateModelViewer {
 		//	return new Location(3,3);
 		//}
 		
+		if (width == 8 && height == 8) {
+			return new Location(2,2);
+		}
+		
 		if (width == 9 && height == 9) {
 			return new Location(2,2);
 		}

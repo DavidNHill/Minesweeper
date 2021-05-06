@@ -2,6 +2,8 @@ package minesweeper.solver.settings;
 
 import java.math.BigInteger;
 
+import minesweeper.structure.Location;
+
 
 public class SolverSettings {
 
@@ -27,7 +29,7 @@ public class SolverSettings {
     protected boolean doDomination = true;
     protected boolean do5050Check = true;
     protected boolean testMode = false;
-    //protected boolean experimentalScoring = false;
+    protected Location startLocation;
     protected GuessMethod guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
 	
     private boolean locked;
@@ -91,16 +93,12 @@ public class SolverSettings {
     	return this;
 	}
     
-    /*
-    public SolverSettings setExperimentalScoring(boolean isExperimental) {
-    	
-    	if (!locked) {
-        	this.experimentalScoring = isExperimental;
-    	}
- 
-    	return this;
-    }
-    */
+	public SolverSettings setStartLocation(Location start) {
+		
+		// this can be changed
+		this.startLocation = start;
+     	return this;
+	}
     
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
@@ -152,6 +150,9 @@ public class SolverSettings {
 		return guessMethod;
 	}
 
+	public Location getStartLocation() {
+		return this.startLocation;
+	}
 
     
 }

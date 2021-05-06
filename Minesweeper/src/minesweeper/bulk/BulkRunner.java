@@ -46,6 +46,10 @@ public class BulkRunner implements Runnable {
 		this.winsOnly = winsOnly;
 		this.preferences = preferences;
 		
+		if (startLocation != null) {
+			this.preferences.setStartLocation(startLocation);
+		}
+		
 		if (showGames) {
 			resultsController = ResultsController.launch(null, gameSettings, gameType);
 		}
@@ -65,9 +69,7 @@ public class BulkRunner implements Runnable {
 			GameStateModel gs = GameFactory.create(gameType, gameSettings, seeder.random(0));
 
 			Solver solver = new Solver(gs, preferences, false);
-			if (startLocation != null) {
-				solver.setStartLocation(startLocation);
-			}
+
 			
 			boolean win = playGame(gs, solver);
 			

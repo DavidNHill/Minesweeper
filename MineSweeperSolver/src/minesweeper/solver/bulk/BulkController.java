@@ -3,7 +3,6 @@ package minesweeper.solver.bulk;
 import java.util.Random;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.Solver;
 import minesweeper.solver.bulk.BulkRequest.BulkAction;
 import minesweeper.solver.settings.SolverSettings;
 
@@ -37,6 +36,7 @@ abstract public class BulkController implements Runnable {
 	private volatile int wins = 0;
 	private volatile int guesses = 0;
 	private volatile int noGuessWins = 0;
+	private volatile int totalActions = 0;
 	private volatile double fairness;
 	private volatile int currentWinStreak = 0;
 	private volatile int bestWinStreak = 0;
@@ -45,7 +45,9 @@ abstract public class BulkController implements Runnable {
 	
 	private volatile boolean[] mastery = new boolean[100];
 	
-	public BulkController(Random seeder, int gamesToPlay,SolverSettings solverSettings, int workers) {
+	private boolean flagFree = false;
+	
+	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers) {
 		this.seeder = seeder;
 		this.gamesToPlay = gamesToPlay;
 		this.workers = workers;
@@ -61,6 +63,16 @@ abstract public class BulkController implements Runnable {
 		
 	}
 	
+	/**
+	 * Request the solver plays flagless
+	 */
+	public void setFlagFree(boolean flagFree) {
+		this.flagFree = flagFree;
+	}
+
+	public boolean getFlagFree() {
+		return this.flagFree;
+	}
 	
 	/**
 	 * Start the number of workers and wait for them to complete. If you don't want your main thread paused then run this on a separate thread.
@@ -75,7 +87,7 @@ abstract public class BulkController implements Runnable {
 		mainThread = Thread.currentThread();
 		
 		for (int i=0; i < workers; i++) {
-			bulkWorkers[i] = new BulkWorker(this);
+			bulkWorkers[i] = new BulkWorker(this, solverSettings);
 			new Thread(bulkWorkers[i], "worker-" + (i+1)).start();
 		}
 		
@@ -159,6 +171,11 @@ abstract public class BulkController implements Runnable {
 			
 			if (request.gs.getGameState() == GameStateModel.WON) {
 				wins++;
+				
+				if (request.guesses == 0) {
+					noGuessWins++;
+				}
+				
 				currentWinStreak++;
 				if (currentWinStreak > bestWinStreak) {
 					bestWinStreak = currentWinStreak;
@@ -183,11 +200,11 @@ abstract public class BulkController implements Runnable {
 				}
 			}
 
-			if (request.guesses == 0) {
-				noGuessWins++;
-			} else {
-				guesses = guesses + request.guesses;
-			}
+			// accumulate the total actions taken
+			totalActions = totalActions + request.gs.getActionCount();
+
+			// accumulate total guesses made
+			guesses = guesses + request.guesses;
 			
 			fairness = fairness + request.fairness;
 			
@@ -245,6 +262,7 @@ abstract public class BulkController implements Runnable {
 
 		event.setMastery(bestMastery);
 		event.setWinStreak(bestWinStreak);
+		event.setTotalActions(totalActions);
 		
 		long duration = getDuration();
 		
@@ -299,7 +317,7 @@ abstract public class BulkController implements Runnable {
 		next.sequence = this.nextSequence;
 		next.slot = this.nextSlot;
 		next.gs = getGameState(Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
-		next.solver = new Solver(next.gs, solverSettings, false);
+		//next.solver = new Solver(next.gs, solverSettings, false);
 
 		// roll onto the next sequence
 		this.nextSequence++;

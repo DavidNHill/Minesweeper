@@ -3,16 +3,20 @@ package minesweeper.solver.bulk;
 import java.math.BigDecimal;
 
 import minesweeper.gamestate.GameStateModel;
+import minesweeper.solver.Solver;
 import minesweeper.solver.bulk.BulkRequest.BulkAction;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.structure.Action;
 
 public class BulkWorker implements Runnable {
 
 	private boolean stop = false;
 	private final BulkController controller;
+	private final SolverSettings solverSettings;
 
-	protected BulkWorker(BulkController controller) {
+	protected BulkWorker(BulkController controller, SolverSettings solverSettings) {
 		this.controller = controller;
+		this.solverSettings = solverSettings;
 	}
 
 	@Override
@@ -61,12 +65,15 @@ public class BulkWorker implements Runnable {
 			return;
 		}
 		
+		Solver solver = new Solver(request.gs, this.solverSettings, false);
+		solver.setFlagFree(controller.getFlagFree());
+		
 		play: while (true) {
 
 			Action[] moves;
 			try {
-				request.solver.start();
-				moves = request.solver.getResult();
+				solver.start();
+				moves = solver.getResult();
 			} catch (Exception e) {
 				System.out.println("Game " + request.gs.showGameKey() + " has thrown an exception!");
 				e.printStackTrace();

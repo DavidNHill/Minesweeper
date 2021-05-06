@@ -6,6 +6,7 @@ public class BulkEvent {
 	private int gamesPlayed;
 	private int gamesWon;
 	private int noGuessWins;
+	private int totalActions;
 	
 	private int totalGuesses;
 	private double fairness;
@@ -43,6 +44,9 @@ public class BulkEvent {
 	public int getMastery() {
 		return mastery;
 	}
+	public int getTotalActions() {
+		return totalActions;
+	}
 	protected void setGamesToPlay(int gamesToPlay) {
 		this.gamesToPlay = gamesToPlay;
 	}
@@ -66,6 +70,9 @@ public class BulkEvent {
 	}
 	protected void setMastery(int mastery) {
 		this.mastery = mastery;
+	}
+	protected void setTotalActions(int actions) {
+		this.totalActions = actions;
 	}
 	public long getTimeSoFar() {
 		return timeSoFar;

@@ -1129,6 +1129,7 @@ public class ScreenController {
          
         newGameButton.setLayoutX(offsetX);
         
+        
 		GuessMethod guessMethod;
 		if (secondarySafetyGuess.isSelected()) {
 			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;

@@ -41,6 +41,11 @@ public class Action extends Location {
     String comment;
     
     // used by the human player
+    public Action(int x, int y, int a) {
+        this(new Location(x, y), a);
+    }
+    
+    // used by the human player
     public Action(Location l, int a) {
         this(l, a, MoveMethod.HUMAN, "", MINUS_ONE);
     }

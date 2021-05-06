@@ -67,7 +67,7 @@
                               <ToggleGroup fx:id="GuessType" />
                            </toggleGroup>
                         </RadioMenuItem>
-                        <RadioMenuItem fx:id="experimentalGuess" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$GuessType" />
+                        <RadioMenuItem fx:id="secondarySafetyGuess" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$GuessType" />
                     </items>
                   </Menu>
                   <Menu mnemonicParsing="false" text="Random numbers">

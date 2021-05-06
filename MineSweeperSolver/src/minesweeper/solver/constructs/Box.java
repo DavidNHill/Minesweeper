@@ -56,6 +56,19 @@ public class Box {
 			if (w.getMines() < maxMines) {
 				maxMines = w.getMines();
 			}
+			
+			// this has a small improvement on time, but (for some reason) has a small -ve impact on win rate.  Need to investigate more.
+			// must be at least this many mines in the box.
+			//int workMin = w.getMines() - (w.getSquares().size() -this.squares.size());  // mines left for this witness - tiles adjacent not in the box (where the mines could be)
+			//if (workMin > minMines) {
+			//	minMines = workMin;
+			//}
+			
+			// this seems tohave no impact on time or win rate
+			// if the witness only has 1 adjacent box - i.e. us then the minimum number of mines must also be set
+			//if (w.getBoxes().size() == 1) {
+			//	minMines = w.getMines();
+			//}
 		}
 		
 	}
@@ -193,6 +206,10 @@ public class Box {
 		// can't have more mines than there are squares to put them
 		if (this.maxMines > this.squares.size() - this.emptyTiles) {
 			this.maxMines = this.squares.size() - this.emptyTiles;
+			
+			if (this.maxMines < this.minMines) {
+				System.out.println("Illegal Mines: max " + maxMines + " min " + minMines);
+			}
 		}
 	}
 	

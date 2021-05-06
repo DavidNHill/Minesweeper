@@ -207,7 +207,7 @@ public class Solver implements Asynchronous<Action[]> {
         	this.logger = new Logger(Level.WARN, "Solver");
         }
         
-        //this.boardCheck = new int[myGame.getWidth()][myGame.getHeight()];
+        this.overriddenStartLocation = preferences.getStartLocation();
         
         this.boardState = new BoardState(this);
         boardState.process();
@@ -316,9 +316,9 @@ public class Solver implements Asynchronous<Action[]> {
      * Use this to override the default start location (which depends on the game type being played)
      * @param startLocation
      */
-    public void setStartLocation(Location startLocation) {
-    	overriddenStartLocation = startLocation;
-    }
+    //public void setStartLocation(Location startLocation) {
+    //	overriddenStartLocation = startLocation;
+    //}
     
     /**
      * True indicates the solver should play chords
@@ -788,8 +788,10 @@ public class Solver implements Asynchronous<Action[]> {
                     	// otherwise pick one of the ones on the edge
                     	Location picked = null;
                     	for (Location l: allWitnessedSquares.getLocations()) {
-                    		picked = l;
-                    		break;
+                    		if (pe.getProbability(l).signum() != 0) { // pick a tile which isn't a mine
+                        		picked = l;
+                        		break;
+                    		}
                     	}
                     	CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
                     	Action a = cl.buildAction(MoveMethod.GUESS);

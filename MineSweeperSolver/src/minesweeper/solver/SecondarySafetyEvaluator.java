@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -16,11 +18,13 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
+import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");
+	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 	
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
 	
@@ -130,7 +134,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	/**
 	 * Evaluate a tile to see the expected number of clears it will provide
 	 */
-	public void evaluateLocation(CandidateLocation tile) {
+	private void evaluateLocation(CandidateLocation tile) {
 
 		/*
 		if (best != null & !this.solver.preferences.isExperimentalScoring()) {
@@ -152,11 +156,62 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		}
 	}
 
+	private EvaluatedLocation doFullEvaluateTile(Location tile) {
+		
+		// find how many common tiles 
+		SolutionCounter counter1 = solver.validatePosition(wholeEdge, Collections.emptyList(), Arrays.asList(tile), Area.EMPTY_AREA);
+
+		int linkedTilesCount = 0;
+		//if (counter1.getLivingClearCount() > 1) {
+		//	linkedTilesCount = counter1.getLivingClearCount() - 1;
+		//} else {
+		//	linkedTilesCount = 0;
+		//}
+		
+		boolean dominated = false;
+		boolean linked = false;
+		for (Box box: counter1.getEmptyBoxes()) {
+			if (box.contains(tile)) {  // if the box contains the tile to be processed then ignore it
+				
+			} else {
+				if (box.getSquares().size() > 1) {
+					dominated = true;
+				} else {
+					linked = true;
+					linkedTilesCount++;
+				}
+			}
+		}
+		
+		solver.logger.log(Level.INFO, "%s has %d linked tiles and dominated=%b", tile, linkedTilesCount, dominated);
+		
+		EvaluatedLocation result;
+		
+		
+		if (dominated) {
+			BigDecimal probThisTile = pe.getProbability(tile);  // this is both the safety, secondary safety and progress probability.
+			
+			BigDecimal bonus = BigDecimal.ONE.add(probThisTile.multiply(PROGRESS_CONTRIBUTION));
+			BigDecimal weight = probThisTile.multiply(bonus);
+			
+			BigDecimal expectedClears = BigDecimal.valueOf(counter1.getLivingClearCount());  // this isn't true, but better than nothing?
+			
+			result = new EvaluatedLocation(tile.x, tile.y, probThisTile , weight, expectedClears, 0, counter1.getEmptyBoxes(), probThisTile);
+			
+		} else {
+			result = doFullEvaluateTile(tile, linkedTilesCount);
+		}
+		
+		//result = doFullEvaluateTile(tile, 0);
+		
+		return result;
+	}
+	
 
 	/**
 	 * Evaluate this tile and return its EvaluatedLocation
 	 */
-	private EvaluatedLocation doFullEvaluateTile(Location tile) {
+	private EvaluatedLocation doFullEvaluateTile(Location tile, int linkedTilesCount) {
 
 		long nanoStart = System.nanoTime();
 
@@ -177,7 +232,15 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		BigDecimal maxValueProgress = BigDecimal.ZERO;
 		BigDecimal secondarySafety = BigDecimal.ZERO;
 		//BigDecimal miniMaxSafety = BigDecimal.ONE;
-		BigDecimal progressProb = BigDecimal.ZERO;
+		
+		// give a progress bonus if the tile is linked, but then don't count the linked tiles as progress.
+		BigDecimal progressProb;
+		//if (linkedTilesCount > 0) {
+		//	progressProb = BigDecimal.valueOf(0.2d);
+		//} else {
+			progressProb = BigDecimal.ZERO;
+		//}
+
 		
 		BigDecimal probThisTileLeft = probThisTile;
 		
@@ -232,7 +295,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				
 				secondarySafety = secondarySafety.add(prob.multiply(safety));
 
-				if (clears != 0) {
+				if (clears > linkedTilesCount) {
 					progressProb = progressProb.add(prob);
 				}
 				
@@ -309,7 +372,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		// if one of the common boxes contains a tile which has already been processed then the current tile is redundant
 		for (EvaluatedLocation eval: evaluated) {
-			if (eval.getProbability().subtract(move.getProbability()).compareTo(BigDecimal.valueOf(0.001d)) > 0) {  // the alternative move is at least a bit safer than the current move
+			if (eval.getProbability().subtract(move.getProbability()).compareTo(EQUALITY_THRESHOLD) > 0) {  // the alternative move is at least a bit safer than the current move
 				for (Box b: move.getEmptyBoxes()) {  // see if the move is in the list of empty boxes
 					for (Location l: b.getSquares()) {
 						if (l.equals(eval)) {

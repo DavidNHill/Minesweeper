@@ -6,6 +6,7 @@ package minesweeperbulk;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -22,7 +23,9 @@ import minesweeper.solver.bulk.BulkPlayer;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 import minesweeperbulk.Recorder.Value;
 
 /**
@@ -75,22 +78,39 @@ public class MinesweeperBulk {
 		long seed = (new Random()).nextInt();
 
 		//seed = 1927791915;
-		//seed = -388370871;
+		seed = 915866540;
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(47,44,471);
+		GameSettings gameSettings = GameSettings.create(16,16,40);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		//settings.setStartLocation(new Location(14,0));
 		
-		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 3);
+		final long bulkSeed = seed;
+		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 3);
+		controller.setFlagFree(true);
+		
+		// click all 4 corners first
+		List<Action> preactions = new ArrayList<>();
+		preactions.add(new Action(0, 0, Action.CLEAR));
+		preactions.add(new Action(0, gameSettings.height - 1, Action.CLEAR));
+		preactions.add(new Action(gameSettings.width - 1, 0, Action.CLEAR));
+		preactions.add(new Action(gameSettings.width - 1, gameSettings.height - 1, Action.CLEAR));
+		controller.setPreActions(preactions);
+		
 		controller.registerListener(new BulkListener() {
 			@Override
 			public void intervalAction(BulkEvent event) {
-				System.out.println("Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", won " + event.getGamesWon() + ", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() +
-						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery());
+				double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+				double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
+				
+				System.out.println("Seed:" + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", won " + event.getGamesWon() + 
+						", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() +
+						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
+						", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Time left " + Timer.humanReadable(event.getEstimatedTimeLeft()) );
 			}
 			
 		});
