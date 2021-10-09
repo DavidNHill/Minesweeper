@@ -1,7 +1,9 @@
 package minesweeper.solver;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
@@ -31,6 +33,7 @@ public class FiftyFiftyHelper {
 		
 	}
 	
+	private Set<Location> deferGuessing = new HashSet<>();
 	
 	private BoardState board;
 	private WitnessWeb wholeEdge;
@@ -44,7 +47,7 @@ public class FiftyFiftyHelper {
 		
 	}
 
-	public Location findUnavoidable5050() {
+	public Location findUnavoidable5050(List<Location> extraMines) {
 		
 		List<Link> links = new ArrayList<>();
 		
@@ -74,7 +77,7 @@ public class FiftyFiftyHelper {
 						}
 						
 						// if we are monitoring and not a mine then see if we are also monitoring all the other mines
-						if (toCheck && !board.isConfirmedFlag(adjTile)) {  
+						if (toCheck && !board.isConfirmedFlag(adjTile) && !extraMines.contains(adjTile)) {  
 							for (Square otherTile: witness.getSquares()) {
 								if (!otherTile.equals(adjTile) && !adjTile.isAdjacent(otherTile)) {
 									//board.display("Tile " + adjTile.display() + " is not monitoring " + otherTile.display());
@@ -104,7 +107,7 @@ public class FiftyFiftyHelper {
 		
 		List<Location> area5050 = new ArrayList<>();  // used to hold the expanding candidate 50/50
 		
-		// try and connect 2 or links together to form an unavoidable 50/50
+		// try and connect 2 or links together to form an unavoidable 50/50.  Closed at both ends.
 		for (Link link: links) {
 			if (!link.processed && (link.closed1 ^ link.closed2)) {  // this is the XOR operator, so 1 and only 1 of these is closed 
 
@@ -144,6 +147,7 @@ public class FiftyFiftyHelper {
 										return board.getSolver().getLowest(area5050);		
 									} else {
 										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
+										deferGuessing.addAll(area5050);
 										openTile = null;
 									}		
 								} else {  // found an open extension, now look for an extension for this
@@ -166,6 +170,7 @@ public class FiftyFiftyHelper {
 										return board.getSolver().getLowest(area5050);		
 									} else {
 										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
+										deferGuessing.addAll(area5050);
 										openTile = null;
 									}
 
@@ -185,7 +190,91 @@ public class FiftyFiftyHelper {
 			}
 		}
 		
+		/*  This makes results worse, preumaby because some non-50/50s are getting through
+		// try and find a circular unavoidable 50/50.  Not closed.
+		for (Link link: links) {
+			if (!link.processed && !link.closed1 &&  !link.closed2) {  // not processed and open at both ends
+
+				Location openTile;
+				Location startTile;
+				int extensions = 0;
+				startTile = link.tile1;
+				openTile = link.tile2;
+
+				area5050.clear();
+				area5050.add(link.tile1);
+				area5050.add(link.tile2);
+				
+				link.processed = true;
+				
+				boolean noMatch = false;
+				while (openTile != null && !noMatch) {
+
+					noMatch = true;
+					for (Link extension: links) {
+						if (!extension.processed && !extension.closed1 && !extension.closed2) {  // a circular 50/50 must have links open at both ends
+
+							if (extension.tile1.equals(openTile)) {
+
+								extension.processed = true;
+								noMatch = false;
+
+								// accumulate the trouble tiles as we progress;
+								link.trouble.addAll(extension.trouble);
+								area5050.add(extension.tile2);   // tile2 is the new tile
+								
+								if (extension.tile2.equals(startTile)) {
+									if (extensions % 2 == 0 ) {  // && noTrouble(link, area5050)
+										board.getLogger().log(Level.WARN, "Tile %s is an unavoidable circular 50/50 guess, with %d extensions", openTile, extensions);
+										return board.getSolver().getLowest(area5050);		
+									} else {
+										board.getLogger().log(Level.INFO, "Tile %s is a circular extension with %d parts", openTile, (extensions + 1));
+										deferGuessing.addAll(area5050);
+										openTile = null;
+									}		
+								} else {  // not closed the loop, so keep going
+									extensions++;
+									openTile = extension.tile2;  
+								}
+								break;
+							}
+							if (extension.tile2.equals(openTile)) {
+								extension.processed = true;
+								noMatch = false;
+
+								// accumulate the trouble tiles as we progress;
+								link.trouble.addAll(extension.trouble);
+								area5050.add(extension.tile1);   // tile 1 is the new tile
+								
+								if (extension.tile1.equals(startTile)) {
+									if (extensions % 2 == 0 ) {  // && noTrouble(link, area5050)
+										board.getLogger().log(Level.WARN, "Tile %s is an unavoidable circular 50/50 guess, with %d extensions", openTile, extensions);
+										return board.getSolver().getLowest(area5050);		
+									} else {
+										board.getLogger().log(Level.INFO, "Tile %s is a circular extension with %d parts", openTile, (extensions + 1));
+										deferGuessing.addAll(area5050);
+										openTile = null;
+									}
+
+								} else {  // not closed the loop, so keep going
+									extensions++;
+									openTile = extension.tile1;  
+								}
+
+								break;
+							}
+
+						}
+
+					}
+
+				}
+
+			}
+		}
+		*/
 		
+		board.getLogger().log(Level.INFO, "%d locations set to defered guessing", deferGuessing.size());
 		return null;
 		
 	}
@@ -219,7 +308,13 @@ public class FiftyFiftyHelper {
 		
 	}
 	
+	public boolean isDeferGuessing(Location l) {
+		return deferGuessing.contains(l);
+	}
 	
+	/**
+	 * Looks for pseudo-50/50s (which may be real 50/50s since we don't check any further)
+	 */
 	public Location process() {
 		
 		board.getLogger().log(Level.INFO, "Starting search for 50/50s");

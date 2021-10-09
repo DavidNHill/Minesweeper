@@ -1,8 +1,8 @@
 package minesweeper.solver.bulk;
 
+import java.math.BigDecimal;
+
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.Solver;
-import minesweeper.solver.settings.SolverSettings;
 
 public class BulkRequest {
 
@@ -30,6 +30,6 @@ public class BulkRequest {
 	protected GameStateModel gs;
 	//protected Solver solver;
 	protected int guesses = 0;
-	protected double fairness = 0;
+	protected BigDecimal fairness = BigDecimal.ZERO;
 	
 }

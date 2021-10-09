@@ -25,6 +25,10 @@ public class Box {
 	
 	private boolean dominated = false;
 	
+	// defer guessing is set when the box is part of a enclosed edge where knowing the 
+	// number of mines left will solve the edge
+	private boolean deferGuessing = false;
+	
 	// this is used to indicate how many tiles in the box must not contain mine.
 	private int emptyTiles = 0;
 	
@@ -194,6 +198,14 @@ public class Box {
 	
 	public boolean isDominated() {
 		return this.dominated;
+	}
+	
+	public void setDeferGuessing() {
+		this.deferGuessing = true;
+	}
+	
+	public boolean doDeferGuessing() {
+		return this.deferGuessing;
 	}
 	
 	public int getEmptyTiles() {

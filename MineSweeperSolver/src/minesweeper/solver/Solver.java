@@ -11,10 +11,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import Asynchronous.Asynchronous;
 import minesweeper.gamestate.GameStateModel;
@@ -99,7 +97,7 @@ public class Solver implements Asynchronous<Action[]> {
     
     final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.95");  // was 0.98 --- consider off edge tiles which if they are above the threshold of the best on edge tile
     final static boolean PRUNE_BF_ANALYSIS = true;
-    final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = true;
+    final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = false;
     
     public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety
     final static BigDecimal PROB_ENGINE_HARD_TOLERENCE = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
@@ -615,12 +613,14 @@ public class Solver implements Asynchronous<Action[]> {
 
         List<Location> allUnrevealedSquares = null;
         
+        /*
     	//  evaluate positions
         if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
         	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe);
         } else {
         	evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
         }
+        */
         
     	BigDecimal offEdgeCutoff = pe.getBestOnEdgeProb().multiply(Solver.OFF_EDGE_TOLERENCE);
     	
@@ -643,9 +643,11 @@ public class Solver implements Asynchronous<Action[]> {
     	boolean certainClearFound = pe.foundCertainty();
     	
     	// look for unavoidable 50/50
+        FiftyFiftyHelper fiftyFiftyHelper = null;
     	if (!pe.foundCertainty()) {
              if (preferences.isDo5050Check()) {
-            	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).findUnavoidable5050();
+            	fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
+            	Location findFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
             	
             	if (findFifty != null) {
     				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
@@ -728,6 +730,7 @@ public class Solver implements Asynchronous<Action[]> {
         }        
         
         // look for pseudo 50-50 guess which can't be avoided
+
     	if (!certainClearFound) {
              if (preferences.isDo5050Check()) {
             	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).process();
@@ -751,10 +754,20 @@ public class Solver implements Asynchronous<Action[]> {
         	newLine("The probability engine found " + bestCandidates.size() + " candidate moves on the edge");
         }
         
+        BigDecimal safeDensity = BigDecimal.valueOf( (double) (unrevealed - minesLeft) / (double) unrevealed);
+        this.logger.log(Level.INFO, "Safe density %f", safeDensity);
+        BigDecimal safeDensity3 = new BigDecimal(pe.getSolutionCount()).multiply(safeDensity).multiply(safeDensity).multiply(safeDensity);
+        this.logger.log(Level.INFO, "BFDA Solution value %f", safeDensity3);
+        
         // do brute force if the number of candidate solutions is not greater than the allowable maximum
-    	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getBruteForceMaxSolutions())) <= 0);
-    	boolean certainFlagFound = !pe.getMines().isEmpty();
+    	//boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getBruteForceMaxSolutions())) <= 0);
+    	boolean doBruteForce = (pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getBruteForceMaxSolutions())) <= 0) 
+    			|| (safeDensity3.compareTo(BigDecimal.valueOf(preferences.getBruteForceVariableSolutions())) <= 0);
+    	
+    	//boolean certainFlagFound = !pe.getMines().isEmpty();
       
+    	BruteForceAnalysisModel incompleteBFA = null;  // this is used to carry forward an analysis run which didn't complete
+    	
         // Probability engine says there are few enough candidate solutions to do a Brute force deep analysis - so lets try
         if (doBruteForce && !certainClearFound) {
         	this.logger.log(Level.INFO, "----- Brute Force starting -----");
@@ -764,7 +777,7 @@ public class Solver implements Asynchronous<Action[]> {
             
             WitnessWeb wholeBoard = new WitnessWeb(boardState, wholeEdge.getPrunedWitnesses(), allUnrevealedSquares);
             
-            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.getBruteForceMaxIterations(), "Game");
+            bf = new BruteForce(this, boardState, wholeBoard, minesLeft, preferences.getBruteForceMaxIterations(), pe.getSolutionCount().intValue(), "Game");
             
             bf.process();
             
@@ -807,7 +820,9 @@ public class Solver implements Asynchronous<Action[]> {
             		
             		// if after trying to process the data we can't complete then abandon it
             		if (!bruteForceAnalysis.isComplete()) {
-            			this.logger.log(Level.WARN, "Game %s Abandoned the Brute Force Analysis after %d steps", myGame.showGameKey(), bruteForceAnalysis.getNodeCount());
+            			this.logger.log(Level.WARN, "Game %s Abandoned the Brute Force Analysis after %d steps, %d of %d moves analysed", 
+            					myGame.showGameKey(), bruteForceAnalysis.getNodeCount(),  bruteForceAnalysis.getMovesProcessed(),  bruteForceAnalysis.getMovesToProcess());
+            			incompleteBFA = bruteForceAnalysis;  // remember the incomplete analysis
             			bruteForceAnalysis = null;
 
             		} else { // otherwise try and get the best long term move
@@ -841,6 +856,13 @@ public class Solver implements Asynchronous<Action[]> {
             	newLine("Brute Force rejected - too many iterations to analyse");
             }
             this.logger.log(Level.INFO, "----- Brute Force finished -----");        	
+        }
+        
+    	//  evaluate positions
+        if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
+        	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, fiftyFiftyHelper);
+        } else {
+        	evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
         }
         
         // if we have few enough solutions do an adversarial rollout
@@ -891,10 +913,12 @@ public class Solver implements Asynchronous<Action[]> {
         		if (allUnrevealedSquares == null) {   // defer this until we need it, can be expensive
         			allUnrevealedSquares = boardState.getAllUnrevealedSquares();
         		}
-            	
-            	evaluateLocations.evaluateOffEdgeCandidates(allUnrevealedSquares);
+
             	this.logger.log(Level.DEBUG, "About to evaluate best candidates -->");
             	evaluateLocations.evaluateLocations(bestCandidates);
+            	
+            	evaluateLocations.evaluateOffEdgeCandidates(allUnrevealedSquares);
+            	
             	this.logger.log(Level.DEBUG, "<-- Done");  
             	
             	evaluateLocations.showResults();
@@ -1118,7 +1142,7 @@ public class Solver implements Asynchronous<Action[]> {
 		for (int i = minMines; i <= maxMines; i++) {
 
 			//SolutionCounter counter = validateLocationUsingSolutionCounter(wholeEdge, tile, i, probEngine.getDeadLocations());
-			ProbabilityEngineModel counter = runProbabilityEngine(wholeEdge, tile, i);
+			ProbabilityEngineModel counter = runProbabilityEngine(wholeEdge, tile, i).pe;
 			
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getLivingClearCount();
@@ -1411,10 +1435,15 @@ public class Solver implements Asynchronous<Action[]> {
      }
      
      
+     class RunPeResult {
+    	 ProbabilityEngineModel pe;
+    	 boolean found5050 = false;
+     }
+     
      /**
       * Runs the probability engine for a position with one extra witness than where we currently are
       */
-     protected ProbabilityEngineModel runProbabilityEngine(WitnessWeb wholeEdge, Location location, int value) {
+     protected RunPeResult runProbabilityEngine(WitnessWeb wholeEdge, Location location, int value) {
 
     	 // make the move
     	 boardState.setWitnessValue(location, value);
@@ -1425,20 +1454,32 @@ public class Solver implements Asynchronous<Action[]> {
     	 witnesses.add(location);
 
     	 Area witnessed = boardState.getUnrevealedArea(witnesses);
-    	 
+
     	 WitnessWeb edge = new WitnessWeb(boardState, witnesses, witnessed.getLocations(), Logger.NO_LOGGING);
 
     	 int unrevealed = boardState.getTotalUnrevealedCount() - 1;  // this is one less, because we have added a witness
-    	 
+
     	 int minesLeft = myGame.getMines() - boardState.getConfirmedFlagCount();
-    	 
-    	 ProbabilityEngineModel pe = new ProbabilityEngineFast(boardState, edge, unrevealed, minesLeft);
-    	 pe.process();
+
+    	 RunPeResult result = new RunPeResult();
+    	 result.pe = new ProbabilityEngineFast(boardState, edge, unrevealed, minesLeft);
+
+    	 result.pe.process();
+
+    	 // looking for created 50/50s doesn't seem to help the win rate
+    	 /*
+    	 Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).findUnavoidable5050(result.pe.getMines());
+
+    	 if (findFifty != null) {
+    		 //this.logger.log(Level.WARN, "Fifty/Fifty created in game %s : %s", myGame.showGameKey(), findFifty );
+    		 result.found5050 = true;
+    	 }
+		 */
 
     	 // undo the move
     	 boardState.clearWitness(location);
-    	 
-    	 return pe;
+
+    	 return result;
 
      }
      

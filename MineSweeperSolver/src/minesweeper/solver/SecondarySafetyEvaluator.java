@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.Solver.RunPeResult;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
@@ -23,7 +24,7 @@ import minesweeper.structure.Location;
 
 public class SecondarySafetyEvaluator implements LocationEvaluator {
 
-	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");
+	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");  // was 0.1
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 	
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
@@ -36,18 +37,21 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private final WitnessWeb wholeEdge;
 	private final ProbabilityEngineModel pe;
 	private final Solver solver;
-
+	private final BruteForceAnalysisModel incompleteBFA;
+	private final FiftyFiftyHelper fiftyFiftyHelper;
+	
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
 	private EvaluatedLocation best;
 	private boolean certainProgress = false;
 	
-	public SecondarySafetyEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe) {
+	public SecondarySafetyEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe, BruteForceAnalysisModel incompleteBFA, FiftyFiftyHelper fiftyFiftyHelper) {
 
 		this.boardState = boardState;
 		this.wholeEdge = wholeEdge;
 		this.pe = pe;
 		this.solver = solver;
-
+		this.incompleteBFA = incompleteBFA;
+		this.fiftyFiftyHelper = fiftyFiftyHelper;
 	}
 
 	/**
@@ -136,14 +140,6 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	 */
 	private void evaluateLocation(CandidateLocation tile) {
 
-		/*
-		if (best != null & !this.solver.preferences.isExperimentalScoring()) {
-			if (tile.getProbability().compareTo(best.getWeighting()) <= 0) {
-				boardState.display(tile.display() + " is ignored because it can not do better than the best");
-				return;
-			}
-		}
-		*/
 		
 		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
 
@@ -156,17 +152,12 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		}
 	}
 
-	private EvaluatedLocation doFullEvaluateTile(Location tile) {
+	private EvaluatedLocation doFullEvaluateTile(CandidateLocation tile) {
 		
 		// find how many common tiles 
 		SolutionCounter counter1 = solver.validatePosition(wholeEdge, Collections.emptyList(), Arrays.asList(tile), Area.EMPTY_AREA);
 
 		int linkedTilesCount = 0;
-		//if (counter1.getLivingClearCount() > 1) {
-		//	linkedTilesCount = counter1.getLivingClearCount() - 1;
-		//} else {
-		//	linkedTilesCount = 0;
-		//}
 		
 		boolean dominated = false;
 		boolean linked = false;
@@ -176,6 +167,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			} else {
 				if (box.getSquares().size() > 1) {
 					dominated = true;
+					linkedTilesCount = linkedTilesCount + box.getSquares().size();
 				} else {
 					linked = true;
 					linkedTilesCount++;
@@ -211,7 +203,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	/**
 	 * Evaluate this tile and return its EvaluatedLocation
 	 */
-	private EvaluatedLocation doFullEvaluateTile(Location tile, int linkedTilesCount) {
+	private EvaluatedLocation doFullEvaluateTile(CandidateLocation tile, int linkedTilesCount) {
 
 		long nanoStart = System.nanoTime();
 
@@ -244,6 +236,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		BigDecimal probThisTileLeft = probThisTile;
 		
+		int validValues = 0;
 		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
 
@@ -258,13 +251,16 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				return result;
 			}
 			
-			ProbabilityEngineModel counter = solver.runProbabilityEngine(wholeEdge, tile, i);
+			RunPeResult peResult = solver.runProbabilityEngine(wholeEdge, tile, i);
+			ProbabilityEngineModel counter = peResult.pe;
 
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getLivingClearCount();
 
 			// keep track of the maximum probability across all valid values
 			if (sol.signum() != 0) {
+				
+				validValues++;
 				
 				if (commonClears == null) {
 					commonClears = counter.getEmptyBoxes();
@@ -282,7 +278,9 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ONE, true);
 				
 				BigDecimal safety;
-				if (bestCandidates.size() == 0 ) { 
+				if (peResult.found5050) {
+					safety = BigDecimal.valueOf(0.5d);
+				} else if (bestCandidates.size() == 0 ) { 
 					safety = counter.getOffEdgeProb();
 				} else {
 					safety = bestCandidates.get(0).getProbability();
@@ -308,6 +306,12 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 		}
 
+		// if the tile is dead then nothing to do  - this has no impact on the win rate
+		//if (validValues == 1) {
+		//	solver.logger.log(Level.WARN, "%s is discovered to be dead during secondary safety analysis", tile);
+		//	return null;
+		//}
+		
 		if (!commonClears.isEmpty()) {
 			solver.logger.log(Level.DEBUG, "%s has certain progress if survive", tile);
 			certainProgress = true;
@@ -319,6 +323,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		//result = new EvaluatedLocation(tile.x, tile.y, probThisTile, secondarySafety, expectedClears, 0, commonClears, maxValueProgress);
 		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
+		//result.setDeferGuessing(tile.getDeferGuessing());
 
 		long nanoEnd = System.nanoTime();
 
@@ -415,7 +420,26 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				evalLoc = alternative;
 			}			
 		}
-
+		
+		// check whether the chosen move is dominated by a partially complete BFDA
+		if (incompleteBFA != null) {
+			Location better = incompleteBFA.checkForBetterMove(evalLoc);
+			if (better != null) {
+				EvaluatedLocation bfdaBetter = null;
+				for (EvaluatedLocation evl: evaluated) {
+					if (evl.equals(better)) {
+						bfdaBetter = evl;
+						break;
+					}
+				}
+				if (bfdaBetter == null) {
+					solver.logger.log(Level.ERROR, "Unable to find %s in the Evaluated list", better);
+				} else {
+					evalLoc = bfdaBetter;
+					solver.logger.log(Level.WARN, "Tile %s", evalLoc);
+				}
+			}
+		}
 
 		Action action = new Action(evalLoc, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "", evalLoc.getProbability());
 

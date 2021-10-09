@@ -1,5 +1,6 @@
 package minesweeper.solver.bulk;
 
+import java.math.BigDecimal;
 import java.util.Random;
 
 import minesweeper.gamestate.GameStateModel;
@@ -16,6 +17,7 @@ abstract public class BulkController implements Runnable {
 	private final BulkWorker[] bulkWorkers;
 	
 	private final static int REPORT_INTERVAL = 200;
+	private final static int DEFAULT_BUFFER_PER_WORKER = 1000;
 	
 	private volatile int waitingSlot = -1;   // this is the next slot we are waiting to be returned
 	private volatile int nextSlot = 0;      // this is the next slot to be dispatched
@@ -37,7 +39,7 @@ abstract public class BulkController implements Runnable {
 	private volatile int guesses = 0;
 	private volatile int noGuessWins = 0;
 	private volatile int totalActions = 0;
-	private volatile double fairness;
+	private volatile BigDecimal fairness = BigDecimal.ZERO;
 	private volatile int currentWinStreak = 0;
 	private volatile int bestWinStreak = 0;
 	private volatile int currentMastery = 0;
@@ -48,13 +50,17 @@ abstract public class BulkController implements Runnable {
 	private boolean flagFree = false;
 	
 	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers) {
+		this(seeder, gamesToPlay, solverSettings, workers, DEFAULT_BUFFER_PER_WORKER);
+	}
+	
+	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers, int bufferPerWorker) {
 		this.seeder = seeder;
 		this.gamesToPlay = gamesToPlay;
 		this.workers = workers;
 		this.bulkWorkers = new BulkWorker[this.workers];
 		this.solverSettings = solverSettings;
 		
-		this.bufferSize = 200 * this.workers;
+		this.bufferSize = bufferPerWorker * this.workers;
 		this.buffer = new BulkRequest[bufferSize];
 	}
 	
@@ -99,9 +105,10 @@ abstract public class BulkController implements Runnable {
 				//System.out.println("Main thread wait has been interrupted");
 
 				// process the event and then set it to null
-				listener.intervalAction(event);
-				event = null;
-				
+				if (event != null) {
+					listener.intervalAction(event);
+					event = null;
+				}
 			}
 		}
 
@@ -162,6 +169,9 @@ abstract public class BulkController implements Runnable {
 	
 	private void processSlots() {
 		
+		boolean doEvent = false;
+		BulkEvent bulkEvent = null; 
+		
 		// process all the games which have been processed and are waiting in the buffer 
 		while (buffer[waitingSlot] != null) {
 			
@@ -206,7 +216,7 @@ abstract public class BulkController implements Runnable {
 			// accumulate total guesses made
 			guesses = guesses + request.guesses;
 			
-			fairness = fairness + request.fairness;
+			fairness = fairness.add(request.fairness);
 			
 			// clear the buffer and move on to the next slot
 			buffer[waitingSlot] = null; 
@@ -221,27 +231,33 @@ abstract public class BulkController implements Runnable {
 
 			
 			// if we have run and processed all the games then wake the main thread
-			if (request.sequence == gamesToPlay) {
+			if (waitingSequence == gamesToPlay) {
 				System.out.println("All games played, waking the main thread");
 				
 				finished = true;
-				this.event = createEvent();
-				this.finalEvent = this.event;
+				
+				this.finalEvent = createEvent();
+				bulkEvent = this.finalEvent;
 
-				mainThread.interrupt();
+				doEvent = true;
+				//mainThread.interrupt();
 				
 			// provide an update every now and again, do that on the main thread
 			} else if (waitingSequence % REPORT_INTERVAL == 0) {
-				//System.out.println("Played " + request.sequence + ", won " + wins);
-
-				// if no event in progress generate one and restart the main thread
-				if (this.event == null) {
-					this.event = createEvent();
-					mainThread.interrupt();
-				}
-
+				bulkEvent = createEvent();
+				doEvent = true;
 			}
 		
+		}
+		
+		// if we have an event to do then interrupt the main thread which will post it
+		if (doEvent) {
+			if (this.event == null) {
+				this.event = bulkEvent;
+				mainThread.interrupt();
+			} else {
+				System.out.println("Event suppressed because earlier event is still in progress");
+			}
 		}
 		
 	}
@@ -255,7 +271,7 @@ abstract public class BulkController implements Runnable {
 		event.setTotalGuesses(guesses);
 		event.setNoGuessWins(noGuessWins);
 		if (guesses != 0) {
-			event.setFairness(fairness / guesses);
+			event.setFairness(fairness.doubleValue() / guesses);
 		} else {
 			event.setFairness(0);
 		}

@@ -54,4 +54,11 @@ public class GameSettings {
 		
 	}
 	
+	@Override
+	public String toString() {
+		
+		return width + "x" + height + "/" + mines;
+		
+	}
+	
 }

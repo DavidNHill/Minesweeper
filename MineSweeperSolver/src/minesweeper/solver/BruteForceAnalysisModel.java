@@ -28,7 +28,13 @@ abstract public class BruteForceAnalysisModel {
 
 	abstract protected int getSolutionCount();
 	
-	abstract protected int getNodeCount();
+	abstract protected int getMovesProcessed();
+	
+	abstract protected int getMovesToProcess();
+	
+	abstract protected Location checkForBetterMove(Location location);
+	
+	abstract protected long getNodeCount();
 
 	abstract protected Action getNextMove(BoardState boardState);
 	

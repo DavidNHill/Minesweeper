@@ -39,7 +39,7 @@ public class MinesweeperBulk {
 	private final static int IGNORE = 3;
 	
 	private static final DecimalFormat MASK = new DecimalFormat("#0.000");
-	private static final DecimalFormat MASK5DP = new DecimalFormat("#0.00000");
+	private static final DecimalFormat MASK5DP = new DecimalFormat("#0.000000");
 	
 	private static final BigDecimal BIG_HALF = new BigDecimal("0.5");
 
@@ -77,20 +77,21 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 1927791915;
-		seed = 915866540;
+		//seed = 82488337;
+		//seed = 662429271;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(16,16,40);
+		GameSettings gameSettings = GameSettings.create(50, 50, 600);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
-		//settings.setStartLocation(new Location(14,0));
+		//settings.setStartLocation(new Location(1,1));
+		//settings.setTieBreak(false);
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 3);
+		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 10, 10000);
 		controller.setFlagFree(true);
 		
 		// click all 4 corners first
@@ -99,7 +100,7 @@ public class MinesweeperBulk {
 		preactions.add(new Action(0, gameSettings.height - 1, Action.CLEAR));
 		preactions.add(new Action(gameSettings.width - 1, 0, Action.CLEAR));
 		preactions.add(new Action(gameSettings.width - 1, gameSettings.height - 1, Action.CLEAR));
-		controller.setPreActions(preactions);
+		//controller.setPreActions(preactions);
 		
 		controller.registerListener(new BulkListener() {
 			@Override
@@ -107,7 +108,7 @@ public class MinesweeperBulk {
 				double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
 				double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
 				
-				System.out.println("Seed:" + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", won " + event.getGamesWon() + 
+				System.out.println("Seed: " + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", won " + event.getGamesWon() + 
 						", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() +
 						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
 						", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Time left " + Timer.humanReadable(event.getEstimatedTimeLeft()) );
@@ -116,6 +117,19 @@ public class MinesweeperBulk {
 		});
 	
 		controller.run();
+		
+		{
+		BulkEvent event = controller.getResults();
+		double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+		double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
+		
+		System.out.println("Seed: " + bulkSeed + " ==> Board " + gameSettings + " ==> Played " + event.getGamesPlayed() + ", won " + event.getGamesWon() + 
+				", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() +
+				", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
+				", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Duration " + Timer.humanReadable(event.getTimeSoFar()) );
+		
+		
+		}
 		
 		System.exit(0);
 

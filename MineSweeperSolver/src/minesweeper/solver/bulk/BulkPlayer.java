@@ -21,7 +21,13 @@ public class BulkPlayer extends BulkController {
 	 */
 	public BulkPlayer(Random seeder, int gamesToPlay, GameType gameType, GameSettings gameSettings, SolverSettings solverSettings, int workers) {
 		super(seeder, gamesToPlay, solverSettings, workers);
-		
+		this.gameType = gameType;
+		this.gameSettings = gameSettings;
+
+	}
+	
+	public BulkPlayer(Random seeder, int gamesToPlay, GameType gameType, GameSettings gameSettings, SolverSettings solverSettings, int workers, int bufferPerWorker) {
+		super(seeder, gamesToPlay, solverSettings, workers, bufferPerWorker);
 		this.gameType = gameType;
 		this.gameSettings = gameSettings;
 	}

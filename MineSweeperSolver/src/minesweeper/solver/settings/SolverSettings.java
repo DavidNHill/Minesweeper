@@ -19,6 +19,7 @@ public class SolverSettings {
 	}
 	
 	
+	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
 	protected int bruteForceTreeDepth = 50;
@@ -104,6 +105,10 @@ public class SolverSettings {
 		return bruteForceMaxSolutions;
 	}
 
+	public int getBruteForceVariableSolutions() {
+		return bruteForceVariableSolutions;
+	}
+	
 	public int getBruteForceMaxNodes() {
 		return bruteForceMaxNodes;
 	}

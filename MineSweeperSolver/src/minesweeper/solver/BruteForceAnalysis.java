@@ -325,7 +325,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			
 			// we're going to have to do some work
 			processCount++;
-			if (processCount > solver.preferences.getBruteForceMaxNodes()) {
+			if (processCount > maxProcessCount) {
 				return 0;
 			}
 			
@@ -497,11 +497,47 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 	}
 	
+	private class ProcessedMove implements Comparable<ProcessedMove> {
+		private final Location location;
+		private final int winningLines;
+		private final boolean pruned;
+		
+		private ProcessedMove(Location loc, int winningLines, boolean pruned) {
+			this.location = loc;
+			this.winningLines = winningLines;
+			this.pruned = pruned;
+		}
+		
+		@Override
+		public int compareTo(ProcessedMove o) {
+			
+			int c = o.winningLines - this.winningLines;
+			if (c == 0) {
+				if (!this.pruned && o.pruned) {
+					c = -1;
+				} else if (this.pruned && !o.pruned) {
+					c = 1;
+				} else {
+					c = 0;
+				}
+			}
+			
+			return c;
+		}
+		
+	}
+	
+	
 	private static final String INDENT = "................................................................................";
 	
 	private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 	
-	private int processCount = 0;
+	private long processCount = 0;
+	private long maxProcessCount;
+	private long processCountExtension;
+	
+	private int movesProcessed = 0;
+	private int movesToProcess = 0;
 	
 	private final Solver solver;
 	private final int maxSolutionSize;
@@ -510,6 +546,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private final List<? extends Location> locations;         // the positions being analysed
 	private final List<? extends Location> startLocations;    // the positions which will be considered for the first move
+	
+	private final List<ProcessedMove> processedMoves = new ArrayList<>();    // moves which have been processed
 	
 	private final SolutionTable allSolutions;
 	
@@ -558,6 +596,9 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 		if (allSolutions.size() >= maxSolutionSize) {
+			if (!tooMany) {
+				solver.logger.log(Level.WARN, "BruteForceAnalysis solution table overflow after %d solutions found (%s)", allSolutions.size(), this.scope);
+			}
 			tooMany = true;
 			return;
 		}
@@ -587,6 +628,15 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		if (top.getLivingLocations().isEmpty()) {
 			allDead = true;
+		}
+		
+		this.movesToProcess = top.getLivingLocations().size();
+		this.maxProcessCount = solver.preferences.getBruteForceMaxNodes();
+		
+		if (startLocations == null || startLocations.size() == 0) {
+			this.processCountExtension = this.maxProcessCount / 2;
+		} else {
+			this.processCountExtension = 0;
 		}
 		
 		int best = 0;
@@ -625,14 +675,30 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				solver.logger.log(Level.INFO, "%d %s is living with %d possible values and probability %s, winning lines %d", move.index, locations.get(move.index), move.count, percentage(singleProb),  winningLines);
 			}
 			
+			if (processCount < this.maxProcessCount) {
+				movesProcessed++;
+				
+				Location loc = this.locations.get(move.index);
+				processedMoves.add(new ProcessedMove(loc, winningLines, move.pruned));
+				
+				// if we've got to half way then allow extra cycles to finish up
+				if (this.processCountExtension !=0 && this.movesProcessed * 2 > this.movesToProcess) {
+					this.maxProcessCount = this.maxProcessCount + this.processCountExtension;
+					this.processCountExtension = 0;
+					solver.logger.log(Level.INFO, "Extending BFDA cycles to %d after %d of %d moves analysed", this.maxProcessCount, this.movesProcessed, this.movesToProcess);
+				}
+			}
 			
 		}
+		
+		// sort the processed moves into best move at the top
+		processedMoves.sort(null);  // use the comparable method to sort
 		
 		top.winningLines = best;
 		
 		currentNode = top;
 		
-		if (processCount < solver.preferences.getBruteForceMaxNodes()) {
+		if (processCount < this.maxProcessCount) {
 			this.completed = true;
 			if (solver.isShowProbabilityTree()) {
 				solver.newLine("--------- Probability Tree dump start ---------");
@@ -739,7 +805,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	}
 	
 	@Override
-	protected int getNodeCount() {
+	protected long getNodeCount() {
 		return processCount;
 	}
 	
@@ -859,6 +925,44 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	@Override
 	Area getDeadLocations() {
 		return deadLocations;
+	}
+
+	@Override
+	protected int getMovesProcessed() {
+		return movesProcessed;
+	}
+
+	@Override
+	protected int getMovesToProcess() {
+		return this.movesToProcess;
+	}
+
+	@Override
+	protected Location checkForBetterMove(Location location) {
+		
+		// no moves processed
+		if (processedMoves.size() == 0) {
+			return null;
+		}
+		
+		ProcessedMove best = processedMoves.get(0);
+		
+		// the move is already the best 
+		if (location.equals(best.location)) {
+			solver.logger.log(Level.WARN, "Tile %s (Winning %d) is best according to partial BFDA", location, best.winningLines);
+			return null;
+		}
+		
+		// if the chosen location has been processed and it isn't the best then send the best
+		for (ProcessedMove pm: processedMoves) {
+			if (pm.location.equals(location)) {
+				solver.logger.log(Level.WARN, "Tile %s (Winning %d pruned %b) replaced by %s (winning %d pruned %b)", location, pm.winningLines, pm.pruned, best.location, best.winningLines, best.pruned);
+				return best.location;
+			}
+		}
+
+		// the chosen location hasn't been processed
+		return null;
 	}
 	
 }

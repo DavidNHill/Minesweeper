@@ -13,19 +13,21 @@ public class CandidateLocation extends Location {
 	private final int adjSquares;
 	private final int adjFlags;
 	private final boolean dead;  // Whether the tile is dead
+	private final boolean deferGuessing;  // Whether the tile is not a good idea to guess
 	
 	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags) {
-		this(x, y, prob, adjSquares, adjFlags, false);
+		this(x, y, prob, adjSquares, adjFlags, false, false);
 		
 	}
 
-	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags, boolean dead) {
+	public CandidateLocation(int x, int y, BigDecimal prob, int adjSquares, int adjFlags, boolean dead, boolean deferGuessing) {
 		super(x,y);
 		
 		this.prob = prob;
 		this.adjSquares = adjSquares;
 		this.adjFlags = adjFlags;
 		this.dead = dead;
+		this.deferGuessing = deferGuessing;
 		
 	}
 	
@@ -54,6 +56,10 @@ public class CandidateLocation extends Location {
 		return this.description;
 	}
 	
+	public boolean getDeferGuessing() {
+		return this.deferGuessing;
+	}
+	
 	public Action buildAction(MoveMethod method) {
 		
         String comment = description;
@@ -77,11 +83,17 @@ public class CandidateLocation extends Location {
 			
 			c = -o1.prob.compareTo(o2.prob);  // highest probability first
 			if (c == 0) {
-				c = -(o1.adjFlags - o2.adjFlags);  // highest number of flags 2nd
-				if (c == 0) {
-					c=  o1.adjSquares - o2.adjSquares;  // lowest adjacent free squares
+				if (o1.deferGuessing && !o2.deferGuessing) {
+					c = -1;
+				} else if (!o1.deferGuessing && o2.deferGuessing) {
+					c = 1;
+				} else {
+					c = -(o1.adjFlags - o2.adjFlags);  // highest number of flags 2nd
 					if (c == 0) {
-						c = o1.sortOrder - o2.sortOrder;  // location order
+						c=  o1.adjSquares - o2.adjSquares;  // lowest adjacent free squares
+						if (c == 0) {
+							c = o1.sortOrder - o2.sortOrder;  // location order
+						}
 					}
 				}
 			}

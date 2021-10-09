@@ -366,8 +366,8 @@ public class MainScreenController {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}
 		
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
-		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
+		//SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
 		Solver solver = new Solver(gs, settings, true);
 		
 		

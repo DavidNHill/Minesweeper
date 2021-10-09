@@ -393,7 +393,25 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		List<ProbabilityLine> crunched = workingProbs;
 		
 		if (crunched.size() == 1) { // if the size is one then the number of mines in the area is fixed
-			checkEdgeIsIsolated();
+			checkEdgeIsIsolated(true);
+		} else {
+			/*
+			boolean deferedGuessing = true;
+			for (ProbabilityLine pl: crunched) {
+				if (!pl.solutionCount.equals(BigInteger.ONE)) {
+					deferedGuessing = false;
+					break;
+				}
+			}
+			if (deferedGuessing && checkEdgeIsIsolated(false)) {
+				logger.log(Level.INFO, "Seed %s Defered guess found", boardState.getSolver().getGame().getSeed());
+				for (int i=0; i < mask.length; i++) {
+					if (mask[i]) {
+						this.boxes.get(i).setDeferGuessing();
+					}
+				}
+			}
+			*/
 		}
 
 		
@@ -1011,7 +1029,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				for (Square squ: boxes.get(i).getSquares()) {
 					boolean isDead = deadLocations.contains(squ);
 					if (!isDead || !excludeDead || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
-						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead));
+						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead, this.boxes.get(i).doDeferGuessing()));
 					} else {
 						logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
 					}
@@ -1180,8 +1198,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	*/
 	
 	// an edge is isolated if every tile on it is completely surrounded by boxes also on the same edge 
-	// (we have already established this area has a fixed numebr of mines)
-	private boolean checkEdgeIsIsolated() {
+	// (we have already established this area has a fixed number of mines)
+	private boolean checkEdgeIsIsolated(boolean equalMines) {
 		
 		Set<Location> edgeTiles = new HashSet<>();
 		Set<Location> edgeWitnesses = new HashSet<>();
@@ -1198,11 +1216,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
             }
         }
 
-        // if this edge is everything then it isn't an isolated edge
-        if (everything) {
-        	logger.log(Level.DEBUG, "Not isolated because the edge is everything");
-        	return false;
-        }
+        // if this edge is everything then it isn't an isolated edge  - this is wrong because it doesn't allow for off edge tiles
+        //if (everything) {
+        //	logger.log(Level.DEBUG, "Not enclosed because the edge is everything");
+        //	return false;
+        //}
         
         
 		// check whether every tile adjacent to the tiles on the edge is itself on the edge
@@ -1210,14 +1228,21 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
             if (this.mask[i]) {   
             	for (Square tile: boxes.get(i).getSquares()) {
             		if (!edgeTiles.containsAll(boardState.getAdjacentUnrevealedSquares(tile))) {
-            			logger.log(Level.DEBUG, "Not isolated because a tile's adjacent tiles isn't on the edge: %s", tile);
+            			logger.log(Level.DEBUG, "Not enclosed because a tile's adjacent tiles isn't on the edge: %s", tile);
             			return false;
             		}
             	}
             }
         }
 
-        logger.log(Level.INFO, "Isolated Edge found");
+        if (equalMines) {
+        	logger.log(Level.INFO, "Enclosed Edge with equal mines found");
+        } else {
+        	logger.log(Level.INFO, "Enclosed Edge with unequal mines found");
+        	return true;
+        }
+
+        // an enclosed edge with a known number of mines can be solved independently from the main board
         
         List<Location> tiles = new ArrayList<>(edgeTiles);
         List<Location> witnesses = new ArrayList<>(edgeWitnesses);
@@ -1225,7 +1250,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
         
         // build a web of the isolated edge and use it to build a brute force
         WitnessWeb isolatedEdge = new WitnessWeb(boardState, witnesses, tiles);
-        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.getBruteForceMaxIterations(), "Isolated Edge");
+        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.getBruteForceMaxIterations(), 
+        		boardState.getSolver().preferences.getBruteForceMaxSolutions(), "Isolated Edge");
         
         isolatedEdges.add(bruteForce);
         

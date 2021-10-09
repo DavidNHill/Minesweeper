@@ -67,6 +67,7 @@ public class BulkWorker implements Runnable {
 		
 		Solver solver = new Solver(request.gs, this.solverSettings, false);
 		solver.setFlagFree(controller.getFlagFree());
+		//solver.setPlayChords(true);
 		
 		play: while (true) {
 
@@ -102,12 +103,14 @@ public class BulkWorker implements Runnable {
 				if (state == GameStateModel.STARTED || state == GameStateModel.WON) {
 					if (!moves[i].isCertainty() ) { 
 						request.guesses++;
-						request.fairness = request.fairness + 1d;
+						//request.fairness = request.fairness + 1d;
+						request.fairness = request.fairness.add(BigDecimal.ONE).subtract(prob);
 					}
 				} else { // otherwise the guess resulted in a loss
 					if (!moves[i].isCertainty()) {
 						request.guesses++;
-						request.fairness = request.fairness - prob.doubleValue() / (1d - prob.doubleValue());
+						//request.fairness = request.fairness - prob.doubleValue() / (1d - prob.doubleValue());
+						request.fairness = request.fairness.subtract(prob);
 					}                    
 				}
 

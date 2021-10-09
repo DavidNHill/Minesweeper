@@ -25,8 +25,9 @@ public class BruteForce {
 	
 
 	private final int mines;
-	private final BigInteger max;
-
+	private final BigInteger maxIterations;
+	private final int bfMaxSolutions;
+	
 	private CrunchResult crunchResult;
 
 	private boolean hasRun = false;
@@ -42,11 +43,12 @@ public class BruteForce {
 	
 	private BruteForceAnalysisModel bruteForceAnalysis;
 
-	public BruteForce(Solver solver, BoardState boardState, WitnessWeb web, int mines, BigInteger max, String scope) {
+	public BruteForce(Solver solver, BoardState boardState, WitnessWeb web, int mines, BigInteger maxIterations, int bfMaxSolutions, String scope) {
 
 		this.solver = solver;
 		this.boardState = boardState;
-		this.max = max;
+		this.maxIterations = maxIterations;
+		this.bfMaxSolutions = bfMaxSolutions;
 		this.scope = scope;
 		
 		this.web = web;		
@@ -78,16 +80,13 @@ public class BruteForce {
 
 			iterations = web.getIterations(mines);
 
-			if (iterations.compareTo(max) <= 0) {
+			if (iterations.compareTo(maxIterations) <= 0) {
 	
 				//display("Brute Force about to process " + iterations + " iterations");
 				WitnessWebIterator[] iterators = buildParallelIterators(mines, iterations);
 
-				//if (iterations.compareTo(BigInteger.valueOf(1000000l)) <= 0) {
-					//this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.BRUTE_FORCE_ANALYSIS_MAX_SOLUTIONS);
-					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), solver.preferences.getBruteForceMaxSolutions(), scope, solver.bfdaStartLocations());
-				//}
-				
+				this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), bfMaxSolutions, scope, solver.bfdaStartLocations());
+
 			
 				crunchResult  = crunchParallel(web.getSquares(), web.getPrunedWitnesses(), true, iterators);
 

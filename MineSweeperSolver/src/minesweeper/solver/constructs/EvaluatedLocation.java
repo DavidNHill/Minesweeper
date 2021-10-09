@@ -1,6 +1,7 @@
 package minesweeper.solver.constructs;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
@@ -18,13 +19,14 @@ public class EvaluatedLocation extends Location {
 	private final int fixedClears;  //number of tiles which are clears regardless of what value is revealed
 	private List<Box> emptyBoxes;
 	private boolean pruned = false;
+	private boolean deferGuessing = false;
 
 	public EvaluatedLocation(int x, int y, BigDecimal safeProbability, BigDecimal weight, BigDecimal expectedClears, int fixedClears, 
 			List<Box> emptyBoxes, BigDecimal maxValueProgress) {
 		super(x,y);
 		
 		this.safeProbability = safeProbability;
-		this.weight = weight;
+		this.weight = weight.setScale(8, RoundingMode.UP); // give a slight bump up, so those coming later have to be actually better
 		this.expectedClears = expectedClears;
 		this.fixedClears = fixedClears;
 		this.maxValueProgress = maxValueProgress;
@@ -61,18 +63,22 @@ public class EvaluatedLocation extends Location {
 		this.pruned = true;
 	}
 	
+	public void setDeferGuessing(boolean deferGuessing) {
+		this.deferGuessing = deferGuessing;
+	}
+	
 	@Override
 	public String toString() {
 		
 		String prunedString;
 		if (this.pruned) {
-			prunedString = " Pruned";
+			prunedString = "  ** Pruned";
 		} else {
 			prunedString = "";
 		}
 		
 		return super.toString() + " Fixed clears is " + fixedClears + " expected clears is " + expectedClears.toPlainString() 
-		+ ", final weight is " + weight + ", maximum tile value prob is " + maxValueProgress + prunedString;
+		+ ", final weight is " + weight + ", maximum tile value prob is " + maxValueProgress + ", defer guessing " + deferGuessing + prunedString;
 		
 	}
 	
@@ -85,12 +91,19 @@ public class EvaluatedLocation extends Location {
 			
 
 			int c = 0;
-			
+		
 			if (c == 0) {
 				c = -o1.weight.compareTo(o2.weight);  // tile with the highest weighting
 			}
 
-
+			if (c == 0) {
+				if (o1.deferGuessing && !o2.deferGuessing) {
+					c = 1;
+				} else if (!o1.deferGuessing && o2.deferGuessing) {
+					c = -1;
+				} 
+			}
+			
 			if (c == 0) {
 				c = -o1.expectedClears.compareTo(o2.expectedClears);  // then highest expected number of clears
 			}
@@ -123,54 +136,5 @@ public class EvaluatedLocation extends Location {
 		}
 	};
 	
-	/*
-	static public final Comparator<EvaluatedLocation> SORT_BY_PROGRESS_PROBABILITY  = new Comparator<EvaluatedLocation>() {
-		@Override
-		public int compare(EvaluatedLocation o1, EvaluatedLocation o2) {
-			
-
-			int c = 0;
-			
-			c = -o1.progressProbability.compareTo(o2.progressProbability);  // highest probability of making progress first
-
-			if (c == 0) {
-				c = -o1.expectedClears.compareTo(o2.expectedClears);  // then highest expected number of clears
-			}
-			
-			// avoid playing at a corner if tied
-			if (c == 0) {
-				if (o1.isCorner && !o2.isCorner) {
-					c = 1;
-				} else if (!o1.isCorner && o2.isCorner) {
-					c = -1;
-				}
-			}
-			return c;
-		
-		}
-	};
-	
-	static public final Comparator<EvaluatedLocation> SORT_BY_LINKED_EXPECTED_CLEARS  = new Comparator<EvaluatedLocation>() {
-		@Override
-		public int compare(EvaluatedLocation o1, EvaluatedLocation o2) {
-			
-			int c = 0;
-			
-			if (o1.fixedClears == 0 && o2.fixedClears > 0) {
-				c = 1;
-			} else if (o1.fixedClears > 0 && o2.fixedClears == 0) {
-				c = -1;
-			}
-
-			if (c == 0) {
-				c = -o1.expectedClears.compareTo(o2.expectedClears);
-			}
-			
-			
-			return c;
-		
-		}
-	};
-	*/
 	
 }
