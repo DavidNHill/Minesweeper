@@ -28,8 +28,7 @@ public class BulkRequest {
 	protected int sequence;    // the sequence number for this request
 	protected int slot;        // the slot the request is to be store in the buffer
 	protected GameStateModel gs;
-	//protected Solver solver;
 	protected int guesses = 0;
 	protected BigDecimal fairness = BigDecimal.ZERO;
-	
+	protected boolean startedOkay = true;
 }

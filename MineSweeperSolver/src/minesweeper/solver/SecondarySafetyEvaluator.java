@@ -17,6 +17,7 @@ import minesweeper.solver.Solver.RunPeResult;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
@@ -94,7 +95,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0);
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(x1, y1), boardState.countAdjacentConfirmedFlags(x1, y1));
 					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						tileOfInterest.add(loc);
@@ -114,12 +115,16 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterest.contains(tile)) {
 
-				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(tile), boardState.countAdjacentConfirmedFlags(tile)));
 				
 			}
 
 		}		
 
+		// bring the tiles with the least surrounding free tiles to the top. This favours corners.
+		//List<CandidateLocation> sorted = new ArrayList<>(tileOfInterest);
+		//sorted.sort(CandidateLocation.SORT_BY_PROB_FREE_FLAG);
+		
 		evaluateLocations(tileOfInterest);
 		
 	}
@@ -223,17 +228,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 		BigDecimal maxValueProgress = BigDecimal.ZERO;
 		BigDecimal secondarySafety = BigDecimal.ZERO;
-		//BigDecimal miniMaxSafety = BigDecimal.ONE;
-		
-		// give a progress bonus if the tile is linked, but then don't count the linked tiles as progress.
-		BigDecimal progressProb;
-		//if (linkedTilesCount > 0) {
-		//	progressProb = BigDecimal.valueOf(0.2d);
-		//} else {
-			progressProb = BigDecimal.ZERO;
-		//}
+		BigDecimal progressProb = BigDecimal.ZERO;
 
-		
 		BigDecimal probThisTileLeft = probThisTile;
 		
 		int validValues = 0;
@@ -244,7 +240,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			BigDecimal bonus = BigDecimal.ONE.add(progressProb.add(probThisTileLeft).multiply(PROGRESS_CONTRIBUTION));
 			BigDecimal weight = secondarySafety.add(probThisTileLeft).multiply(bonus);
 			
-			// if the remaining safe component for the tile can now never reach the best if if 100% safe for all future values then abandon analysis
+			// if the remaining safe component for the tile can now never reach the best if 100% safe for all future values then abandon analysis
 			if (best != null && weight.compareTo(best.getWeighting()) < 0) {
 				result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
 				result.setPruned();
@@ -285,7 +281,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				} else {
 					safety = bestCandidates.get(0).getProbability();
 				}
-
+				
 				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f and secondary safety %f", tile, i, clears, prob, safety);
 				
 				// find the lowest safest move available across all values
@@ -312,7 +308,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		//	return null;
 		//}
 		
-		if (!commonClears.isEmpty()) {
+		if (commonClears != null && !commonClears.isEmpty()) {
 			solver.logger.log(Level.DEBUG, "%s has certain progress if survive", tile);
 			certainProgress = true;
 		}
@@ -333,6 +329,84 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 	}
 
+	
+	/**
+	 * recursively calculate a tile's safety to the required depth
+	 */
+	private BigDecimal calculateSafety(Location tile, WitnessWeb currWeb, ProbabilityEngineModel currPe, int depth) {
+
+
+		int minMines = boardState.countAdjacentConfirmedFlags(tile);
+		int maxMines = minMines + boardState.countAdjacentUnrevealed(tile);
+
+		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
+		BigDecimal secondarySafety = BigDecimal.ZERO;
+
+		for (int value = minMines; value <= maxMines; value++) {
+
+
+			// make the move
+			boardState.setWitnessValue(tile, value);
+
+			// create a new list of witnesses
+			List<Location> witnesses = new ArrayList<>(currWeb.getPrunedWitnesses().size() + 1);
+			witnesses.addAll(currWeb.getPrunedWitnesses());
+			witnesses.add(tile);
+
+			Area witnessed = boardState.getUnrevealedArea(witnesses);
+
+			WitnessWeb newWeb = new WitnessWeb(boardState, witnesses, witnessed.getLocations(), Logger.NO_LOGGING);
+
+			int unrevealed = boardState.getTotalUnrevealedCount() - 1;  // this is one less, because we have added a witness
+
+			int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+
+			ProbabilityEngineModel counter = new ProbabilityEngineFast(boardState, newWeb, unrevealed, minesLeft);
+
+			counter.process();
+
+			BigInteger sol = counter.getSolutionCount();
+			int clears = counter.getLivingClearCount();
+
+			// keep track of the maximum probability across all valid values
+			if (sol.signum() != 0) {
+
+				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(currPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+
+				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ONE, true);
+
+				BigDecimal safety;
+				if (bestCandidates.size() == 0 ) { 
+					safety = counter.getOffEdgeProb();
+				} else {
+					
+					if (depth == 1) {
+						safety = bestCandidates.get(0).getProbability();
+					} else {
+						safety = calculateSafety(bestCandidates.get(0), newWeb, counter, depth - 1);					
+					}
+				}
+
+				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f and secondary safety %f", tile, value, clears, prob, safety);
+
+				secondarySafety = secondarySafety.add(prob.multiply(safety));
+
+			} else {
+				solver.logger.log(Level.DEBUG, "%s with value %d is not valid", tile, value);
+			}
+
+
+			// undo the move
+			boardState.clearWitness(tile);
+
+		}		
+
+		return secondarySafety;
+
+	}
+ 	
+	
+	
 	public void showResults() {
 
 		evaluated.sort(SORT_ORDER);
@@ -433,10 +507,10 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 					}
 				}
 				if (bfdaBetter == null) {
-					solver.logger.log(Level.ERROR, "Unable to find %s in the Evaluated list", better);
+					solver.logger.log(Level.INFO, "Unable to find %s in the Evaluated list", better);
 				} else {
 					evalLoc = bfdaBetter;
-					solver.logger.log(Level.WARN, "Tile %s", evalLoc);
+					solver.logger.log(Level.INFO, "Tile %s", evalLoc);
 				}
 			}
 		}

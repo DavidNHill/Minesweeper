@@ -353,7 +353,7 @@ public class FiftyFiftyHelper {
 					
 					
 				} else {
-					board.getLogger().log(Level.INFO, "%s and %s can't have 2 mines since not enought mines left in the game, guess immediately", tile1, tile2);
+					board.getLogger().log(Level.INFO, "%s and %s can't have 2 mines since not enough mines left in the game, guess immediately", tile1, tile2);
 					return tile1;
 				}
 
@@ -415,7 +415,7 @@ public class FiftyFiftyHelper {
 					continue;
 				}
 				
-				// need the corners to be flags
+				// need the corners to be flags or off the board
 				if (isPotentialInfo(i - 1, j - 1) || isPotentialInfo(i + 2, j - 1) || isPotentialInfo(i - 1, j + 2) || isPotentialInfo(i + 2, j + 2)) {
 					continue;  // this skips the rest of the logic below this in the for-loop 
 				}
@@ -463,7 +463,6 @@ public class FiftyFiftyHelper {
 					start = 9;
 				}
 
-				
 				for (int k = start; k < PATTERNS.length; k++) {
 					
 					mines.clear();
@@ -529,6 +528,23 @@ public class FiftyFiftyHelper {
 		
 
 	}
+	
+    // returns whether the tile is still valid even if it has no witnesses
+    private boolean isExempt(Location l) {
+    	
+    	// if not test mode then no exemption
+    	if (!board.getSolver().preferences.isTestMode()) {
+    		return false;
+    	}
+    	
+    	// if the tile is in a corner then it is exempt
+    	if ((l.x == 0 || l.x == board.getGameWidth() - 1) && (l.y == 0 || l.y == board.getGameHeight() - 1)) {
+    		return true;
+    	}
+    	
+    	return false;
+    	
+    }
 	
     // returns whether there information to be had at this location; i.e. on the board and either unrevealed or revealed
     private boolean isPotentialInfo(int x, int y) {

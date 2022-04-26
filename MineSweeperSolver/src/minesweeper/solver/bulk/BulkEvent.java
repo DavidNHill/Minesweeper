@@ -8,18 +8,25 @@ public class BulkEvent {
 	private int noGuessWins;
 	private int totalActions;
 	
+	private long total3BV;
+	private long total3BVSolved;
+	
 	private int totalGuesses;
 	private double fairness;
 	
 	private int winStreak;
 	private int mastery;
 	
+	private int failedToStart;   // this is when the game didn't survive the start sequence
+	
 	private long timeSoFar;
 	private long estimatedTimeLeft;
 	
 	private boolean isFinished = false;
 	
-	
+	public int getFailedToStart() {
+		return failedToStart;
+	}
 	public int getGamesToPlay() {
 		return gamesToPlay;
 	}
@@ -46,6 +53,17 @@ public class BulkEvent {
 	}
 	public int getTotalActions() {
 		return totalActions;
+	}
+
+	public long getTotal3BV() {
+		return total3BV;
+	}
+	public long getTotal3BVSolved() {
+		return total3BVSolved;
+	}
+	
+	protected void setFailedToStart(int failedToStart) {
+		this.failedToStart = failedToStart;
 	}
 	protected void setGamesToPlay(int gamesToPlay) {
 		this.gamesToPlay = gamesToPlay;
@@ -92,5 +110,12 @@ public class BulkEvent {
 	protected void setFinished(boolean isFinished) {
 		this.isFinished = isFinished;
 	}
+	protected void setTotal3BV(long total3bv) {
+		total3BV = total3bv;
+	}
+	protected void setTotal3BVSolved(long total3bvSolved) {
+		total3BVSolved = total3bvSolved;
+	}
+
 	
 }

@@ -148,7 +148,7 @@ public class SolutionCounter {
 	final private List<Witness> witnesses;
 	final private List<Box> boxes;
 	final private int minesLeft;                 // number of mines undiscovered in the game
-	final private int squaresLeft;               // number of squares undiscovered in the game and off the web
+	private int squaresLeft;               // number of squares undiscovered in the game and off the web
 	
 	private int independentGroups = 0;
 	private int recursions = 0;
@@ -159,7 +159,7 @@ public class SolutionCounter {
 	final private List<Box> emptyBoxes = new ArrayList<>();
 	
 	// these are the limits that can be on the edge
-	final private int minTotalMines;
+	private int minTotalMines;
 	final private int maxTotalMines;
 	
 	final private Map<Integer, BigInteger> mineCounts = new HashMap<>();
@@ -932,7 +932,10 @@ public class SolutionCounter {
 	public boolean setMustBeEmpty(Location loc) {
 		Box box = getBox(loc);
 		
-		if (box == null) {
+		if (box == null) {  // if the tile isn't on the edge then adjust the off edge values
+			this.squaresLeft--;
+			this.minTotalMines++;
+
 			//this.valid = false;
 			//return false;
 		} else if (box.getMinMines() != 0) {

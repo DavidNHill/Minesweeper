@@ -17,7 +17,7 @@ import minesweeper.structure.Location;
  */
 public class Witness extends Location {
     
-    private final int mines;   // the number of mines left to find
+    private final int minesToFind;   // the number of mines left to find
 
     private final int iterations;
     
@@ -32,7 +32,7 @@ public class Witness extends Location {
     public Witness(Location loc, int mines, List<Square> adjSqu) {
     	super(loc.x, loc.y);
         
-        this.mines = mines;
+        this.minesToFind = mines;
         squares = adjSqu;
 
         this.iterations = Solver.combination(mines, squares.size()).intValue();
@@ -44,7 +44,7 @@ public class Witness extends Location {
     }
     
     public int getMines() {
-        return mines;
+        return minesToFind;
     }
     
     public void addSquare(Square squ) {

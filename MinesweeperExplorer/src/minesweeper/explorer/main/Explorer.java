@@ -14,17 +14,21 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import minesweeper.explorer.main.Graphics.GraphicsSet;
 
 public class Explorer extends Application {
 	
 	public static String APPLICATION_NAME = "Minesweeper explorer";
 	public static String VERSION = "0.0";
 	
+	{
+		System.out.println("Java version " + System.getProperty("java.runtime.version"));
+		System.out.println("Java vendor  " + System.getProperty("java.vendor"));
+	}
+	
 	public static final Background BACKGROUND_PINK = new Background(new BackgroundFill(Color.PINK, null, null));
 	public static final Background BACKGROUND_SILVER = new Background(new BackgroundFill(Color.SILVER, null, null));
 	
-	private final int tileSize = 24;
+	//private final int tileSize = 24;
 	
 	public static final DecimalFormat PERCENT = new DecimalFormat("#0.000%");
 	public static final DecimalFormat TWO_DP = new DecimalFormat("#0.00");
@@ -32,7 +36,7 @@ public class Explorer extends Application {
 
 	private static Stage primaryStage;
 	
-	private static final Graphics graphics = new Graphics();
+	//private static final Graphics graphics = new Graphics();
 	
 	@Override
 	public void start(Stage primaryStage) {
@@ -43,9 +47,6 @@ public class Explorer extends Application {
 			System.out.println("MainScreen.fxml not found");
 		}
 
-		//Graphics graphics = new Graphics();
-		//GraphicsSet graphicsSet = graphics.getGraphicsSet(tileSize);
-		
 		// create the helper screen
 		FXMLLoader loader = new FXMLLoader(Explorer.class.getResource("MainScreen.fxml"));
 
@@ -56,7 +57,7 @@ public class Explorer extends Application {
 			System.err.println(ex.getMessage());
 		}
 		
-		this.primaryStage = primaryStage;
+		Explorer.primaryStage = primaryStage;
 		
 		try {
 			//BorderPane root = new BorderPane();
@@ -78,7 +79,7 @@ public class Explorer extends Application {
 			System.out.println("MainScreenController not found");
 		}
 		
-		mainScreenController.setGraphicsSet(graphics);
+		mainScreenController.setGraphicsSet(new Graphics());
 		mainScreenController.newExpertBoard();
 		
 		BoardMonitor monitor = new BoardMonitor(mainScreenController);

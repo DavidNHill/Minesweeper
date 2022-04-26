@@ -949,14 +949,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		// the move is already the best 
 		if (location.equals(best.location)) {
-			solver.logger.log(Level.WARN, "Tile %s (Winning %d) is best according to partial BFDA", location, best.winningLines);
+			solver.logger.log(Level.INFO, "Tile %s (Winning %d) is best according to partial BFDA", location, best.winningLines);
 			return null;
 		}
 		
 		// if the chosen location has been processed and it isn't the best then send the best
 		for (ProcessedMove pm: processedMoves) {
 			if (pm.location.equals(location)) {
-				solver.logger.log(Level.WARN, "Tile %s (Winning %d pruned %b) replaced by %s (winning %d pruned %b)", location, pm.winningLines, pm.pruned, best.location, best.winningLines, best.pruned);
+				solver.logger.log(Level.INFO, "Tile %s (Winning %d pruned %b) replaced by %s (winning %d pruned %b)", location, pm.winningLines, pm.pruned, best.location, best.winningLines, best.pruned);
 				return best.location;
 			}
 		}

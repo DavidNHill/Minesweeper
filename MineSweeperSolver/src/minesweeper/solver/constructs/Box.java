@@ -55,10 +55,28 @@ public class Box {
 		maxMines = Math.min(squares.size(), minesLeft);  // can't have more mines then there are squares to put them in or mines left to discover
 		minMines = 0;
 		
-		for (Witness w: adjWitnesses) {
+		for (Witness adjWit: adjWitnesses) {
 			// can't have more mines than the lowest constraint
-			if (w.getMines() < maxMines) {
-				maxMines = w.getMines();
+			if (adjWit.getMines() < maxMines) {
+				maxMines = adjWit.getMines();
+			}
+			
+			// if an adjacent witness has all it's tiles in this box then we need at least that many tiles in the box
+			if (this.squares.size() > 1 && adjWit.getMines() > minMines) {
+				boolean subset = true;
+				int adjWitMinMines = adjWit.getMines();   // the minimum number of mines left if we assume every outside tile contains a mine
+				for (Square square: adjWit.getSquares()) {
+					if (!this.contains(square)) {
+						subset = false;
+						adjWitMinMines--;
+						if (adjWitMinMines <= minMines) {  // worse then our current minimum
+							break;							
+						}
+					}
+				}
+				minMines = Math.max(minMines, adjWitMinMines);
+				//System.out.println("Tile " + w + " places " + w.getMines() + " in a box");
+
 			}
 			
 			// this has a small improvement on time, but (for some reason) has a small -ve impact on win rate.  Need to investigate more.

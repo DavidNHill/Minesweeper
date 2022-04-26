@@ -202,7 +202,7 @@ public class Solver implements Asynchronous<Action[]> {
         if (this.interactive) {
         	this.logger = new Logger(Level.INFO, "Solver");
         } else {
-        	this.logger = new Logger(Level.WARN, "Solver");
+        	this.logger = new Logger(Level.ERROR, "Solver");
         }
         
         this.overriddenStartLocation = preferences.getStartLocation();
@@ -385,8 +385,11 @@ public class Solver implements Asynchronous<Action[]> {
         if (myGame.getGameState() == GameStateModel.LOST) {
             topLine("The game has been lost, so no further analysis is possible");
             if (myGame.supports3BV()) {
-            	newLine("3BV value " + myGame.get3BV());
+            	newLine("3BV value " + myGame.getTotal3BV());
+            	newLine("3BV solved " + myGame.getCleared3BV());
             	newLine("Action Count " + myGame.getActionCount());
+            	double eff = ((10000 * myGame.getCleared3BV()) / myGame.getActionCount()) / 100d;
+            	newLine("Efficiency is " + eff + "%");
             }
             return fm;
         }
@@ -394,9 +397,10 @@ public class Solver implements Asynchronous<Action[]> {
         if (myGame.getGameState() == GameStateModel.WON) {
             topLine("The game has been won, so no further analysis is required");
             if (myGame.supports3BV()) {
-            	newLine("3BV value " + myGame.get3BV());
+            	newLine("3BV value " + myGame.getTotal3BV());
+            	newLine("3BV solved " + myGame.getCleared3BV());
             	newLine("Action Count " + myGame.getActionCount());
-            	double eff = ((10000 * myGame.get3BV()) / myGame.getActionCount()) / 100d;
+            	double eff = ((10000 * myGame.getTotal3BV()) / myGame.getActionCount()) / 100d;
             	newLine("Efficiency is " + eff + "%");
             }
             return fm;
@@ -487,6 +491,8 @@ public class Solver implements Asynchronous<Action[]> {
         	coachDisplay.setOkay();
         }
         
+        int totalFlagsConfirmed = boardState.getConfirmedFlagCount();
+        
         // Build a web of all the witnesses still useful and all the un-revealed tiles adjacent to them
         WitnessWeb wholeEdge = new WitnessWeb(boardState, allWitnesses, allWitnessedSquares.getLocations());
 
@@ -510,33 +516,27 @@ public class Solver implements Asynchronous<Action[]> {
         this.logger.log(Level.INFO, "There are %d trivial / locally discoverable certain moves", (displayObvious + displayLessObvious));
         
         if (playChords) {
-         	EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions());
-        	fm = new FinalMoves(eff.process().toArray(new Action[0]));
+        	
+    		fm = new FinalMoves(new Action[0]); 
+    		
+        	// we can't do the probability engine if extra mines have been found ... so return empty and try again
+        	if (boardState.getConfirmedFlagCount() != totalFlagsConfirmed) {
+        		fm.moveFound = true;
+        	} else {
+        		fm.moveFound = false;   // otherwise push on to the probability engine
+        	}
+       	
+        	//EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions());
+        	//fm = new FinalMoves(eff.process().toArray(new Action[0]));
         } else {
         	fm = new FinalMoves(boardState.getActions().toArray(new Action[0]));
+        	
+            if (obvious + lessObvious > 0) {  // in flag free mode we can find moves which we don't play 
+            	fm.moveFound = true;
+            }
         }
-        
-        
-        //fm = new FinalMoves(boardState.getActionsWithChords().toArray(new Action[0]));
-        if (obvious + lessObvious > 0) {  // in flag free mode we can find moves which we don't play 
-        	fm.moveFound = true;
-        }
-        result = fm.result;
-        
-        /*
-        // look for a 50-50 guess which can't be avoided
-        FinalMoves findFifty = null; 
-        if (obvious + lessObvious == 0 && !fm.moveFound && preferences.do5050Check()) {
-        	findFifty = findFiftyFifty(wholeEdge);
-        	if (findFifty.moveFound) {
-        		newLine("--------- Unavoidable Guess ---------");
-        		newLine("An unavoidable guess has been found - playing now to save time");
-        		fm = findFifty;
-        		display("***** Fifty Fifty " + myGame.showGameKey() +  ": " + fm.result[0].asString() );
-        	}
-        }
-		*/
-        
+ 
+
         int minesLeft = myGame.getMines() - boardState.getConfirmedFlagCount();
 
         if (interactive) {  // can be expensive to do this, so only if we are actually going to display it
@@ -571,23 +571,29 @@ public class Solver implements Asynchronous<Action[]> {
     		this.logger.log(Level.INFO, "Probability off edge is %f", offEdgeProb);
     	}
  
+    	this.logger.log(Level.INFO, "All Dead %b and dead locations %d", pe.allDead(), deadLocations.size() );
     	// if all the locations are dead then just use any one (unless there is only one solution)
-        if (deadLocations.size() == allWitnessedSquares.size() && deadLocations.size() != 0) {
+        if (pe.allDead() && deadLocations.size() != 0) {
         	if (pe.getSolutionCount().compareTo(BigInteger.ONE) == 0) {
         		this.logger.log(Level.INFO, "Only one solution left");
         	} else {
         		this.logger.log(Level.INFO, "All locations are dead");
         	}
         	
-        	//deadLocations = Area.EMPTY_AREA;
-        	
         	// if there are no squares next to a witness then just guess
         	if (allWitnessedSquares.getLocations().isEmpty()) {
         		return guess(wholeEdge);
         	}
         	
-        	// otherwise pick one of the ones on the edge
-        	Location picked = getLowest(allWitnessedSquares.getLocations());
+        	// pick any tile since they're all dead
+        	Location picked = null;
+        	for (Location tile: allWitnessedSquares.getLocations()) {  // get any tile
+        		if (pe.getProbability(tile).signum() != 0) {
+         			picked = tile;
+        			break;
+        		}
+        	}
+        	
         	
         	CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
         	Action a = cl.buildAction(MoveMethod.GUESS);
@@ -600,7 +606,6 @@ public class Solver implements Asynchronous<Action[]> {
         	return fm;
         }
     	
-    	
     	// fetch the best candidates from the edge.  If high density only get the best tiles
         List<CandidateLocation> bestCandidates;
         if (boardState.isHighDensity()) {
@@ -612,15 +617,6 @@ public class Solver implements Asynchronous<Action[]> {
         }
 
         List<Location> allUnrevealedSquares = null;
-        
-        /*
-    	//  evaluate positions
-        if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
-        	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe);
-        } else {
-        	evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
-        }
-        */
         
     	BigDecimal offEdgeCutoff = pe.getBestOnEdgeProb().multiply(Solver.OFF_EDGE_TOLERENCE);
     	
@@ -687,7 +683,7 @@ public class Solver implements Asynchronous<Action[]> {
                     
             		// if after trying to process the data we can't complete then abandon it
             		if (!bfa.isComplete()) {
-            			this.logger.log(Level.WARN, "%s Abandoned the Brute Force Analysis after %d steps", myGame.showGameKey(), bfa.getNodeCount() );
+            			this.logger.log(Level.INFO, "%s Abandoned the Brute Force Analysis after %d steps", myGame.showGameKey(), bfa.getNodeCount() );
             			bfa = null;
 
             		} else { // otherwise try and get the best long term move
@@ -708,12 +704,6 @@ public class Solver implements Asynchronous<Action[]> {
             					// otherwise pick one of the ones on the edge
             					Location picked = getLowest(bruteForceAnalysis.getDeadLocations().getLocations());
             					
-            					//Location anyLocWillDo = null;
-            					//for (Location l: bruteForceAnalysis.getDeadLocations().getLocations()) {  // get the first location
-            					//	anyLocWillDo = l;
-            					//	break;
-            					//}
-
                 				fm = new FinalMoves(new Action(picked, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(picked)));
                 				return fm;
             				}
@@ -725,12 +715,11 @@ public class Solver implements Asynchronous<Action[]> {
                 }
 
             } else {
-            	this.logger.log(Level.WARN, "Game %s Brute Force did not run", myGame.showGameKey());
+            	this.logger.log(Level.INFO, "Game %s Brute Force did not run", myGame.showGameKey());
             }
         }        
         
         // look for pseudo 50-50 guess which can't be avoided
-
     	if (!certainClearFound) {
              if (preferences.isDo5050Check()) {
             	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).process();
@@ -806,21 +795,24 @@ public class Solver implements Asynchronous<Action[]> {
                         		break;
                     		}
                     	}
-                    	CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
-                    	Action a = cl.buildAction(MoveMethod.GUESS);
-                		// let the boardState decide what to do with this action
-                		boardState.setAction(a);
+                    	if (picked != null) {
+                        	CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
+                        	Action a = cl.buildAction(MoveMethod.GUESS);
+                    		// let the boardState decide what to do with this action
+                    		boardState.setAction(a);
 
-                		result = boardState.getActions().toArray(new Action[0]);
+                    		result = boardState.getActions().toArray(new Action[0]);
 
-                    	fm = new FinalMoves(result);
-                    	return fm;
+                        	fm = new FinalMoves(result);
+                        	return fm;                    		
+                    	}
+
                     }
 
             		
             		// if after trying to process the data we can't complete then abandon it
             		if (!bruteForceAnalysis.isComplete()) {
-            			this.logger.log(Level.WARN, "Game %s Abandoned the Brute Force Analysis after %d steps, %d of %d moves analysed", 
+            			this.logger.log(Level.INFO, "Game %s Abandoned the Brute Force Analysis after %d steps, %d of %d moves analysed", 
             					myGame.showGameKey(), bruteForceAnalysis.getNodeCount(),  bruteForceAnalysis.getMovesProcessed(),  bruteForceAnalysis.getMovesToProcess());
             			incompleteBFA = bruteForceAnalysis;  // remember the incomplete analysis
             			bruteForceAnalysis = null;
@@ -857,6 +849,25 @@ public class Solver implements Asynchronous<Action[]> {
             }
             this.logger.log(Level.INFO, "----- Brute Force finished -----");        	
         }
+        
+        // look for pseudo 50-50 guess which can't be avoided
+        /*
+    	if (!certainClearFound && !fm.moveFound) {
+             if (preferences.isDo5050Check()) {
+            	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).process();
+            	
+            	if (findFifty != null) {
+    				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
+    				fm = new FinalMoves(a);
+            		
+            		newLine("--------- Unavoidable Guess ---------");
+            		newLine("An unavoidable guess has been found - playing now to save time");
+            		this.logger.log(Level.DEBUG, "Fifty Fifty %s : %s", myGame.showGameKey(), fm.result[0]);
+            		return fm;
+            	}
+            }
+    	}
+        */
         
     	//  evaluate positions
         if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
@@ -897,12 +908,23 @@ public class Solver implements Asynchronous<Action[]> {
         			fm = guess(wholeEdge);
         		} else {
             		// take the first move
-            		for (CandidateLocation cl: bestCandidates) {
-            			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
-             	    	// let the boardState decide what to do with this action
-            			boardState.setAction(move);   
-            			break;
-            		}
+        			if (bestCandidates.size() != 0) {
+                		for (CandidateLocation cl: bestCandidates) {
+                			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
+                 	    	// let the boardState decide what to do with this action
+                			boardState.setAction(move);   
+                			break;
+                		}
+        			} else {
+                		for (CandidateLocation cl: pe.getBestCandidates(BigDecimal.ZERO, false)) {  // get the best guess even if dead
+                			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
+                 	    	// let the boardState decide what to do with this action
+                			boardState.setAction(move);   
+                			break;
+                		}
+  				
+        			}
+
         			Action[] moves = boardState.getActions().toArray(new Action[0]);
         			fm = new FinalMoves(moves);
         		}
@@ -935,7 +957,19 @@ public class Solver implements Asynchronous<Action[]> {
         			boardState.setAction(move);        			
         			
         		}
-     	    	
+
+    			//TODO get all the off edge tiles
+        		// if all the off edge tiles are safe add them into the boardstate
+        		if (pe.getOffEdgeProb().compareTo(BigDecimal.ONE) == 0) {
+        			for (Location loc: boardState.getAllUnrevealedSquares()) {
+        				if (!allWitnessedSquares.contains(loc)) {
+        					boardState.setAction(new Action(loc, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "",  BigDecimal.ONE));  
+        				}
+        				
+        				
+        			}
+        		}
+        		
         		// if we have a certain clear then also register all the mines
         		if (certainClearFound) {
         			this.logger.log(Level.INFO, "Found %d mines using the probability engine", pe.getMines().size());
@@ -947,7 +981,7 @@ public class Solver implements Asynchronous<Action[]> {
         		}
 
                 if (playChords) {
-                 	EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions());
+                 	EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions(), pe);
                 	fm = new FinalMoves(eff.process().toArray(new Action[0]));
                 } else {
                 	fm = new FinalMoves(boardState.getActions().toArray(new Action[0]));
@@ -1886,9 +1920,14 @@ public class Solver implements Asynchronous<Action[]> {
             // sort into most favourable order 
             //Collections.sort(list, CandidateLocation.SORT_BY_PROB_FLAG_FREE);
             Collections.sort(list, CandidateLocation.SORT_BY_PROB_FREE_FLAG);
+           
+            if (list.isEmpty()) {
+            	return new FinalMoves();
+            }
             
             // ... and pick the first one
             action = list.get(0).buildAction(MoveMethod.GUESS);
+            
         }
         
         // this will check there isn't a flag blocking the move 

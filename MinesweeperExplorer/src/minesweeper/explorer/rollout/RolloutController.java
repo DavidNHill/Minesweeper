@@ -167,7 +167,7 @@ public class RolloutController {
 			}
 			
 			bulkRunner = new BulkRollout(new Random(gameGenerator), gamesMax, generator, startLocation, safeStart.isSelected(), preferences, threads);
-			bulkRunner.registerListener(new BulkListener() {
+			bulkRunner.registerEventListener(new BulkListener() {
 				@Override
 				public void intervalAction(BulkEvent event) {
 					update(event);

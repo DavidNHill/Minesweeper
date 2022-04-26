@@ -77,7 +77,7 @@ public class BoardStateCache {
 	private static BoardStateCache me;
 	
 	
-	public Cache getAdjacentSquares1(int width, int height) {
+	public synchronized Cache getAdjacentSquares1(int width, int height) {
 		
 		for (Cache cache: cacheAdjSqu) {
 			if (cache.height == height && cache.width == width) {
@@ -107,7 +107,7 @@ public class BoardStateCache {
 		return cache;
 	}
 	
-	public static BoardStateCache getInstance() {
+	public static synchronized BoardStateCache getInstance() {
 		
 		if (me == null) {
 			me = new BoardStateCache();

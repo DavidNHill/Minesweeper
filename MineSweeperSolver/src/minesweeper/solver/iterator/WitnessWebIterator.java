@@ -67,6 +67,7 @@ public class WitnessWebIterator extends Iterator {
         for (Witness w: web.getIndependentWitnesses()) {
             squareOffset[cogi] = indSquares;
             mineOffset[cogi] = indMines;
+            //System.out.println(w.getMines() + " mines in " + w.getSquares().size() + " tiles");
             cogs[cogi] = new SequentialIterator(w.getMines(), w.getSquares().size());
             //System.out.println("Cog has " + cogs[cogi].numberBalls + " mines and " + cogs[cogi].numberHoles + " squares");
             cogi++;
@@ -81,7 +82,7 @@ public class WitnessWebIterator extends Iterator {
         }
         
         //System.out.println("Mines left = " + (mines - indMines));
-        //System.out.println("Squrs left = " + (web.getSquares().length - indSquares));
+        //System.out.println("Squares left = " + (web.getSquares().length - indSquares));
         
         // the last cog has the remaining squares and mines
         

@@ -366,8 +366,8 @@ public class MainScreenController {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}
 		
-		//SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS);
+		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
+		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
 		Solver solver = new Solver(gs, settings, true);
 		
 		
@@ -557,7 +557,7 @@ public class MainScreenController {
 					
 					Tile tile = result.getTile(cx,  cy);
 					
-					if (c == 'M') {
+					if (c == 'M' || c == 'F') {
 						
 						//System.out.println("Set mine " + tile.asText());
 						minesCount++;

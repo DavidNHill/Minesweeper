@@ -144,7 +144,9 @@ public class BruteForce {
 				*/
 
 			} else {
-				solver.logger.log(Level.WARN, "Brute Force too large with %d iterations", iterations);
+				if (maxIterations.signum() != 0) {
+					solver.logger.log(Level.INFO, "Brute Force too large with %d iterations", iterations);
+				}		
 			}
 
 		} else {                             
@@ -166,7 +168,8 @@ public class BruteForce {
 
 
 		// if there is only one cog then we can't lock it,so send back a single iterator
-		if (web.getIndependentWitnesses().size() == 1 && web.getIndependentMines() >= mines || totalIterations.compareTo(Solver.PARALLEL_MINIMUM) < 0 || web.getPrunedWitnesses().size() == 0) {
+		if (web.getIndependentWitnesses().size() == 1 && web.getIndependentMines() >= mines || totalIterations.compareTo(Solver.PARALLEL_MINIMUM) < 0 
+				|| web.getPrunedWitnesses().size() == 0 || solver.preferences.isSingleThread()) {
 			solver.logger.log(Level.DEBUG, "Only a single iterator will be used");
 			WitnessWebIterator[] result = new WitnessWebIterator[1];
 			result[0] = new WitnessWebIterator(web, mines);
@@ -204,7 +207,6 @@ public class BruteForce {
 		for (int i=0; i < iterator.length; i++) {
 			crunchers[i] = new Cruncher(boardState, iterator[i].getLocations(), witness, iterator[i], false, bruteForceAnalysis);
 		}
-		//Cruncher cruncher = new Cruncher(this, square, witness, hooks, iterator, calculateDistribution);
 
 		AsynchMonitor monitor = new AsynchMonitor(crunchers);
 		monitor.setMaxThreads(Solver.CORES);

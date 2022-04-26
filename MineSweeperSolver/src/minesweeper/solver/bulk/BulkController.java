@@ -9,6 +9,21 @@ import minesweeper.solver.settings.SolverSettings;
 
 abstract public class BulkController implements Runnable {
 	
+	public enum PlayStyle {
+		FLAGGED(false, false),
+		NO_FLAG(true, false),
+		EFFICIENCY(true, true);
+		
+		public final boolean flagless;
+		public final boolean useChords;
+		
+		private PlayStyle(boolean flagless, boolean useChords) {
+			this.flagless = flagless;
+			this.useChords = useChords;
+		}
+		
+	}
+	
 	private final int gamesToPlay;
 	private final int workers;
 	private final SolverSettings solverSettings;
@@ -24,6 +39,7 @@ abstract public class BulkController implements Runnable {
 	
 	private volatile int nextSequence = 1;
 	private volatile int waitingSequence = 0;
+	private volatile int reportInterval = REPORT_INTERVAL;
 	private final Random seeder;
 	private volatile boolean finished = false;
 	private volatile BulkEvent event;
@@ -33,12 +49,17 @@ abstract public class BulkController implements Runnable {
 	private long startTime;
 	private long endTime;
 	
-	private BulkListener listener;
+	private BulkListener eventListener;
+	private GameListener postGameListener;
+	private GameListener preGameListener;
 	
+	private volatile int failedToStart = 0;
 	private volatile int wins = 0;
 	private volatile int guesses = 0;
 	private volatile int noGuessWins = 0;
 	private volatile int totalActions = 0;
+	private volatile long total3BV = 0;
+	private volatile long total3BVSolved = 0;
 	private volatile BigDecimal fairness = BigDecimal.ZERO;
 	private volatile int currentWinStreak = 0;
 	private volatile int bestWinStreak = 0;
@@ -47,7 +68,8 @@ abstract public class BulkController implements Runnable {
 	
 	private volatile boolean[] mastery = new boolean[100];
 	
-	private boolean flagFree = false;
+	//private boolean flagFree = false;
+	private PlayStyle playStyle = PlayStyle.NO_FLAG;
 	
 	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers) {
 		this(seeder, gamesToPlay, solverSettings, workers, DEFAULT_BUFFER_PER_WORKER);
@@ -64,20 +86,33 @@ abstract public class BulkController implements Runnable {
 		this.buffer = new BulkRequest[bufferSize];
 	}
 	
-	public void registerListener(BulkListener listener) {
-		this.listener = listener;
+	public void registerEventListener(BulkListener listener) {
+		this.eventListener = listener;
 		
 	}
 	
+	public void registerPostGameListener(GameListener listener) {
+		this.postGameListener = listener;
+	}
+	
+	public void registerPreGameListener(GameListener listener) {
+		this.preGameListener = listener;
+	}
+	
 	/**
-	 * Request the solver plays flagless
+	 * Set the play style
 	 */
-	public void setFlagFree(boolean flagFree) {
-		this.flagFree = flagFree;
+	public void setPlayStyle(PlayStyle playStyle) {
+		this.playStyle = playStyle;
 	}
 
-	public boolean getFlagFree() {
-		return this.flagFree;
+	public PlayStyle getPlayStyle() {
+		return this.playStyle;
+	}
+	
+	
+	public void setReportInterval(int reportInterval) {
+		this.reportInterval = reportInterval;
 	}
 	
 	/**
@@ -100,20 +135,22 @@ abstract public class BulkController implements Runnable {
 		while (!finished) {
 			try {
 				Thread.sleep(10000);
-				System.out.println("Main thread waiting for bulk run to complete...");
+				//System.out.println("Main thread waiting for bulk run to complete...");
 			} catch (InterruptedException e) {
 				//System.out.println("Main thread wait has been interrupted");
 
 				// process the event and then set it to null
 				if (event != null) {
-					listener.intervalAction(event);
+					if (eventListener != null) {
+						eventListener.intervalAction(event);
+					}
 					event = null;
 				}
 			}
 		}
 
 		this.endTime = System.currentTimeMillis();
-		System.out.println("Finished after " + getDuration() + " milliseconds");
+		//System.out.println("Finished after " + getDuration() + " milliseconds");
 		
 	}
 	
@@ -182,6 +219,8 @@ abstract public class BulkController implements Runnable {
 			if (request.gs.getGameState() == GameStateModel.WON) {
 				wins++;
 				
+				//System.out.println(request.gs.getSeed() + " has 3BV " + request.gs.getTotal3BV() + " and actions " + request.gs.getActionCount());
+				
 				if (request.guesses == 0) {
 					noGuessWins++;
 				}
@@ -200,7 +239,15 @@ abstract public class BulkController implements Runnable {
 					}
 				}
 				
+				double efficiency = 100 * ((double) request.gs.getTotal3BV() / (double) request.gs.getActionCount());
+	
+				
 			} else {
+				
+				if (!request.startedOkay) {
+					failedToStart++;
+				}
+				
 				currentWinStreak = 0;
 				
 				// if we won 100 games ago, then mastery is now 1 less
@@ -212,6 +259,10 @@ abstract public class BulkController implements Runnable {
 
 			// accumulate the total actions taken
 			totalActions = totalActions + request.gs.getActionCount();
+			
+			// accumulate 3BV in the game and how much was solved
+			total3BV = total3BV + request.gs.getTotal3BV();
+			total3BVSolved = total3BVSolved + request.gs.getCleared3BV();
 
 			// accumulate total guesses made
 			guesses = guesses + request.guesses;
@@ -227,12 +278,10 @@ abstract public class BulkController implements Runnable {
 			if (this.waitingSlot >= bufferSize) {
 				this.waitingSlot = this.waitingSlot - bufferSize;
 			}
-		
-
 			
 			// if we have run and processed all the games then wake the main thread
 			if (waitingSequence == gamesToPlay) {
-				System.out.println("All games played, waking the main thread");
+				//System.out.println("All games played, waking the main thread");
 				
 				finished = true;
 				
@@ -243,11 +292,15 @@ abstract public class BulkController implements Runnable {
 				//mainThread.interrupt();
 				
 			// provide an update every now and again, do that on the main thread
-			} else if (waitingSequence % REPORT_INTERVAL == 0) {
+			} else if (this.reportInterval != 0 && waitingSequence % this.reportInterval == 0) {
 				bulkEvent = createEvent();
 				doEvent = true;
 			}
 		
+			if (postGameListener != null) {
+				postGameListener.gameAction(request.gs);
+			}
+			
 		}
 		
 		// if we have an event to do then interrupt the main thread which will post it
@@ -279,6 +332,9 @@ abstract public class BulkController implements Runnable {
 		event.setMastery(bestMastery);
 		event.setWinStreak(bestWinStreak);
 		event.setTotalActions(totalActions);
+		event.setFailedToStart(failedToStart);
+		event.setTotal3BV(total3BV);
+		event.setTotal3BVSolved(total3BVSolved);
 		
 		long duration = getDuration();
 		
@@ -333,7 +389,14 @@ abstract public class BulkController implements Runnable {
 		next.sequence = this.nextSequence;
 		next.slot = this.nextSlot;
 		next.gs = getGameState(Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
-		//next.solver = new Solver(next.gs, solverSettings, false);
+		
+		if (this.preGameListener != null) {
+			preGameListener.gameAction(next.gs);
+		}
+		
+		if (next.gs.getGameState() == GameStateModel.LOST) {
+			next.startedOkay = false;
+		}
 
 		// roll onto the next sequence
 		this.nextSequence++;

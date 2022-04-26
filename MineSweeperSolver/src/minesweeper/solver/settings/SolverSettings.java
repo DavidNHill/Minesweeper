@@ -18,7 +18,6 @@ public class SolverSettings {
 		}
 	}
 	
-	
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
@@ -33,6 +32,8 @@ public class SolverSettings {
     protected Location startLocation;
     protected GuessMethod guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
 	
+    protected boolean singleThread = false;
+    
     private boolean locked;
     
     public SolverSettings lockSettings() {
@@ -81,6 +82,18 @@ public class SolverSettings {
     	
     	if (!locked) {
         	this.testMode = isTestMode;
+    	}
+ 
+    	return this;
+    }
+    
+    /**
+     * Only use a single thread when running the solver
+     */
+    public SolverSettings setSingleThread(boolean singleThread) {
+    	
+    	if (!locked) {
+        	this.singleThread = singleThread;
     	}
  
     	return this;
@@ -136,6 +149,10 @@ public class SolverSettings {
 	public boolean isTestMode() {
 		return testMode;
 	}
+	
+	public boolean isSingleThread() {
+		return singleThread;
+	}	
 	
 	/*
 	public boolean isExperimentalScoring() {

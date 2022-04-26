@@ -190,6 +190,10 @@ public class WitnessWeb {
         
         // find a set of witnesses which don't share any squares (there can be many of these, but we just want one to use with the brute force iterator)
         for (Witness w: prunedWitnesses) {
+        	if (w.getMines() == 0) {
+        		continue;
+        	}
+        	
             boolean okay = true;
             for (Witness iw: independentWitness) {
                 if (w.overlap(iw)) {

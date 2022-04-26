@@ -43,7 +43,8 @@ abstract public class GameStateModel {
     protected int mines;
     protected final long seed;
     
-    private int value3BV;
+    private int total3BV;
+    private int cleared3BV;
     private int actionCount = 0;
     
     protected boolean allowEarlyFinish = true;
@@ -63,6 +64,7 @@ abstract public class GameStateModel {
 
     private final boolean[][] flag;
     private final boolean[][] revealed;
+    private final boolean[][] is3BV;
     
     public GameStateModel(GameSettings gameSettings) {
     	this(gameSettings, 0);
@@ -78,6 +80,8 @@ abstract public class GameStateModel {
         flag = new boolean[width][height];
         
         revealed = new boolean[width][height];
+        
+        is3BV = new boolean[width][height];
         
         this.gameState = NOT_STARTED;
         
@@ -179,7 +183,6 @@ abstract public class GameStateModel {
             return false;
         }
         */
-        revealed[m.x][m.y] = true;
         
         
  
@@ -192,7 +195,15 @@ abstract public class GameStateModel {
         }
 
         // if it wasn't a mine we have revealed one more square
-        squaresRevealed++;
+        if (!revealed[m.x][m.y]) {
+        	revealed[m.x][m.y] = true;
+        	squaresRevealed++;
+        	
+        	if (is3BV[m.x][m.y]) {  // if this was a 3BV tile then we've cleared one more 3BV in this game
+        		cleared3BV++;
+        	}
+        }
+        
         
         // if we have revealed enough locations without hitting a mine
         // we have won
@@ -383,6 +394,10 @@ abstract public class GameStateModel {
         	//System.out.println("Auto Reveal at (" + x + "," + y + ")");
             revealed[x][y] = true;
             squaresRevealed++;
+            
+        	if (is3BV[x][y]) {  // if this was a 3BV tile then we've cleared one more 3BV in this game
+        		cleared3BV++;
+        	}
         }
 
     }
@@ -395,6 +410,10 @@ abstract public class GameStateModel {
         	//System.out.println("Auto Reveal at (" + x + "," + y + ")");
             revealed[x][y] = false;
             squaresRevealed--;
+            
+        	if (is3BV[x][y]) {  // if this was a 3BV tile then ew've no longer cleared it
+        		cleared3BV--;
+        	}
         }
 
     }
@@ -475,8 +494,17 @@ abstract public class GameStateModel {
 
     }
     
-    public int get3BV() {
-    	return value3BV;
+    public int getTotal3BV() {
+    	return total3BV;
+    }
+    
+    public int getCleared3BV() {
+    	if (this.gameState == GameStateModel.WON || this.gameState == GameStateModel.LOST) {
+        	return cleared3BV;
+    	} else {
+    		return 0;
+    	}
+
     }
     
     public int getActionCount() {
@@ -486,10 +514,10 @@ abstract public class GameStateModel {
     protected void calculate3BV() { 
     	
     	if (!supports3BV()) {
-    		value3BV = 0;
+    		total3BV = 0;
     	}
     	
-    	value3BV = 0;
+    	total3BV = 0;
     	
     	boolean[][] done = new boolean[width][height];
     	
@@ -502,7 +530,8 @@ abstract public class GameStateModel {
                 if (!done[i][j] && queryHandle(start) != GameStateModel.MINE && queryHandle(start) == 0) {
 
                 	//System.out.println("found zeros at " + start.display());
-                	value3BV++;
+                	total3BV++;
+                	is3BV[i][j] = true;
                 	
                     int processFrom = 0;
                     interiorList.clear();
@@ -552,7 +581,8 @@ abstract public class GameStateModel {
                 Location start = new Location(i,j);
                 if (queryHandle(start) != GameStateModel.MINE && !done[i][j]) {
                 	//System.out.println("found non-edge " + start.display());
-                	value3BV++;
+                   	is3BV[i][j] = true;
+                	total3BV++;
                 }
             }
         }        

@@ -22,7 +22,7 @@ public class BulkWorker implements Runnable {
 	@Override
 	public void run() {
 
-		System.out.println(Thread.currentThread().getName() + " is starting");
+		//System.out.println(Thread.currentThread().getName() + " is starting");
 		
 		BulkRequest request = controller.getNextRequest(null);
 
@@ -52,7 +52,7 @@ public class BulkWorker implements Runnable {
 
 		}
 		
-		System.out.println(Thread.currentThread().getName() + " is stopping");
+		//System.out.println(Thread.currentThread().getName() + " is stopping");
 
 	}
 
@@ -66,23 +66,31 @@ public class BulkWorker implements Runnable {
 		}
 		
 		Solver solver = new Solver(request.gs, this.solverSettings, false);
-		solver.setFlagFree(controller.getFlagFree());
-		//solver.setPlayChords(true);
+		solver.setFlagFree(controller.getPlayStyle().flagless);
+		solver.setPlayChords(controller.getPlayStyle().useChords);
+		
+		int loopCounter = 0;
 		
 		play: while (true) {
 
+			loopCounter++;
+			if (loopCounter % 1000 == 0) {
+				System.err.println("Game " + request.gs.showGameKey() + " is looping");
+				break play;
+			}
+			
 			Action[] moves;
 			try {
 				solver.start();
 				moves = solver.getResult();
 			} catch (Exception e) {
-				System.out.println("Game " + request.gs.showGameKey() + " has thrown an exception!");
+				System.err.println("Game " + request.gs.showGameKey() + " has thrown an exception!");
 				e.printStackTrace();
 				return;
 			}
 
 			if (moves.length == 0) {
-				System.out.println(request.gs.getSeed() + " - No moves returned by the solver");
+				System.err.println(request.gs.getSeed() + " - No moves returned by the solver");
 				return;
 			}            
 
@@ -92,7 +100,7 @@ public class BulkWorker implements Runnable {
 				BigDecimal prob = moves[i].getBigProb();
 
 				if (prob.compareTo(BigDecimal.ZERO) <= 0 || prob.compareTo(BigDecimal.ONE) > 0) {
-					System.out.println("Game (" + request.gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].toString());
+					System.err.println("Game (" + request.gs.showGameKey() + ") move with probability of " + prob + "! - " + moves[i].toString());
 				} 
 
 				boolean result = request.gs.doAction(moves[i]);
@@ -115,7 +123,7 @@ public class BulkWorker implements Runnable {
 				}
 
 				if (state == GameStateModel.LOST && moves[i].isCertainty()) {
-					System.out.println("Game (" + request.gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].toString());
+					System.err.println("Game (" + request.gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].toString());
 				}
 
 				if (state == GameStateModel.LOST || state == GameStateModel.WON) {
