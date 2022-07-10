@@ -1143,6 +1143,8 @@ public class ScreenController {
         	preferences = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setGuessMethod(guessMethod);
         }
         
+    	//preferences.setTestMode(true);
+        
         // create a new solver
         solver = new Solver(gs, preferences, HelperController.launch(), true);
         solver.setFlagFree(flagFree.isSelected());

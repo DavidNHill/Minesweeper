@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Map;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.bulk.GameListener;
+import minesweeper.solver.bulk.BulkRequest;
+import minesweeper.solver.bulk.GamePostListener;
 
-public class EfficiencyMonitor extends GameListener {
+public class EfficiencyMonitor extends GamePostListener {
 
 	private final Map<Integer, Integer> table = new HashMap<>();
 	private int eff100 = 0;
@@ -16,7 +17,9 @@ public class EfficiencyMonitor extends GameListener {
 	private int played = 0;
 	
 	@Override
-	public void gameAction(GameStateModel game) {
+	public void postAction(BulkRequest request) {
+		
+		GameStateModel game = request.getGame();
 		
 		played++;
 		
@@ -43,7 +46,7 @@ public class EfficiencyMonitor extends GameListener {
 
 	} 
 
-	public void displayTable() {
+	public void postResults() {
 		
 		System.out.println("Efficiency > 100% : " + eff100 + " from " + wins + " wins out of " + played + " played");
 		

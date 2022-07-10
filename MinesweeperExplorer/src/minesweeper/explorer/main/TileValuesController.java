@@ -144,6 +144,7 @@ public class TileValuesController {
 					essrSafe = il.getExpectedSolutionSpaceReduction().divide(il.getProbability(), 3, RoundingMode.HALF_UP);
 				}
 				
+				BigDecimal safetyESSL = BigDecimal.ONE.subtract(il.getExpectedSolutionSpaceReduction()).multiply(il.getSecondarySafety()).multiply(il.getLongTermSafety()).setScale(3, RoundingMode.HALF_UP);
 				
 				for (ByValue bv: il.getByValueData()) {
 					items.add(new TileValueData(bv));
@@ -154,6 +155,8 @@ public class TileValuesController {
 				items.add(new TileValueData("2nd Safety", Explorer.PERCENT.format(il.getSecondarySafety()), ""));
 				items.add(new TileValueData("2nd Safety.prog10%", Explorer.PERCENT.format(safe2Prog), ""));
 				
+				items.add(new TileValueData("Long Term Safety", Explorer.PERCENT.format(il.getLongTermSafety()), ""));
+				
 				items.add(new TileValueData("Exp Soln left", Explorer.PERCENT.format(il.getExpectedSolutionSpaceReduction()), ""));
 				if (essrSafe != null) {
 					items.add(new TileValueData("ESL/Safe", essrSafe.toPlainString(), ""));
@@ -163,6 +166,8 @@ public class TileValuesController {
 				} else {
 					items.add(new TileValueData("prog/(1-safe)", "Infinity", ""));
 				}
+				
+				items.add(new TileValueData("ESSR.Safety", safetyESSL.toPlainString(), ""));
 				
 				//if (il.getPoweredRatio() != null) {
 				//	items.add(new TileValueData("Power/(1-safe)", il.getPoweredRatio().toPlainString(), ""));

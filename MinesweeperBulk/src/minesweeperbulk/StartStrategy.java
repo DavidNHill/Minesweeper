@@ -3,10 +3,10 @@ package minesweeperbulk;
 import java.util.List;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.bulk.GameListener;
+import minesweeper.solver.bulk.GamePreListener;
 import minesweeper.structure.Action;
 
-public class StartStrategy extends GameListener {
+public class StartStrategy extends GamePreListener {
 
 	private List<Action> preActions;
 	private int requiredZeros;
@@ -18,7 +18,7 @@ public class StartStrategy extends GameListener {
 	
 	
 	@Override
-	public void gameAction(GameStateModel game) {
+	public void preAction(GameStateModel game) {
 		
 		int zeros = 0;
 		int actionCount = 0;

@@ -31,4 +31,12 @@ public class BulkRequest {
 	protected int guesses = 0;
 	protected BigDecimal fairness = BigDecimal.ZERO;
 	protected boolean startedOkay = true;
+	
+	public GameStateModel getGame( ) {
+		return this.gs;
+	}
+	
+	public int getGuesses() {
+		return this.guesses;
+	}
 }

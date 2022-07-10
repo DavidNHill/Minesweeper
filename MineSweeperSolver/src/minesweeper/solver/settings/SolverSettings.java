@@ -1,5 +1,6 @@
 package minesweeper.solver.settings;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import minesweeper.structure.Location;
@@ -7,6 +8,8 @@ import minesweeper.structure.Location;
 
 public class SolverSettings {
 
+	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.05");
+	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
 		SECONDARY_SAFETY_PROGRESS("Secondary safety with progress");
@@ -18,6 +21,7 @@ public class SolverSettings {
 		}
 	}
 	
+	protected BigDecimal progressContribution = PROGRESS_CONTRIBUTION;
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
@@ -28,6 +32,7 @@ public class SolverSettings {
     protected int rolloutSolutions = 0;
     protected boolean doDomination = true;
     protected boolean do5050Check = true;
+    protected boolean doLongTermSafety = true;
     protected boolean testMode = false;
     protected Location startLocation;
     protected GuessMethod guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
@@ -78,6 +83,15 @@ public class SolverSettings {
     	return this;
     }
     
+    public SolverSettings setLongTermSafety(boolean isLongTermSafety) {
+    	
+    	if (!locked) {
+        	this.doLongTermSafety = isLongTermSafety;
+    	}
+ 
+    	return this;
+    }
+    
     public SolverSettings setTestMode(boolean isTestMode) {
     	
     	if (!locked) {
@@ -114,6 +128,15 @@ public class SolverSettings {
      	return this;
 	}
     
+	public SolverSettings setProgressContribution(BigDecimal contribution) {
+		if (contribution == null) {
+			this.progressContribution = PROGRESS_CONTRIBUTION;
+		} else {
+			this.progressContribution = contribution;
+		}
+		return this;
+	}
+	
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
 	}
@@ -146,6 +169,10 @@ public class SolverSettings {
 		return this.do5050Check;
 	}
 	
+	public boolean considerLongTermSafety() {
+		return this.doLongTermSafety;
+	}
+	
 	public boolean isTestMode() {
 		return testMode;
 	}
@@ -176,5 +203,8 @@ public class SolverSettings {
 		return this.startLocation;
 	}
 
+	public BigDecimal getProgressContribution() {
+		return this.progressContribution;
+	}
     
 }

@@ -28,7 +28,6 @@ import minesweeper.solver.bulk.BulkEvent;
 import minesweeper.solver.bulk.BulkListener;
 import minesweeper.solver.bulk.BulkRollout;
 import minesweeper.solver.settings.SolverSettings;
-import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Location;
 

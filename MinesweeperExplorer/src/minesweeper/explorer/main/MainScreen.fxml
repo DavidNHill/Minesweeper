@@ -53,8 +53,10 @@
                         <RadioMenuItem fx:id="tileSize32" mnemonicParsing="false" onAction="#resizeBoard" text="32 pixels" toggleGroup="$tilesize" />
                     </items>
                   </Menu>
-                  <Menu mnemonicParsing="false" text="Rollout Strength">
+                  <Menu mnemonicParsing="false" text="Rollout strength">
                      <items>
+                        <CheckMenuItem fx:id="useLongTermSafetyRollout" mnemonicParsing="false" selected="true" text="Use long term safety" />
+                        <CheckMenuItem fx:id="useTestModeRollout" mnemonicParsing="false" text="Use test mode" />
                         <RadioMenuItem fx:id="rolloutNoBF" mnemonicParsing="false" text="No Brute force">
                            <toggleGroup>
                               <ToggleGroup fx:id="rolloutStrength" />
@@ -73,6 +75,14 @@
                            </toggleGroup></RadioMenuItem>
                         <RadioMenuItem fx:id="secondarySafetyProgress" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$guessMethod" />
                     </items>
+                  </Menu>
+                  <Menu mnemonicParsing="false" text="Solver">
+                     <items>
+                        <CheckMenuItem fx:id="useBruteForce" mnemonicParsing="false" selected="true" text="Use brute force" />
+                        <CheckMenuItem fx:id="useLongTermSafety" mnemonicParsing="false" selected="true" text="Use long term safety" />
+                        <CheckMenuItem fx:id="use5050Detection" mnemonicParsing="false" selected="true" text="Use 50/50 detection" />
+                        <CheckMenuItem fx:id="useTestMode" mnemonicParsing="false" text="Use test mode" />
+                     </items>
                   </Menu>
             </items>
           </Menu>

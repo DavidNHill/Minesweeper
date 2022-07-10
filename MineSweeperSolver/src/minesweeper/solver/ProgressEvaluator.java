@@ -35,6 +35,8 @@ public class ProgressEvaluator implements LocationEvaluator {
 	private final ProbabilityEngineModel pe;
 	private final Solver solver;
 
+	private final Set<Location> tileOfInterest = new HashSet<>();
+	
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
 	private EvaluatedLocation best;
 	private boolean certainProgress = false;
@@ -53,9 +55,6 @@ public class ProgressEvaluator implements LocationEvaluator {
 	 */
 	public void evaluateOffEdgeCandidates(List<Location> allUnrevealedSquares) {
 
-		
-		Set<CandidateLocation> tileOfInterest = new HashSet<>();
-		
 		//int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
 		// || allUnrevealedSquares.size() - minesLeft < 6
 		
@@ -66,7 +65,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
 				}
 			}	
-			evaluateLocations(tileOfInterest);
+			//evaluateLocations(tileOfInterest);
 			return;
 		}
 
@@ -114,16 +113,23 @@ public class ProgressEvaluator implements LocationEvaluator {
 
 		}		
 
-		evaluateLocations(tileOfInterest);
+		//evaluateLocations(tileOfInterest);
 		
 	}
 
+	@Override
+	public void addLocations(Collection<? extends Location> tiles) {
+		tileOfInterest.addAll(tiles);
+		
+	}
+	
+	
 	/**
 	 * Evaluate a set of tiles to see the expected number of clears it will provide
 	 */
-	public void evaluateLocations(Collection<? extends CandidateLocation> tiles) {
+	public void evaluateLocations() {
 
-		for (CandidateLocation tile: tiles) {
+		for (Location tile: tileOfInterest) {
 			evaluateLocation(tile);
 		}
 
@@ -132,7 +138,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 	/**
 	 * Evaluate a tile to see the expected number of clears it will provide
 	 */
-	public void evaluateLocation(CandidateLocation tile) {
+	public void evaluateLocation(Location tile) {
 
 		//if (best != null & !this.solver.preferences.isExperimentalScoring()) {
 		//	if (tile.getProbability().multiply(Solver.PROGRESS_MULTIPLIER).compareTo(best.getWeighting()) <= 0) {
@@ -525,6 +531,5 @@ public class ProgressEvaluator implements LocationEvaluator {
 	public List<EvaluatedLocation> getEvaluatedLocations() {
 		return evaluated;
 	}
-	
-	
+
 }

@@ -1,10 +1,13 @@
 package minesweeper.solver;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.utility.Logger.Level;
@@ -18,6 +21,8 @@ public class FiftyFiftyHelper {
 		{true, false, true, false}, {false, true, false, true}, {true, true, false, false}, {false, false, true, true},   // 2 mines
 		{false, true, false, false}, {false, false, false, true}, {true, false, false, false}, {false, false, true, false}  // 1 mine
 	};
+	
+	private final static BigDecimal HALF = new BigDecimal("0.5");
 	
 	private class Link {
 		
@@ -38,6 +43,12 @@ public class FiftyFiftyHelper {
 	private BoardState board;
 	private WitnessWeb wholeEdge;
 	private Area deadLocations;
+	
+	private BigDecimal bestNonPseudo2Tile5050Probability = BigDecimal.ZERO;
+	private Location bestNonPseudo2Tile5050Tile1;    // this represents the best tile which isn't a 2-tile pseudo 50/50 because it does support 2 mines
+	private Location bestNonPseudo2Tile5050Tile2;
+	private BigDecimal bestNonPseudo2Tilelts = BigDecimal.ZERO;
+	private int bestNonPseudo2TileAdjacent = 0;
 	
 	public FiftyFiftyHelper(BoardState board, WitnessWeb wholeEdge, Area deadLocations)  {
 		
@@ -315,11 +326,12 @@ public class FiftyFiftyHelper {
 	/**
 	 * Looks for pseudo-50/50s (which may be real 50/50s since we don't check any further)
 	 */
-	public Location process() {
+	public Location process(ProbabilityEngineModel pe) {
 		
 		board.getLogger().log(Level.INFO, "Starting search for 50/50s");
     	
     	int minesLeft = board.getMines() - board.getConfirmedFlagCount();
+    	
     	
     	// horizontal 2x1
 		for (int i=0; i < board.getGameWidth() - 1; i++) {
@@ -338,7 +350,7 @@ public class FiftyFiftyHelper {
 				Location tile1 = new Location(i, j);
 				Location tile2 = new Location(i + 1, j);
 				
-				//display(tile1.display() + " and " + tile2.display() + " is candidate 50/50");
+				//board.getLogger().log(Level.INFO, tile1 + " and " + tile2 + " is candidate 50/50");
 				
 				if (minesLeft > 1) {
 					// see if the 2 tiles can support 2 mines
@@ -349,6 +361,18 @@ public class FiftyFiftyHelper {
 					if (counter.getSolutionCount().signum() == 0) {
 						board.getLogger().log(Level.INFO, "%s and %s can't have 2 mines, guess immediately", tile1, tile2);
 						return tile1;
+					} else {
+						BigDecimal notPseudo = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+						BigDecimal pseudo = BigDecimal.ONE.subtract(notPseudo);
+						board.getLogger().log(Level.INFO, "%s and %s are not both mines %f of the time", tile1, tile2, pseudo);
+						
+						if (pseudo.compareTo(bestNonPseudo2Tile5050Probability) > 0 
+								|| pseudo.compareTo(bestNonPseudo2Tile5050Probability) == 0 && board.countAdjacentUnrevealed(tile1) < bestNonPseudo2TileAdjacent) {
+							bestNonPseudo2Tile5050Probability = pseudo;
+							bestNonPseudo2Tile5050Tile1 = tile1;
+							bestNonPseudo2Tile5050Tile2 = tile2;
+							bestNonPseudo2TileAdjacent = board.countAdjacentUnrevealed(bestNonPseudo2Tile5050Tile1);
+						}
 					}
 					
 					
@@ -377,7 +401,7 @@ public class FiftyFiftyHelper {
 				Location tile1 = new Location(i, j);
 				Location tile2 = new Location(i, j + 1);
 				
-				//display(tile1.display() + " and " + tile2.display() + " is candidate 50/50");
+				//board.getLogger().log(Level.INFO, tile1 + " and " + tile2 + " is candidate 50/50");
 				
 				if (minesLeft > 1) {
 					// see if the 2 tiles can support 2 mines
@@ -388,7 +412,20 @@ public class FiftyFiftyHelper {
 					if (counter.getSolutionCount().signum() == 0) {
 						board.getLogger().log(Level.INFO, "%s and %s can't have 2 mines, guess immediately", tile1, tile2);
 						return tile1;
+					}  else {
+						BigDecimal notPseudo = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+						BigDecimal pseudo = BigDecimal.ONE.subtract(notPseudo);
+						board.getLogger().log(Level.INFO, "%s and %s are not both mines %f of the time", tile1, tile2, pseudo);
+						
+						if (pseudo.compareTo(bestNonPseudo2Tile5050Probability) > 0 
+								|| pseudo.compareTo(bestNonPseudo2Tile5050Probability) == 0 && board.countAdjacentUnrevealed(tile1) < bestNonPseudo2TileAdjacent) {
+							bestNonPseudo2Tile5050Probability = pseudo;
+							bestNonPseudo2Tile5050Tile1 = tile1;
+							bestNonPseudo2Tile5050Tile2 = tile2;
+							bestNonPseudo2TileAdjacent = board.countAdjacentUnrevealed(tile1);
+						}
 					}
+					
 				} else {
 					board.getLogger().log(Level.INFO, "%s and %s can't have 2 mines since not enought mines left in the game, guess immediately", tile1, tile2);
 					return tile1;
@@ -397,11 +434,27 @@ public class FiftyFiftyHelper {
 			}
 		}            
 		
+		if (bestNonPseudo2Tile5050Probability.signum() > 0) {
+			board.getLogger().log(Level.INFO, "%s is the best 2 tile non-Pseudo5050 at %f", bestNonPseudo2Tile5050Tile2, bestNonPseudo2Tile5050Probability);
+			
+			List<Location> mines = new ArrayList<>();
+			List<Location> noMines = new ArrayList<>();
+			mines.add(bestNonPseudo2Tile5050Tile1);
+			noMines.add(bestNonPseudo2Tile5050Tile2);
+			SolutionCounter counter1 = board.getSolver().validatePosition(wholeEdge, mines, noMines, Area.EMPTY_AREA);
+
+			mines.clear();
+			noMines.clear();
+			mines.add(bestNonPseudo2Tile5050Tile2);
+			noMines.add(bestNonPseudo2Tile5050Tile1);
+			SolutionCounter counter2 = board.getSolver().validatePosition(wholeEdge, mines, noMines, Area.EMPTY_AREA);
+			
+			BigDecimal prob5050 = new BigDecimal(counter1.getSolutionCount().add(counter2.getSolutionCount())).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+			bestNonPseudo2Tilelts = BigDecimal.ONE.subtract(prob5050.multiply(HALF));
+			board.getLogger().log(Level.INFO, "%s and %s form a 50/50 %f of the time giving long term safety of %f", bestNonPseudo2Tile5050Tile1, bestNonPseudo2Tile5050Tile1, prob5050, this.bestNonPseudo2Tilelts);
+		}
 		
-		//if (!board.getSolver().preferences.isTestMode()) {
-		//	return null;
-		//}
-		
+		/*
     	// box 2x2
 		Location[] tiles = new Location[4];
 		
@@ -425,7 +478,7 @@ public class FiftyFiftyHelper {
 				tiles[2] = new Location(i, j + 1);
 				tiles[3] = new Location(i + 1, j + 1);
 				
-				board.getLogger().log(Level.INFO, "%s %s %s %s is candidate box 50/50", tiles[0], tiles[1], tiles[2], tiles[3]);
+				board.getLogger().log(Level.INFO, "%s %s %s %s is candidate box pseudo-50/50", tiles[0], tiles[1], tiles[2], tiles[3]);
 
 				// keep track of which tiles are risky - once all 4 are then not a pseudo-50/50
 				int riskyTiles = 0;
@@ -522,14 +575,85 @@ public class FiftyFiftyHelper {
 				}
 			}
 		}                        
+		*/
 		
+		// can't create a 2x2 50/50 if only 1 tile left
+		if (minesLeft < 2) {
+			return null;
+		}
+		
+    	// box 2x2
+		Location[] tiles = new Location[4];
+		List<Location> mines = new ArrayList<>();
+		List<Location> noMines = new ArrayList<>();
+		for (int i=0; i < board.getGameWidth() - 1; i++) {
+			for (int j=0; j < board.getGameHeight() - 1; j++) {
+				
+				// need 4 hidden tiles
+				if (!board.isUnrevealed(i, j) || !board.isUnrevealed(i, j + 1) || !board.isUnrevealed(i + 1, j) || !board.isUnrevealed(i + 1, j + 1)) {
+					continue;
+				}
+				
+				// need the corners to be flags or off the board
+				if (isPotentialInfo(i - 1, j - 1) || isPotentialInfo(i + 2, j - 1) || isPotentialInfo(i - 1, j + 2) || isPotentialInfo(i + 2, j + 2)) {
+					continue;  // this skips the rest of the logic below this in the for-loop 
+				}
+				
+				tiles[0] = new Location(i, j);
+				tiles[1] = new Location(i + 1, j);
+				tiles[2] = new Location(i, j + 1);
+				tiles[3] = new Location(i + 1, j + 1);
+				
+				board.getLogger().log(Level.INFO, "%s %s %s %s is candidate box pseudo-50/50", tiles[0], tiles[1], tiles[2], tiles[3]);
+
+				mines.clear();
+				noMines.clear();
+				
+				mines.add(tiles[0]);
+				mines.add(tiles[3]);
+				noMines.add(tiles[1]);
+				noMines.add(tiles[2]);
+				
+				// see if the position is valid
+				SolutionCounter counter = board.getSolver().validatePosition(wholeEdge, mines, noMines, Area.EMPTY_AREA);
+				
+				for (Location t: tiles) {
+					if (!this.deadLocations.contains(t)) {
+						Box b = pe.getBox(t);
+						if (b != null) {
+							board.getLogger().log(Level.INFO, "Tile %s has tally %d, new board has solutions %d", t, b.getTally(), counter.getSolutionCount());
+							
+							if (b.getTally().compareTo(counter.getSolutionCount()) == 0) {
+								board.getLogger().log(Level.INFO, "%s %s %s %s is pseudo 50/50 - %s is not risky", tiles[0], tiles[1], tiles[2], tiles[3], t);
+								return t;							
+							}						
+							
+						} else {
+							board.getLogger().log(Level.INFO, "Tile %s is not on the boundary", t);
+						}
+
+					}
+				}
+			}
+		}                        
 		
 		return null;
-		
 
 	}
 	
+	public BigDecimal getBestNonPseudo2Tile5050Probability() {
+		return this.bestNonPseudo2Tile5050Probability;
+	}
+	
+	public Location getBestNonPseudo2Tile() {
+		return this.bestNonPseudo2Tile5050Tile1;
+	}
+	
+	public BigDecimal getLongTermSafety() {
+		return bestNonPseudo2Tilelts;
+	}
     // returns whether the tile is still valid even if it has no witnesses
+	/*
     private boolean isExempt(Location l) {
     	
     	// if not test mode then no exemption
@@ -545,6 +669,7 @@ public class FiftyFiftyHelper {
     	return false;
     	
     }
+	*/
 	
     // returns whether there information to be had at this location; i.e. on the board and either unrevealed or revealed
     private boolean isPotentialInfo(int x, int y) {

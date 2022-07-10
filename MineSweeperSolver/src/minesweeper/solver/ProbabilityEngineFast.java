@@ -161,10 +161,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
  	private List<ProbabilityLine> heldProbs = new ArrayList<>();  
 	
-	private BigDecimal[] boxProb;
+	//private BigDecimal[] boxProb;
 	private BigInteger[] hashTally;
 	private boolean offEdgeBest = true;
-	private BigDecimal offEdgeProbability;
+	private BigDecimal offEdgeSafety;
+	private BigInteger offEdgeTally;
 	private BigDecimal bestProbability;
 	//private BigDecimal cutoffProbability;
 
@@ -234,7 +235,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		this.boxCount = boxes.size();
 		
-		this.boxProb = new BigDecimal[boxCount];
+		//this.boxProb = new BigDecimal[boxCount];
 		this.hashTally = new BigInteger[boxCount];
 		
 		for (Witness w: witnesses) {
@@ -502,9 +503,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	// sum them together to create a definitive probability for each box
 	private void calculateBoxProbabilities() {
 		
-		BigInteger[] tally = new BigInteger[boxCount];
-		for (int i=0; i < tally.length; i++) {
-			tally[i] = BigInteger.ZERO;
+		//BigInteger[] tally = new BigInteger[boxCount];
+		for (int i=0; i < hashTally.length; i++) {
+			//tally[i] = BigInteger.ZERO;
 			hashTally[i] =  BigInteger.ZERO;
 		}
 
@@ -530,8 +531,21 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				// this is all the possible ways the mines can be placed across the whole game
 				totalTally = totalTally.add(mult.multiply(pl.solutionCount));
 				
-				for (int i=0; i < tally.length; i++) {
-					tally[i] = tally[i].add(mult.multiply(pl.mineBoxCount[i]).divide(BigInteger.valueOf( boxes.get(i).getSquares().size())));
+				for (Box b: this.boxes) {
+					BigInteger contribution = mult.multiply(pl.mineBoxCount[b.getUID()]).divide(BigInteger.valueOf(b.getSquares().size()));
+					
+					// the 50/50 component doesn't count
+					//if (pl.solutionCount.compareTo(BigInteger.valueOf(2)) == 0 && pl.mineBoxCount[b.getUID()].compareTo(BigInteger.ONE) == 0 && b.getSquares().size() == 1) {  
+					//	contribution = BigInteger.ZERO;
+					//}
+					
+					BigInteger tally = b.getTally().add(contribution);
+					b.setTally(tally);
+
+				}
+				
+				for (int i=0; i < hashTally.length; i++) {
+					//tally[i] = tally[i].add(mult.multiply(pl.mineBoxCount[i]).divide(BigInteger.valueOf(boxes.get(i).getSquares().size())));
 					hashTally[i] = hashTally[i].add(pl.hashCount[i]);
 				}				
 			}
@@ -540,60 +554,63 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		logger.log(Level.INFO, "Total Candidate solutions found %d", totalTally);
 		
-		for (int i=0; i < boxProb.length; i++) {
+		for (Box b: this.boxes) {
 			if (totalTally.signum() != 0) {
-				if (tally[i].compareTo(totalTally) == 0) {  // a mine
-					boxProb[i] = BigDecimal.ZERO;
-					for (Square squ: boxes.get(i).getSquares()) {  // add the squares in the box to the list of mines
+				if (b.getTally().compareTo(totalTally) == 0) {  // a mine
+					b.setSafety(BigDecimal.ZERO);
+					for (Square squ: b.getSquares()) {  // add the squares in the box to the list of mines
 						mines.add(squ);
 						deadLocations = deadLocations.remove(squ);  // a definite mine can't be dead
 					}					
-				} else if (tally[i].signum() == 0) {  // safe
-					boxProb[i] = BigDecimal.ONE;
+				} else if (b.getTally().signum() == 0) {  // safe
+					b.setSafety(BigDecimal.ONE);
 					allDead = false;
-					for (Square squ: boxes.get(i).getSquares()) {
-						deadLocations = deadLocations.remove(squ);  // a safe tile can't be dead
-					}					
+					//for (Square squ: b.getSquares()) {
+					//	deadLocations = deadLocations.remove(squ);  // a safe tile can't be dead
+					//}					
 				} else {
-					boxProb[i] = BigDecimal.ONE.subtract(new BigDecimal(tally[i]).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP));
+					b.setSafety(BigDecimal.ONE.subtract(new BigDecimal(b.getTally()).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP)));
 				}
 				
 			} else {
-				boxProb[i] = BigDecimal.ZERO;
+				b.setSafety(BigDecimal.ZERO);
 			}
 		}
-
 	
 		// avoid divide by zero
 		if (squaresLeft != 0 && totalTally.signum() != 0) {
-			offEdgeProbability = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(squaresLeft), Solver.DP, RoundingMode.HALF_UP));
+			offEdgeTally = outsideTally.divide(BigInteger.valueOf(squaresLeft));
+			offEdgeSafety = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(squaresLeft), Solver.DP, RoundingMode.HALF_UP));
 		} else {
-			offEdgeProbability = BigDecimal.ZERO;
+			offEdgeSafety = BigDecimal.ZERO;
+			offEdgeTally = BigInteger.ZERO;
 		}
 	
 		finalSolutionsCount = totalTally;
 
 		// determine how many clear squares there are
 		if (totalTally.signum() > 0) {
-			for (int i=0; i < tally.length; i++) {
-				if (tally[i].signum() == 0) {
-					 clearCount = clearCount + boxes.get(i).getSquares().size();
+			
+			for (Box b: this.boxes) {
+				if (b.getTally().signum() == 0) {
+					 clearCount = clearCount + b.getSquares().size();
 					 
-					 for (Square sq: boxes.get(i).getSquares()) {
+					 for (Square sq: b.getSquares()) {
 						 if (!deadLocations.contains(sq)) {
 							 livingClearCount++;
 						 }
 					 }
 					 
-					 if (boxes.get(i).getSquares().size() > 0) {
-						 emptyBoxes.add(boxes.get(i));
+					 if (b.getSquares().size() > 0) {
+						 emptyBoxes.add(b);
 					 }
 				}
-			}						
+			}				
+			
 		}
 		
 		// see if we can find a guess which is better than outside the boxes
-		BigDecimal hwm = offEdgeProbability;
+		BigDecimal hwm = offEdgeSafety;
 		
 		offEdgeBest = true;
 		
@@ -605,7 +622,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					break;
 				}
 			}
-			BigDecimal prob = boxProb[b.getUID()];
+			//BigDecimal prob = boxProb[b.getUID()];
+			BigDecimal prob = b.getSafety();
 			
 			if (living && prob.signum() != 0) {  // if living and not a mine
 	 			allDead = false;
@@ -852,12 +870,6 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	// look for the next witness to process
 	private NextWitness findNextWitness(NextWitness prevWitness) {
 		
-		// flag the last set of details as processed
-		//prevWitness.witness.setProcessed(true);
-		//for (Box b: prevWitness.newBoxes) {
-		//	b.setProcessed(true);
-		//}
-
 		int bestTodo = 99999;
 		Witness bestWitness = null;
 		
@@ -898,7 +910,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			checkCandidateDeadLocations(canDoDeadTileAnalysis);
 			//checkEdgeIsDead();
 		}
-		
+
 		// if we haven't compressed yet then do it now
 		if (canDoDeadTileAnalysis) {
 			MergeSorter sorter = new MergeSorter();
@@ -906,21 +918,59 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		} else {
 			canDoDeadTileAnalysis = true;
 		}
+
+		/*
+		// display the probability lines
+		for (ProbabilityLine pl: workingProbs) {
+			
+			String display = "Mines=" + pl.mineCount + " Weight=" + pl.solutionCount;
+			for (int i=0; i < pl.allocatedMines.length; i++) {
+				//display = display + " "  + boxes.get(i).getSquares().size() + "(" + pl.allocatedMines[i] + ") ";
+				
+				String show;
+				if (this.mask[i]) {
+					show = pl.mineBoxCount[i].toString();
+				} else {
+					show = "-";
+				}
+				
+				display = display + " "  + boxes.get(i).getSquares().size() + "(" + show + ") ";
+				
+			}
+
+			boardState.getLogger().log(Level.INFO, display);
+
+		}		
+		*/
 		
 		// get an unprocessed witness
 		NextWitness nw =  findFirstWitness();
 		
-		// only crunch it down for non-trivial probability lines unless it is the last set - this is an efficiency decision
-		//if (workingProbs.size() > 1 || nw == null) {
 		storeProbabilities();
 		
 		// reset the working array so we can start building up one for the new set of witnesses
 		workingProbs.clear();
 		workingProbs.add(new ProbabilityLine(BigInteger.ONE));
 		
+		
+		// count how many tiles where on this edge
+		int totalTiles = 0;
+		for (int i=0; i < mask.length; i++) {
+			if (mask[i]) {
+				Box b = this.boxes.get(i);
+				totalTiles = totalTiles + b.getSquares().size();
+			}
+		}
+		// and store that information in the box
+		for (int i=0; i < mask.length; i++) {
+			if (mask[i]) {
+				Box b = this.boxes.get(i);
+				b.setEdgeLength(totalTiles);
+			}
+		}		
+		
 		// reset the mask indicating that no boxes have been processed 
 		mask = new boolean[boxCount]; 
-		//}
 
 		// return the next witness to process
 		return nw;
@@ -931,19 +981,26 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		for (Box b: boxes) {
 			if (b.contains(l)) {
-				return boxProb[b.getUID()];
+				//return boxProb[b.getUID()];
+				return b.getSafety();
 			}
 		}
 		
-		return offEdgeProbability;
+		return offEdgeSafety;
 	}
 	
 	/**
 	 * The probability of a mine being in a square not considered by this process
-	 * @return
 	 */
 	protected BigDecimal getOffEdgeProb() {
-		return offEdgeProbability;
+		return offEdgeSafety;
+	}
+	
+	/**
+	 * The number of solutions where an off edge tile is a mine
+	 */
+	protected BigInteger getOffEdgeTally() {
+		return offEdgeTally;
 	}
 	
 	/**
@@ -991,12 +1048,27 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 		logger.log(Level.INFO, "Best probability is %f, cutoff freshhold is %f", bestProbability, test);
 		
+		/*
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].compareTo(test) >= 0 ) {
 				for (Square squ: boxes.get(i).getSquares()) {
 					boolean isDead = deadLocations.contains(squ);
 					if (!isDead || !excludeDead || boxProb[i].compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
 						best.add(new CandidateLocation(squ.x, squ.y, boxProb[i], boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead, this.boxes.get(i).doDeferGuessing()));
+					} else {
+						logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
+					}
+				}
+			}
+		}
+		*/
+		
+		for (Box b: this.boxes) {
+			if (b.getSafety().compareTo(test) >= 0 ) {
+				for (Square squ: b.getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					if (!isDead || !excludeDead || b.getSafety().compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
+						best.add(new CandidateLocation(squ.x, squ.y, b.getSafety(), boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead, b.doDeferGuessing()));
 					} else {
 						logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
 					}
@@ -1012,6 +1084,52 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	}
 	
 	@Override
+	protected BigDecimal getBestNotDeadSafety() {
+		
+		// see if we can do better than off edge
+		BigDecimal safest = this.offEdgeSafety;
+		
+		for (Box b: this.boxes) {
+			if (b.getSafety().compareTo(safest) > 0 ) {
+				for (Square squ: b.getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					if (!isDead) {  // if not a dead location then use it
+						safest = b.getSafety();
+					} else {
+						//logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
+					}
+				}
+			}
+		}
+		
+	
+		return safest;
+		
+	}
+	
+	/**
+	 * Return locations which are exactly 50% chance of being a mine
+	 */
+	@Override
+	protected List<Location> getFiftyPercenters() {
+		
+		List<Location> picks = new ArrayList<>();
+		
+		BigDecimal test = new BigDecimal("0.5");
+		
+		for (Box b: this.boxes) {
+			if (b.getSafety().compareTo(test) == 0 ) {
+				for (Square squ: b.getSquares()) {
+					picks.add(squ);
+				}
+			}
+		}
+		
+		return picks;		
+		
+	}
+	
+	@Override
 	/**
 	 * Return locations which are within the threshold of being a mine
 	 */
@@ -1022,6 +1140,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		// if the outside probability is the best then return an empty list
 		BigDecimal test = BigDecimal.ONE.subtract(freshhold);
 		
+		/*
 		for (int i=0; i < boxProb.length; i++) {
 			if (boxProb[i].signum() != 0 && boxProb[i].compareTo(test) <= 0 ) {
 				for (Square squ: boxes.get(i).getSquares()) {
@@ -1030,6 +1149,16 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				}
 			}
 		}
+		*/
+		
+		for (Box b: this.boxes) {
+			if (b.getSafety().signum() != 0 && b.getSafety().compareTo(test) <= 0 ) {
+				for (Square squ: b.getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					best.add(new CandidateLocation(squ.x, squ.y, b.getSafety(), boardState.countAdjacentUnrevealed(squ), boardState.countAdjacentConfirmedFlags(squ), isDead, b.doDeferGuessing()));
+				}
+			}
+		}		
 		
 		// sort in to best order
 		best.sort(CandidateLocation.SORT_BY_PROB_FLAG_FREE);
@@ -1158,7 +1287,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			} else {
 				// add the dead locations we found 
 				deadLocations = deadLocations.add(dc.candidate);
-				logger.log(Level.INFO, "%s is dead", dc.candidate);
+				//logger.log(Level.INFO, "%s is dead", dc.candidate);
 			}
 			
 		}
@@ -1294,7 +1423,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				//Set<Location> newDead = new HashSet<>();
 				//newDead.add(dc.candidate);
 				deadLocations = deadLocations.add(dc.candidate);
-				logger.log(Level.INFO, "Tile %s is dead since it is isolated", dc.candidate);
+				//logger.log(Level.INFO, "Tile %s is dead since it is isolated", dc.candidate);
 			} else {
 				deadCandidates.add(dc);
 			}
@@ -1307,7 +1436,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	}
 	
-	private Box getBox(Location l) {
+	@Override
+	Box getBox(Location l) {
 		
 		for (Box b: boxes) {
 			if (b.contains(l)) {

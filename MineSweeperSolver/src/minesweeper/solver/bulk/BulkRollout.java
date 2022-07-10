@@ -32,7 +32,7 @@ public class BulkRollout extends BulkController {
 	}
 	
 
-	protected GameStateModel getGameState(long seed) {;
+	protected GameStateModel getGameState(long seed) {
 	
 		GameStateModel gs = generator.generateGame(seed, safeTile);
 		

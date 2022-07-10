@@ -50,8 +50,8 @@ abstract public class BulkController implements Runnable {
 	private long endTime;
 	
 	private BulkListener eventListener;
-	private GameListener postGameListener;
-	private GameListener preGameListener;
+	private GamePostListener postGameListener;
+	private GamePreListener preGameListener;
 	
 	private volatile int failedToStart = 0;
 	private volatile int wins = 0;
@@ -91,11 +91,11 @@ abstract public class BulkController implements Runnable {
 		
 	}
 	
-	public void registerPostGameListener(GameListener listener) {
+	public void registerPostGameListener(GamePostListener listener) {
 		this.postGameListener = listener;
 	}
 	
-	public void registerPreGameListener(GameListener listener) {
+	public void registerPreGameListener(GamePreListener listener) {
 		this.preGameListener = listener;
 	}
 	
@@ -298,7 +298,7 @@ abstract public class BulkController implements Runnable {
 			}
 		
 			if (postGameListener != null) {
-				postGameListener.gameAction(request.gs);
+				postGameListener.postAction(request);
 			}
 			
 		}
@@ -391,7 +391,7 @@ abstract public class BulkController implements Runnable {
 		next.gs = getGameState(Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 		
 		if (this.preGameListener != null) {
-			preGameListener.gameAction(next.gs);
+			preGameListener.preAction(next.gs);
 		}
 		
 		if (next.gs.getGameState() == GameStateModel.LOST) {

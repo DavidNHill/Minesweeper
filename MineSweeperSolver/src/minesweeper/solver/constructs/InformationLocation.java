@@ -35,7 +35,7 @@ public class InformationLocation extends Location {
 	private BigDecimal mTanzerRatio;
 	private BigDecimal secondarySafety;
 	
-	
+	private BigDecimal longTermSafety;
 	//private BigDecimal poweredRatio;
 	
 	
@@ -109,8 +109,16 @@ public class InformationLocation extends Location {
 		this.secondarySafety = safety2;
 	}
 	
+	public void setLongTermSafety(BigDecimal lts) {
+		this.longTermSafety = lts;
+	}
+	
 	public BigDecimal getSecondarySafety() {
 		return this.secondarySafety;
+	}
+	
+	public BigDecimal getLongTermSafety() {
+		return this.longTermSafety;
 	}
 	
 	public List<ByValue> getByValueData() {

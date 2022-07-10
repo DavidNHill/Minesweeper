@@ -934,8 +934,9 @@ public class SolutionCounter {
 		
 		if (box == null) {  // if the tile isn't on the edge then adjust the off edge values
 			this.squaresLeft--;
-			this.minTotalMines++;
-
+			//this.minTotalMines++;
+			this.minTotalMines = Math.max(0, minesLeft - this.squaresLeft);  //we can't use so few mines that we can't fit the remainder elsewhere on the board
+			
 			//this.valid = false;
 			//return false;
 		} else if (box.getMinMines() != 0) {

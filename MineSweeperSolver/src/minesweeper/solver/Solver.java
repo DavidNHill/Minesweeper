@@ -613,7 +613,7 @@ public class Solver implements Asynchronous<Action[]> {
         //} else if (preferences.isExperimentalScoring()) {
         //	bestCandidates = pe.getBestCandidates(BigDecimal.valueOf(0.8d), true);
         } else {
-        	bestCandidates = pe.getBestCandidates(PROB_ENGINE_TOLERENCE, true);
+        	bestCandidates = pe.getBestCandidates( PROB_ENGINE_TOLERENCE, true);
         }
 
         List<Location> allUnrevealedSquares = null;
@@ -720,9 +720,12 @@ public class Solver implements Asynchronous<Action[]> {
         }        
         
         // look for pseudo 50-50 guess which can't be avoided
+    	LongTermRiskHelper ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
     	if (!certainClearFound) {
              if (preferences.isDo5050Check()) {
-            	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).process();
+            	//Location findFifty = fiftyFiftyHelper.process(pe);
+
+            	Location findFifty = ltr.findInfluence();
             	
             	if (findFifty != null) {
     				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
@@ -871,7 +874,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     	//  evaluate positions
         if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
-        	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, fiftyFiftyHelper);
+        	evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, ltr);
         } else {
         	evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
         }
@@ -937,9 +940,9 @@ public class Solver implements Asynchronous<Action[]> {
         		}
 
             	this.logger.log(Level.DEBUG, "About to evaluate best candidates -->");
-            	evaluateLocations.evaluateLocations(bestCandidates);
-            	
+            	evaluateLocations.addLocations(bestCandidates);
             	evaluateLocations.evaluateOffEdgeCandidates(allUnrevealedSquares);
+            	evaluateLocations.evaluateLocations();
             	
             	this.logger.log(Level.DEBUG, "<-- Done");  
             	
@@ -948,8 +951,8 @@ public class Solver implements Asynchronous<Action[]> {
         		Action[] moves = evaluateLocations.bestMove();
         		fm = new FinalMoves(moves);
             	
-        	} else if (bestCandidates.size() == 1 || certainClearFound ) { // if there is only one solution or the solutions are certainties
- 
+        	} else if (certainClearFound) { // if there is only one solution or the solutions are certainties
+        		// bestCandidates.size() == 1 || certainClearFound
         		// register all the moves
         		for (CandidateLocation cl: bestCandidates) {
         			Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
@@ -990,7 +993,8 @@ public class Solver implements Asynchronous<Action[]> {
     			
     		} else {    // evaluate which of the best candidates to choose
     			this.logger.log(Level.DEBUG, "About to evaluate best candidates -->");
-        		evaluateLocations.evaluateLocations(bestCandidates);
+        		evaluateLocations.addLocations(bestCandidates);
+            	evaluateLocations.evaluateLocations();
         		this.logger.log(Level.DEBUG, "<-- Done");     
         		
         		evaluateLocations.showResults();
@@ -1128,6 +1132,8 @@ public class Solver implements Asynchronous<Action[]> {
 	   	 pe.process();
 	   	 pm.setProgress(++progress);
 	   	 
+	   	 LongTermRiskHelperOld ltr = new LongTermRiskHelperOld(boardState, wholeEdge, pe);
+	   	 ltr.findRisks();
 	   	 
 	   	 if (pe.getSolutionCount().signum() == 0) {
 	   		 throw new Exception("This board has no solutions");
@@ -1140,7 +1146,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 	   					 il.setProbability(pe.getProbability(il));
 
-	   					 doFullEvaluateTile(wholeEdge, pe, il);
+	   					 doFullEvaluateTile(wholeEdge, pe, il, ltr);
 
 	   					 il.calculate();
 	   					 
@@ -1155,7 +1161,7 @@ public class Solver implements Asynchronous<Action[]> {
         
     }
     
-	private void doFullEvaluateTile(WitnessWeb wholeEdge, ProbabilityEngineModel probEngine, InformationLocation tile) {
+	private void doFullEvaluateTile(WitnessWeb wholeEdge, ProbabilityEngineModel probEngine, InformationLocation tile, LongTermRiskHelperOld ltr) {
 
 		List<Location> superset = boardState.getAdjacentUnrevealedSquares(tile);
 		int minesGot = boardState.countAdjacentConfirmedFlags(tile);
@@ -1172,7 +1178,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 		BigDecimal progressProb = BigDecimal.ZERO;
 		BigDecimal secondarySafety = BigDecimal.ZERO;
-
+		BigDecimal longTermSafety = BigDecimal.ZERO;
+		
 		for (int i = minMines; i <= maxMines; i++) {
 
 			//SolutionCounter counter = validateLocationUsingSolutionCounter(wholeEdge, tile, i, probEngine.getDeadLocations());
@@ -1196,6 +1203,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 				this.logger.log(Level.INFO, "Tile %s value %d has %d living clears with probability %f and secondary safety %f", tile, i, clears, prob, safety);
 			
+				longTermSafety = longTermSafety.add(prob.multiply(ltr.getLongTermSafety(tile, counter)));  // add all the weighted long term safety values together
+				
 				secondarySafety = secondarySafety.add(prob.multiply(safety));
 				
 				if (clears != 0) {
@@ -1212,7 +1221,15 @@ public class Solver implements Asynchronous<Action[]> {
 		}
 		
 		tile.setSecondarySafety(secondarySafety);
+		
+		if (tile.getProbability().signum() != 0) {
+			longTermSafety = longTermSafety.divide(tile.getProbability(), Solver.DP, RoundingMode.HALF_UP);
+		} else {
+			longTermSafety = BigDecimal.ZERO;
+		}
 
+		tile.setLongTermSafety(longTermSafety);
+		
 	}
     
     
@@ -1452,7 +1469,9 @@ public class Solver implements Asynchronous<Action[]> {
     	 // add the no mines
     	 if (noMines != null) {
         	 for (Location noMine: noMines) {
-            	 counter.setMustBeEmpty(noMine);
+            	 if (!counter.setMustBeEmpty(noMine)) {
+            		 this.logger.log(Level.WARN, "%s failed to set Must Be Empty", noMine);
+            	 }
         	 }   	 
     	 }
 
@@ -1995,8 +2014,9 @@ public class Solver implements Asynchronous<Action[]> {
         try {
 			return binomialEngine.generate(mines, squares);
 		} catch (Exception e) {
-			System.out.println("** error ***");
+			System.out.println("Error calculating the binomial coefficient");
 			e.printStackTrace();
+			//throw new RuntimeException("Error calculating the binomial coefficient", e);
 			return BigInteger.ONE;
 		}
         

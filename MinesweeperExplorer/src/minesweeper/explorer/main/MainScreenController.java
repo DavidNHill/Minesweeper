@@ -13,6 +13,7 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.layout.AnchorPane;
@@ -103,6 +104,14 @@ public class MainScreenController {
 	
 	@FXML private RadioMenuItem secondarySafetyProgress;
 	@FXML private RadioMenuItem safetyProgress;
+	
+	@FXML private CheckMenuItem useBruteForce;
+	@FXML private CheckMenuItem useLongTermSafety;
+	@FXML private CheckMenuItem use5050Detection;
+	@FXML private CheckMenuItem useTestMode;
+	
+	@FXML private CheckMenuItem useLongTermSafetyRollout;
+	@FXML private CheckMenuItem useTestModeRollout;
 	
 	private TileValuesController tileValueController;
 	private Graphics graphics;
@@ -274,6 +283,9 @@ public class MainScreenController {
 			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setGuessMethod(guessMethod);
 		}
 		
+		settings.setLongTermSafety(useLongTermSafetyRollout.isSelected());
+		settings.setTestMode(useTestModeRollout.isSelected());
+		
 		Solver solver = new Solver(gs, settings, true);
 		
 		try {
@@ -366,7 +378,17 @@ public class MainScreenController {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}
 		
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod);
+		SolverSettings settings;
+		if (this.useBruteForce.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
+		} else {
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod);			
+		}
+		
+		settings.setLongTermSafety(this.useLongTermSafety.isSelected());
+		settings.setTestMode(this.useTestMode.isSelected());
+		settings.set5050Check(this.use5050Detection.isSelected());
+		
 		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
 		Solver solver = new Solver(gs, settings, true);
 		

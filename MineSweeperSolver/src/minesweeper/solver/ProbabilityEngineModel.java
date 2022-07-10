@@ -16,12 +16,15 @@ abstract public class ProbabilityEngineModel {
 	
 	abstract protected long getDuration();
 	abstract protected long getIndependentGroups();
+	abstract Box getBox(Location l);
 	abstract public BigDecimal getProbability(Location l);
 	abstract protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold, boolean excludeDead);
 	abstract protected List<CandidateLocation> getProbableMines(BigDecimal freshhold);
+	abstract protected List<Location> getFiftyPercenters();
 	abstract protected BigInteger getSolutionCount();
 	abstract protected BigDecimal getBestOnEdgeProb();
 	abstract protected BigDecimal getOffEdgeProb();
+	abstract protected BigInteger getOffEdgeTally();
 	abstract protected boolean foundCertainty();
 	abstract protected Area getDeadLocations();
 	abstract boolean  allDead();
@@ -33,5 +36,7 @@ abstract public class ProbabilityEngineModel {
 	abstract protected boolean isBestGuessOffEdge();
 	abstract protected int getLivingClearCount();
 	abstract protected List<Box> getEmptyBoxes();
+
+	abstract protected BigDecimal getBestNotDeadSafety();
 	
 }

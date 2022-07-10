@@ -67,6 +67,10 @@ public class EvaluatedLocation extends Location {
 		this.deferGuessing = deferGuessing;
 	}
 	
+	public boolean isDeferGuessing() {
+		return this.deferGuessing;
+	}
+	
 	@Override
 	public String toString() {
 		
@@ -91,11 +95,7 @@ public class EvaluatedLocation extends Location {
 			
 
 			int c = 0;
-		
-			if (c == 0) {
-				c = -o1.weight.compareTo(o2.weight);  // tile with the highest weighting
-			}
-
+			
 			if (c == 0) {
 				if (o1.deferGuessing && !o2.deferGuessing) {
 					c = 1;
@@ -104,6 +104,10 @@ public class EvaluatedLocation extends Location {
 				} 
 			}
 			
+			if (c == 0) {
+				c = -o1.weight.compareTo(o2.weight);  // tile with the highest weighting
+			}
+
 			if (c == 0) {
 				c = -o1.expectedClears.compareTo(o2.expectedClears);  // then highest expected number of clears
 			}

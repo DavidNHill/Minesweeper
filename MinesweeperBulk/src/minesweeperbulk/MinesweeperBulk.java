@@ -16,13 +16,12 @@ import minesweeper.solver.bulk.BulkController.PlayStyle;
 import minesweeper.solver.bulk.BulkEvent;
 import minesweeper.solver.bulk.BulkListener;
 import minesweeper.solver.bulk.BulkPlayer;
-import minesweeper.solver.bulk.GameListener;
+import minesweeper.solver.bulk.GamePostListener;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
-import minesweeper.structure.Location;
 
 /**
  *
@@ -40,14 +39,14 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = -1379299244;
+		//seed = -589117932;
 		//seed = 662429271;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(12,10,27);
+		//GameSettings gameSettings = GameSettings.create(30,30,270);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings.setSingleThread(true);
@@ -55,17 +54,23 @@ public class MinesweeperBulk {
 		//settings.set5050Check(false);
 		//settings.setTieBreak(false);
 		//settings.setTestMode(true);
+		//settings.setLongTermSafety(false);
+		//settings.setProgressContribution(new BigDecimal("0.04"));
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, settings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
 		//controller.registerPreGameListener(new StartStrategy(twoCornerStart(gameSettings), 1));
 		
+		//RandomGuesser random = new RandomGuesser(gameSettings);
+		//controller.registerPreGameListener(random);
+		
 		//EfficiencyMonitor monitor = new EfficiencyMonitor();
-		RemainingMonitor monitor = new RemainingMonitor();
+		GamePostListener monitor = new GuessMonitor();
 		controller.registerPostGameListener(monitor);
+		
 		controller.registerEventListener(new BulkListener() {
 			@Override
 			public void intervalAction(BulkEvent event) {
@@ -114,7 +119,8 @@ public class MinesweeperBulk {
 		
 		}
 		
-		monitor.displayTable();
+		monitor.postResults();
+		//random.displayTable();
 
 	}
 

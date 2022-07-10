@@ -30,34 +30,10 @@ public class BulkPlayer extends BulkController {
 		this.gameSettings = gameSettings;
 	}
 	
-	/**
-	 * Pre actions are actions that are played on the game before it gets access to the solver
-	 * e.g. clear all 4 corners
-	 */
-	//public void setPreActions(List<Action> actions) {
-	//	this.preActions = actions;
-	//}
-
 	protected GameStateModel getGameState(long seed) {;
 	
 		GameStateModel gs = GameFactory.create(gameType, gameSettings, seed);
 	
-		// play the pre-actions
-		/*
-		if (preActions != null) {
-			for (Action a: preActions) {
-				gs.doAction(a);
-				if (gs.getGameState() == GameStateModel.LOST  || gs.getGameState() == GameStateModel.WON) {
-					break;
-				}
-			}
-		}
-		
-		if (gs.getGameState() == GameStateModel.WON) {
-			System.out.println(gs.getSeed() + " won ");
-		}
-		*/
-		
 		return gs;
 		
 	}

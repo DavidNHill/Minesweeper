@@ -1,5 +1,7 @@
 package minesweeper.solver.constructs;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +33,10 @@ public class Box {
 	
 	// this is used to indicate how many tiles in the box must not contain mine.
 	private int emptyTiles = 0;
+	
+	private int edgeLength;
+	private BigDecimal safety;
+	private BigInteger tally = BigInteger.ZERO;
 	
 	public Box(Square square, int uid) {
 		
@@ -230,7 +236,30 @@ public class Box {
 		return emptyTiles;
 	}
 
+	public void setEdgeLength(int length) {
+		this.edgeLength = length;
+	}
+	
+	public int getEdgeLength() {
+		return this.edgeLength;
+	}
 
+	public void setSafety(BigDecimal safety) {
+		this.safety = safety;
+	}
+	
+	public BigDecimal getSafety() {
+		return this.safety;
+	}
+	
+	public void setTally(BigInteger tally) {
+		this.tally = tally;
+	}
+	
+	public BigInteger getTally() {
+		return this.tally;
+	}
+	
 	public void incrementEmptyTiles() {
 		this.emptyTiles++;
 		// can't have more mines than there are squares to put them

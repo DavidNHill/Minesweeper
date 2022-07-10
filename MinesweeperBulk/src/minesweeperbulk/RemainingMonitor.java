@@ -6,16 +6,19 @@ import java.util.List;
 import java.util.Map;
 
 import minesweeper.gamestate.GameStateModel;
-import minesweeper.solver.bulk.GameListener;
+import minesweeper.solver.bulk.BulkRequest;
+import minesweeper.solver.bulk.GamePostListener;
 
-public class RemainingMonitor extends GameListener {
+public class RemainingMonitor extends GamePostListener {
 
 	private final Map<Integer, Integer> table = new HashMap<>();
 	private int wins = 0;
 	private int played = 0;
 	
 	@Override
-	public void gameAction(GameStateModel game) {
+	public void postAction(BulkRequest request) {
+		
+		GameStateModel game = request.getGame();
 		
 		played++;
 		
@@ -35,7 +38,7 @@ public class RemainingMonitor extends GameListener {
 		}				
 	} 
 
-	public void displayTable() {
+	public void postResults() {
 		
 		System.out.println(wins + " wins out of " + played + " played");
 		
