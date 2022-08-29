@@ -563,7 +563,11 @@ public class SolutionCounter {
 	// create a new probability line by taking the old and adding the mines to the new Box
 	private ProbabilityLine extendProbabilityLine(ProbabilityLine pl, Box newBox, int mines) {
 		
-		int combination = SMALL_COMBINATIONS[newBox.getSquares().size()][mines];
+		// reduce the number of tile which can have mines by the number we know are empty
+		int modifiedTilesCount = newBox.getSquares().size() - newBox.getEmptyTiles();
+		
+		//int combination = SMALL_COMBINATIONS[newBox.getSquares().size()][mines];
+		int combination = SMALL_COMBINATIONS[modifiedTilesCount][mines];
 		
 		BigInteger newSolutionCount = pl.solutionCount.multiply(BigInteger.valueOf(combination));
 		
@@ -939,9 +943,9 @@ public class SolutionCounter {
 			
 			//this.valid = false;
 			//return false;
-		} else if (box.getMinMines() != 0) {
-			this.valid = false;
-			return false;
+		//} else if (box.getMinMines() != 0) {
+		//	this.valid = false;
+		//	return false;
 		} else {
 			box.incrementEmptyTiles();
 		}

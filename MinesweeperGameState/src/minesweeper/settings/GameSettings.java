@@ -10,7 +10,7 @@ public class GameSettings {
 	 */
 	final static public GameSettings BEGINNER = new GameSettings(9, 9, 10, "Beginner");
 	/**
-	 * 16x6/40
+	 * 16x16/40
 	 */
 	final static public GameSettings ADVANCED = new GameSettings(16, 16, 40, "Advanced");
 	/**

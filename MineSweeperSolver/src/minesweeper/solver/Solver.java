@@ -719,6 +719,7 @@ public class Solver implements Asynchronous<Action[]> {
             }
         }        
         
+        /*
         // look for pseudo 50-50 guess which can't be avoided
     	LongTermRiskHelper ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
     	if (!certainClearFound) {
@@ -727,7 +728,7 @@ public class Solver implements Asynchronous<Action[]> {
 
             	Location findFifty = ltr.findInfluence();
             	
-            	if (findFifty != null) {
+            	if (findFifty != null && !preferences.isTestMode()) {
     				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
     				fm = new FinalMoves(a);
             		
@@ -738,6 +739,7 @@ public class Solver implements Asynchronous<Action[]> {
             	}
             }
     	}
+        */
         
         if (bestCandidates.isEmpty()) {
         	newLine("The probability engine found no candidate moves on the edge");
@@ -854,12 +856,15 @@ public class Solver implements Asynchronous<Action[]> {
         }
         
         // look for pseudo 50-50 guess which can't be avoided
-        /*
+    	LongTermRiskHelper ltr = null;
     	if (!certainClearFound && !fm.moveFound) {
+    		ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
              if (preferences.isDo5050Check()) {
-            	Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).process();
+            	//Location findFifty = fiftyFiftyHelper.process(pe);
+
+            	Location findFifty = ltr.findInfluence();
             	
-            	if (findFifty != null) {
+            	if (findFifty != null && !preferences.isTestMode()) {
     				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
     				fm = new FinalMoves(a);
             		
@@ -870,7 +875,6 @@ public class Solver implements Asynchronous<Action[]> {
             	}
             }
     	}
-        */
         
     	//  evaluate positions
         if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
@@ -961,16 +965,18 @@ public class Solver implements Asynchronous<Action[]> {
         			
         		}
 
-    			//TODO get all the off edge tiles
-        		// if all the off edge tiles are safe add them into the boardstate
+        		// if all the off edge tiles are safe add them into the board state
         		if (pe.getOffEdgeProb().compareTo(BigDecimal.ONE) == 0) {
+        			int mineCountClears = 0;
         			for (Location loc: boardState.getAllUnrevealedSquares()) {
         				if (!allWitnessedSquares.contains(loc)) {
         					boardState.setAction(new Action(loc, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "",  BigDecimal.ONE));  
+        					mineCountClears++;
         				}
-        				
-        				
         			}
+        			//if (mineCountClears > 0 && boardState.getMines() - boardState.getConfirmedFlagCount() > 8) {
+        			//	this.logger.log(Level.ALWAYS, "Seed %s has large mine count", myGame.getSeed());
+        			//}
         		}
         		
         		// if we have a certain clear then also register all the mines
@@ -1455,16 +1461,18 @@ public class Solver implements Asynchronous<Action[]> {
     	 for (Location mine: mines) {
         	 boardState.setFlagConfirmed(mine);
     	 }
-
+    	 
     	 Area witnessed = boardState.getUnrevealedArea(wholeEdge.getPrunedWitnesses());
     	 
     	 WitnessWeb edge = new WitnessWeb(boardState, wholeEdge.getPrunedWitnesses(), witnessed.getLocations(), Logger.NO_LOGGING);
 
-    	 int unrevealed = boardState.getTotalUnrevealedCount() - mines.size();  // this is less, because we have added some mines
+    	 int unrevealed = boardState.getTotalUnrevealedCount() - mines.size();  // this is less, because we have added some mines.
     	 
     	 int minesLeft = myGame.getMines() - boardState.getConfirmedFlagCount(); 
     	 
     	 SolutionCounter counter = new SolutionCounter(boardState, edge, unrevealed, minesLeft);
+    	 
+    	 //System.out.println("Unrevealed " + unrevealed + ", witnessed " + witnessed.size() + ", minesLeft " + minesLeft);
     	 
     	 // add the no mines
     	 if (noMines != null) {

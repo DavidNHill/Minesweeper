@@ -30,6 +30,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	//private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");  // was 0.1
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 	
+	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");
+	
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT; 
 	
 	private final static int[][] OFFSETS = {{2, 0}, {-2, 0}, {0, 2}, {0, -2}};
@@ -300,7 +302,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		BigDecimal fiftyFiftyInfluence;
 		if (this.solver.preferences.considerLongTermSafety()) {
-			fiftyFiftyInfluence = new BigDecimal(safetyTally.add(ltrHelper.findInfluence(tile))).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
+			BigDecimal tally = new BigDecimal(ltrHelper.findInfluence(tile)).multiply(FIFTYFIFTY_SCALE);
+			fiftyFiftyInfluence = new BigDecimal(safetyTally).add(tally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
 		} else {
 			fiftyFiftyInfluence = BigDecimal.ONE;
 		}

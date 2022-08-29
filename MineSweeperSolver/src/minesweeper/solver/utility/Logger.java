@@ -12,6 +12,7 @@ public class Logger {
 		INFO(2),
 		WARN(3),
 		ERROR(4),
+		ALWAYS(90),
 		NONE(99);
 		
 		private int value;

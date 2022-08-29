@@ -8,7 +8,7 @@ import minesweeper.structure.Location;
 
 public class SolverSettings {
 
-	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.05");
+	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.052");
 	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
