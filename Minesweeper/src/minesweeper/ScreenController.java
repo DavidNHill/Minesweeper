@@ -59,6 +59,7 @@ import minesweeper.random.RNGKiss64;
 import minesweeper.settings.GameType;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.settings.SettingsFactory.Setting;
@@ -117,10 +118,13 @@ public class ScreenController {
     @FXML private CheckMenuItem showTooltips;
     @FXML private CheckMenuItem acceptGuess;
     @FXML private CheckMenuItem showMines;
-    @FXML private CheckMenuItem flagFree;
-    @FXML private CheckMenuItem useChords;
     @FXML private CheckMenuItem dumpTree;
     @FXML private CheckMenuItem probHeatMap;
+
+    @FXML private RadioMenuItem psFlagging;
+    @FXML private RadioMenuItem psNoFlagging;
+    @FXML private RadioMenuItem psEfficiency;
+    @FXML private RadioMenuItem psNfEfficiency;
     
     @FXML
     private Circle highlight;
@@ -538,23 +542,26 @@ public class ScreenController {
     }   
     
     @FXML
-    private void flagFreeToggled(ActionEvent event) {
+    private void setPlayStyle(ActionEvent event) {
         
+    	PlayStyle ps;
+    	if (psFlagging.isSelected()) {
+    		ps = PlayStyle.FLAGGED;
+    	} else if (psNoFlagging.isSelected()) {
+    		ps = PlayStyle.NO_FLAG;
+    	} else if (psEfficiency.isSelected()) {
+    		ps = PlayStyle.EFFICIENCY;
+    	} else {
+    		ps = PlayStyle.NO_FLAG_EFFICIENCY;
+    	}
+    	
     	if (solver != null) {
-    		solver.setFlagFree(flagFree.isSelected());
+    		solver.setPlayStyle(ps);
     	}
     	
     }   
     
-    @FXML
-    private void useChordsToggled(ActionEvent event) {
-        
-    	if (solver != null) {
-    		solver.setPlayChords(useChords.isSelected());
-    	}
-    	
-    }   
-    
+     
     @FXML
     private void dumpTreeToggled(ActionEvent event) {
         
@@ -1147,8 +1154,7 @@ public class ScreenController {
         
         // create a new solver
         solver = new Solver(gs, preferences, HelperController.launch(), true);
-        solver.setFlagFree(flagFree.isSelected());
-        solver.setPlayChords(useChords.isSelected());
+        setPlayStyle(null);
         solver.setShowProbabilityTree(dumpTree.isSelected());
         
         // don't play the opening move if the game is loaded from a file

@@ -14,7 +14,7 @@ import javafx.scene.image.Image;
  */
 public class Graphics {
     
-	public static final double[] SUPPORTED_SIZES = {16, 24, 32, 48};
+	public static final double[] SUPPORTED_SIZES = {12, 16, 24, 32, 48};
 	
     public class GraphicsSet {
     	
@@ -136,7 +136,7 @@ public class Graphics {
     		}
     	}
     	
-    	System.out.println("No graphics set avoid with size " + size + " - defaulting to 24");
+    	System.out.println("No graphics set with size " + size + " - defaulting to 24");
     	
     	for (GraphicsSet gs: graphicsSets) {
     		if (gs.getSize() == 24) {
@@ -144,7 +144,7 @@ public class Graphics {
     		}
     	}
     	
-    	System.err.println("No graphics set avoid with size 24");
+    	System.err.println("No graphics set with size 24");
     	return null;
     }
     

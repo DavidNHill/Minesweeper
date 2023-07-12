@@ -5,8 +5,10 @@ import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
@@ -19,7 +21,16 @@ import minesweeper.structure.Location;
 
 public class EfficiencyHelper {
 	
-	private BigDecimal  MINE_THRESHOLD = BigDecimal.valueOf(1.0);   // probability of mine
+	private static final BigDecimal MINE_THRESHOLD = BigDecimal.valueOf(1.0);   // probability of mine to consider
+	private static final int RISK_ADVANTAGE = 2;   // <= benefit - cost
+	private static final BigDecimal ONE_ADVANTAGE_THRESHOLD = BigDecimal.valueOf(0.9);   // accept mine probability when benefit - cost = 1
+	
+	private static final BigDecimal CLEAR_ZERO_VALUE = BigDecimal.valueOf(0.85);   // clear a possible zero if chance if >= this value
+	
+	private static final BigDecimal NFE_BLAST_PENALTY = BigDecimal.valueOf(0.75);
+	
+	private static final boolean ALLOW_ZERO_NET_GAIN_CHORD = true;
+	private static final boolean ALLOW_ZERO_NET_GAIN_PRE_CHORD = true;
 	
 	private BoardState board;
 	private WitnessWeb wholeEdge;
@@ -38,13 +49,8 @@ public class EfficiencyHelper {
 	
 	public List<Action> process() {
 		
-		//if (actions.size() < 2) {
-		//	return actions;
-		//}
-		
 		List<Action> result = new ArrayList<>();
 		List<ChordLocation> chordLocations = new ArrayList<>();
-
 		
 		// look for tiles satisfied by known mines and work out the benefit of placing the mines and then chording
 		for (Location loc: board.getAllLivingWitnesses()) {
@@ -59,7 +65,7 @@ public class EfficiencyHelper {
                 Set<Location> hiddenMineNeighbours = new HashSet<>();  
                 for (Location adjMine: board.getAdjacentSquaresIterable(loc)) {
 
-                    if (!board.isConfirmedFlag(adjMine)) {
+                    if (!board.isConfirmedMine(adjMine)) {
                         continue;
                     }
                     
@@ -90,6 +96,8 @@ public class EfficiencyHelper {
 
 		}
 
+		BigDecimal oneAdvantageTest = BigDecimal.ONE.subtract(ONE_ADVANTAGE_THRESHOLD);
+		
 		// also consider tiles which are possibly mines and their benefit
 		for (CandidateLocation cl: pe.getProbableMines(MINE_THRESHOLD)) {
 
@@ -99,7 +107,7 @@ public class EfficiencyHelper {
     				int cost = board.getWitnessValue(adjTile) - board.countAdjacentFlagsOnBoard(adjTile) + 1;    // placing the flag and chording
     				int benefit = board.countAdjacentUnrevealed(adjTile) - 1; // the probable mine isn't a benefit  
    				
-    				if (benefit > cost) {
+    				if (benefit >= cost + RISK_ADVANTAGE || benefit - cost == 1 && cl.getProbability().compareTo(oneAdvantageTest) < 0) {
     					
                 		List<Location> mines = new ArrayList<>();
                     	mines.add(cl);
@@ -112,7 +120,7 @@ public class EfficiencyHelper {
        					
                         for (Location adjMine: board.getAdjacentSquaresIterable(adjTile)) {
 
-                            if (!board.isConfirmedFlag(adjMine)) {
+                            if (!board.isConfirmedMine(adjMine)) {
                                 continue;
                             }
                             
@@ -144,7 +152,7 @@ public class EfficiencyHelper {
 		BigDecimal bestNetBenefit = BigDecimal.ZERO;
 		for (ChordLocation cl: chordLocations) {
 			
-			if (cl.getNetBenefit().signum() > 0  || cl.getNetBenefit().signum() == 0 && cl.getCost() > 0) {
+			if (cl.getNetBenefit().signum() > 0  || EfficiencyHelper.ALLOW_ZERO_NET_GAIN_CHORD && cl.getNetBenefit().signum() == 0 && cl.getCost() > 0) {
 				bestChord = cl;
 				bestNetBenefit = cl.getNetBenefit();
 			}
@@ -182,7 +190,9 @@ public class EfficiencyHelper {
 			
 		Action bestAction = null;
 		BigDecimal highest = BigDecimal.ZERO;
-		//int currentReward = 0;
+
+		Action bestZero = null;
+		BigInteger bestZeroSolutions = BigInteger.ZERO;
 		
 		List<Location> emptyList = Collections.emptyList();
 		
@@ -191,7 +201,8 @@ public class EfficiencyHelper {
 			highest = new BigDecimal(currSolnCount.getSolutionCount()).multiply(bestNetBenefit);
 		}
 		
-		
+		// look for click then chord if the right number turns up
+		// or chord then chord if the right number turns up
 		for (Action act: actions) {
 
 			if (act.getAction() == Action.CLEAR) {
@@ -199,9 +210,9 @@ public class EfficiencyHelper {
                 // find the best chord adjacent to this clear if there is one
                 ChordLocation adjChord = null;
                 for (ChordLocation cl: chordLocations) {
-                    //if (cl.netBenefit == 0 && !ALLOW_ZERO_NET_GAIN_PRE_CHORD) {
-                    //    continue;
-                    //}
+                    if (cl.getNetBenefit().signum() == 0 && !ALLOW_ZERO_NET_GAIN_PRE_CHORD) {
+                        continue;
+                    }
 
                     if (cl.isAdjacent(act)) {
                         // first adjacent chord, or better adj chord, or cheaper adj chord, or exposes more tiles 
@@ -247,17 +258,31 @@ public class EfficiencyHelper {
                             + " Prob=" + prob + "), expected benefit " + expBenefit);
 					
                     // if we have found an 100% certain zero then just click it.
-                    if (adjMines == 0 && counter.getSolutionCount().equals(currSolnCount.getSolutionCount())) {
-                    	board.getLogger().log(Level.INFO, "Tile %s is a certain zero no need for further analysis", act);
-                        bestAction = act;
-                        break;
-                    }					
+                    if (adjMines == 0) {
+                    	if (counter.getSolutionCount().equals(currSolnCount.getSolutionCount())) {
+                           	board.getLogger().log(Level.INFO, "Tile %s is a certain zero no need for further analysis", act);
+                        	bestZero = act;
+                        	bestZeroSolutions = currSolnCount.getSolutionCount();
+                        	bestAction = null;
+                            bestChord = null;
+                            break;
+
+                    	} else if (counter.getSolutionCount().compareTo(bestZeroSolutions) > 0) { 
+                    		bestZero = act;
+                    		bestZeroSolutions = counter.getSolutionCount();
+                    	}
+                    } 
 					
                     // realistic expectation
                     BigDecimal clickChordNetBenefit = chordReward.multiply(new BigDecimal(counter.getSolutionCount())); // expected benefit from clicking the tile then chording it
                     
                     // optimistic expectation
                     //BigDecimal clickChordNetBenefit = BigDecimal.valueOf(reward).multiply(new BigDecimal(currSolnCount.getSolutionCount())); // expected benefit from clicking the tile then chording it
+                    
+                    //if (adjMines == 0) {
+                    //	adjChord = null;
+                    //	board.getLogger().log(Level.INFO, "Not considering Chord Chord combo because we'd be chording into a zero");
+                    //}
                     
                     // if it is a chord/chord combo
                     if (adjChord != null) {
@@ -291,11 +316,14 @@ public class EfficiencyHelper {
 			
 		}		
 		
-		if (bestAction != null) {
+		BigInteger zeroThreshold = new BigDecimal(currSolnCount.getSolutionCount()).multiply(CLEAR_ZERO_VALUE).toBigInteger();
+		if (bestZero != null && bestZeroSolutions.compareTo(zeroThreshold) >= 0) {
+			result.add(bestZero);
+			
+		} else if (bestAction != null) {
 			result.add(bestAction);
-		}
-
-        if (bestChord != null) {
+		
+		} else if (bestChord != null) {
             result.clear();
             
             // add the required flags if they aren't already there
@@ -330,10 +358,6 @@ public class EfficiencyHelper {
     // this method works out the net benefit of this play
     private BigDecimal chordChordCombo(ChordLocation chord1, Location chord2Tile, BigInteger occurs, BigInteger total) {
 
-        BigDecimal failedBenefit = chord1.getNetBenefit();
- 
-        //var chord1Tile = chord1.tile;
-
         // now check each tile around the tile to be chorded 2nd and see how many mines to flag and tiles will be cleared
         int alreadyCounted = 0;
         int needsFlag = 0;
@@ -341,21 +365,21 @@ public class EfficiencyHelper {
         int chordClick = 0;
         for (Location adjTile: board.getAdjacentSquaresIterable(chord2Tile)) {
 
-            if (board.isConfirmedFlag(adjTile)) {
+            if (board.isConfirmedMine(adjTile)) {
                 chordClick = 1;
             }
 
             // if adjacent to chord1
             if (chord1.isAdjacent(adjTile)) {
                 alreadyCounted++;
-            } else if (board.isConfirmedFlag(adjTile) && !board.isFlagOnBoard(adjTile)) {
+            } else if (board.isConfirmedMine(adjTile) && !board.isFlagOnBoard(adjTile)) {
                 needsFlag++;
             } else if (board.isUnrevealed(adjTile)) {
                 clearable++;
             }
         }
 
-        //int secondBenefit = clearable - needsFlag - chordClick;  // tiles cleared - flags placed - the chord click (which isn't needed if a zero is expected)
+        BigDecimal failedBenefit = chord1.getNetBenefit(); 
         BigDecimal secondBenefit = ChordLocation.chordReward(clearable, needsFlag + chordClick);
 
         // realistic expectation
@@ -364,15 +388,229 @@ public class EfficiencyHelper {
         // optimistic expectation
         //BigDecimal score = failedBenefit.multiply(new BigDecimal(total)).add( BigDecimal.valueOf(secondBenefit).multiply(new BigDecimal(total)));
         
-        /*
-        var expected = failedBenefit + divideBigInt(occurs, total, 6) * secondBenefit;
-
-        console.log("Chord " + chord1Tile.asText() + " followed by Chord " + chord2Tile.asText() + ": Chord 1: benefit " + chord1.netBenefit + ", Chord2: H=" + clearable + ", to F=" + needsFlag + ", Chord=" + chordClick
-            + ", Benefit=" + secondBenefit + " ==> expected benefit " + expected);
-		*/
+        BigDecimal expBen = score.divide(new BigDecimal(total), Solver.DP, RoundingMode.HALF_DOWN);
+        
+        board.getLogger().log(Level.INFO, "Chord %s followed by Chord %s: Chord 1: benefit %f, Chord2: H=%d, to F=%d, Chord=%d, Benefit=%f ==> expected benefit %f"
+        		, chord1, chord2Tile, chord1.getNetBenefit(), clearable, needsFlag, chordClick, secondBenefit, expBen);
         
         return score;
 
     }
 	
+    
+    /**
+     * A No-flag efficiency algorithm
+     */
+    public List<Action> processNF() {
+
+    	List<Action> result = new ArrayList<>();
+    	
+    	//Set<Location> notZeros = new HashSet<>();
+    	
+    	Map<Location, BigDecimal> zeroProbs = new HashMap<>();
+    	
+    	// locations next to a mine can't be zero
+		for (int i=0; i < board.getGameWidth() - 1; i++) {
+			for (int j=0; j < board.getGameHeight() - 1; j++) {
+				if (this.board.isConfirmedMine(i, j)) {
+					for (Location adjTile: board.getAdjacentSquaresIterable(this.board.getLocation(i, j))) {
+						if (board.isUnrevealed(adjTile)) {
+							zeroProbs.put(adjTile, BigDecimal.ZERO);  // tiles adjacent to a mine have zero probability of being a '0'
+						}
+					}
+					
+					//notZeros.addAll(board.getAdjacentUnrevealedSquares(this.board.getLocation(i, j)));
+				}
+			}
+		}                        
+    	
+		// calculate the current solution count
+		List<Location> emptyList = Collections.emptyList();
+		SolutionCounter currSolnCount = board.getSolver().validatePosition(wholeEdge, emptyList, null, Area.EMPTY_AREA);
+		
+		
+		Set<Location> onEdgeSet = new HashSet<>(this.wholeEdge.getSquares());
+		
+		Set<Location> adjacentEdgeSet = new HashSet<>();
+		
+		BigDecimal zeroTileScore = null;
+		Location zeroTile = null;
+		
+		 // do a more costly check for whether zero is possible, for those which haven't already be determined
+		for (Location tile: this.wholeEdge.getSquares()) {
+			
+			if (!zeroProbs.containsKey(tile) && !this.board.isConfirmedMine(tile)) {
+				SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, tile, 0, Area.EMPTY_AREA);
+				
+				if (counter.getSolutionCount().signum() == 0) {  // no solution where this is a zero
+					zeroProbs.put(tile, BigDecimal.ZERO);
+				} else if (counter.getSolutionCount().compareTo(currSolnCount.getSolutionCount()) == 0) {
+					board.getLogger().log(Level.INFO, "Tile %s is always zero", tile);
+					result.add(new Action(tile, Action.CLEAR, MoveMethod.TRIVIAL, "Certain zero (1)", BigDecimal.ONE));
+					break;
+				} else {
+
+					BigDecimal zeroProb = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(currSolnCount.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+					zeroProbs.put(tile, zeroProb);
+					
+					BigDecimal safety = this.pe.getProbability(tile);
+					BigDecimal score = zeroProb.subtract(BigDecimal.ONE.subtract(safety).multiply(NFE_BLAST_PENALTY));
+					
+					if (zeroTile == null || zeroTileScore.compareTo(score) < 0) {
+						zeroTile = tile;
+						zeroTileScore = score;
+					}
+				}
+			}
+
+			// collect hidden tiles adjacent to the boundary and not on the boundary
+			for (Location adjTile: this.board.getAdjacentSquaresIterable(tile)) {
+				if (this.board.isUnrevealed(adjTile) && !onEdgeSet.contains(adjTile)) {
+					adjacentEdgeSet.add(adjTile);
+				}
+			}
+			
+		}
+    	
+		if (!result.isEmpty()) {
+			return result;
+		}
+		
+		 // do a more costly check for whether zero is possible for actions not already considered, for those which haven't already be determined
+		for (Action tile: this.actions) {
+			
+			if (tile.getAction() == Action.CLEAR && !zeroProbs.containsKey(tile)) {
+				SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, tile, 0, Area.EMPTY_AREA);
+				
+				if (counter.getSolutionCount().signum() == 0) {  // no solution where this is a zero
+					zeroProbs.put(tile, BigDecimal.ZERO);
+				} else if (counter.getSolutionCount().compareTo(currSolnCount.getSolutionCount()) == 0) {
+					board.getLogger().log(Level.INFO, "Tile %s is always zero", tile);
+					result.add(tile);
+					break;
+				} else {
+
+					BigDecimal zeroProb = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(currSolnCount.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+					zeroProbs.put(tile, zeroProb);
+					
+					BigDecimal safety = this.pe.getProbability(tile);
+					BigDecimal score = zeroProb.subtract(BigDecimal.ONE.subtract(safety).multiply(NFE_BLAST_PENALTY));
+					
+					if (zeroTile == null || zeroTileScore.compareTo(score) < 0) {
+						zeroTile = tile;
+						zeroTileScore = score;
+					}
+				}
+			}
+
+			// collect hidden tiles adjacent to the boundary and not on the boundary
+			for (Location adjTile: this.board.getAdjacentSquaresIterable(tile)) {
+				if (this.board.isUnrevealed(adjTile) && !onEdgeSet.contains(adjTile)) {
+					adjacentEdgeSet.add(adjTile);
+				}
+			}
+			
+		}
+		
+		if (!result.isEmpty()) {
+			return result;
+		}
+		
+		BigDecimal offEdgeSafety = this.pe.getOffEdgeProb();
+		
+		// see if tiles adjacent to the boundary can be zero
+		for (Location tile: adjacentEdgeSet) {
+			SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, tile, 0, Area.EMPTY_AREA);
+			
+			if (counter.getSolutionCount().signum() == 0) {  // no solution where this is a zero
+				zeroProbs.put(tile, BigDecimal.ZERO);
+				
+			} else if (counter.getSolutionCount().compareTo(currSolnCount.getSolutionCount()) == 0) {
+				board.getLogger().log(Level.INFO, "Tile %s is always zero", tile);
+				result.add(new Action(tile, Action.CLEAR, MoveMethod.TRIVIAL, "Certain zero (2)", BigDecimal.ONE));
+				break;
+			} else {
+
+				BigDecimal zeroProb = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(currSolnCount.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+				zeroProbs.put(tile, zeroProb);
+				
+				BigDecimal score = zeroProb.subtract(BigDecimal.ONE.subtract(offEdgeSafety).multiply(NFE_BLAST_PENALTY));
+				
+				if (zeroTile == null || zeroTileScore.compareTo(score) < 0) {
+					zeroTile = tile;
+					zeroTileScore = score;
+				}
+			}
+		}
+
+		if (!result.isEmpty()) {
+			return result;
+		}
+		
+		BigDecimal maxAllNotZeroProbability = BigDecimal.ZERO;
+		Action bestAllNotZeroAction = null;
+		
+		// see if any safe tiles are also never next to a zero
+		for (Action act: actions) {
+
+			if (act.getAction() == Action.CLEAR) {
+				
+                // find the best chord adjacent to this clear if there is one
+                //boolean valid = true;
+                BigDecimal allNotZeroProbability = BigDecimal.ONE;
+                // if all the adjacent tiles can't be zero then we are safe to clear this tile without wasting a 3BV
+                for (Location adjTile: this.board.getAdjacentSquaresIterable(act)) {
+                	if (this.board.isUnrevealed(adjTile)) {
+                		if (zeroProbs.containsKey(adjTile)) {
+                			allNotZeroProbability = allNotZeroProbability.multiply(BigDecimal.ONE.subtract(zeroProbs.get(adjTile)));
+                		} else {
+                			board.getLogger().log(Level.WARN, "Tile %s doesn't have a probability for being a zero", adjTile);
+                		}
+                		
+                	}
+                	
+                }
+                if (bestAllNotZeroAction == null || maxAllNotZeroProbability.compareTo(allNotZeroProbability) < 0) {
+                	bestAllNotZeroAction = act;
+                	maxAllNotZeroProbability = allNotZeroProbability;
+                }
+                
+                if (allNotZeroProbability.compareTo(BigDecimal.ONE) == 0) {
+                	board.getLogger().log(Level.INFO, "Tile %s is 3BV safe because it can't be next to a zero", act);
+                	result.add(act);
+                 }
+			}
+		}
+		
+		if (!result.isEmpty()) {
+			return result;
+		}		
+		
+       if (zeroTile != null) {
+
+    	   BigDecimal prob = this.pe.getProbability(zeroTile);
+            if (bestAllNotZeroAction != null) {
+                if (maxAllNotZeroProbability.compareTo(zeroTileScore ) > 0 && zeroTileScore.compareTo(BigDecimal.ZERO) < 0) {
+                    result.add(bestAllNotZeroAction);
+                } else {
+                    result.add(new Action(zeroTile, Action.CLEAR, MoveMethod.TRIVIAL, "best zero", prob));
+                }
+            } else {
+            	 result.add(new Action(zeroTile, Action.CLEAR, MoveMethod.TRIVIAL, "best zero", prob));
+            }
+        } else {
+            if (bestAllNotZeroAction != null) {
+                result.add(bestAllNotZeroAction);
+            }
+        }
+		
+		// otherwise use the best tile looking for a zero
+		//Action action = new Action(zeroTile, Action.CLEAR, MoveMethod.TRIVIAL, "best zero", this.pe.getProbability(zeroTile));
+		//result.add(action);
+		//board.getLogger().log(Level.INFO, "Action %s", action);
+		
+    	return result;
+    }
+    
+    
 }

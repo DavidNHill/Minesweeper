@@ -51,8 +51,6 @@
                   <CheckMenuItem fx:id="showTooltips" mnemonicParsing="false" selected="true" text="Show tooltips" />
             <CheckMenuItem fx:id="acceptGuess" mnemonicParsing="false" selected="false" text="Accept guesses" />
             <CheckMenuItem fx:id="showMines" mnemonicParsing="false" onAction="#showMinesToggled" text="Show mines" />
-            <CheckMenuItem fx:id="flagFree" mnemonicParsing="false" onAction="#flagFreeToggled" text="Flag free" />
-                  <CheckMenuItem fx:id="useChords" mnemonicParsing="false" onAction="#useChordsToggled" text="Use chords" />
                   <CheckMenuItem fx:id="dumpTree" mnemonicParsing="false" onAction="#dumpTreeToggled" text="Dump probability tree" />
             <CheckMenuItem fx:id="probHeatMap" disable="true" mnemonicParsing="false" onAction="#probHeatMapToggled" text="Probability heat map" />
           </items>
@@ -60,6 +58,18 @@
             <Menu mnemonicParsing="false" text="Options">
               <items>
                   <MenuItem mnemonicParsing="false" onAction="#handleCopyToClipboard" text="Copy seed to clipboard" />
+                  <Menu mnemonicParsing="false" text="Play style">
+                    <items>
+                        <RadioMenuItem fx:id="psFlagging" mnemonicParsing="false" onAction="#setPlayStyle" selected="true" text="Flagging">
+                           <toggleGroup>
+                              <ToggleGroup fx:id="playStyle" />
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="psNoFlagging" mnemonicParsing="false" onAction="#setPlayStyle" text="No flagging" toggleGroup="$playStyle" />
+                        <RadioMenuItem fx:id="psEfficiency" mnemonicParsing="false" onAction="#setPlayStyle" text="Efficiency" toggleGroup="$playStyle" />
+                        <RadioMenuItem fx:id="psNfEfficiency" mnemonicParsing="false" onAction="#setPlayStyle" text="No flag efficiency" toggleGroup="$playStyle" />
+                    </items>
+                  </Menu>
                   <Menu mnemonicParsing="false" text="Guessing method">
                     <items>
                         <RadioMenuItem fx:id="standardGuess" mnemonicParsing="false" text="Safety with progress">

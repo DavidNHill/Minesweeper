@@ -12,7 +12,6 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.BoardStateCache.AdjacentSquares;
 import minesweeper.solver.BoardStateCache.Cache;
-import minesweeper.solver.constructs.ChordLocation;
 import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
@@ -24,38 +23,31 @@ public class BoardState {
 	private final static int[] DX = {0, 1, 1, 1, 0, -1, -1, -1};
 	private final static int[] DY = {-1, -1, 0, 1, 1, 1, 0, -1};
 
-	private AdjacentSquares[][] adjacentLocations1;
-	private AdjacentSquares[][] adjacentLocations2;
+	//private AdjacentSquares[][] adjacentLocations1;
+	//private AdjacentSquares[][] adjacentLocations2;
 
 	private int[][] board;
 	private boolean[][] revealed;
-	private boolean[][] flagConfirmed;
+	private boolean[][] confirmedMine;
 	private boolean[][] flagOnBoard;
 	
 	//private int[][] clearAll;
 
 	private int[][] adjFlagsConfirmed;
 	private int[][] adjFlagsOnBoard;
-	//private int[][] adjRevealed;
 	private int[][] adjUnrevealed;
 
 	// this holds the actions made against each location and a list of actions generated this turn
 	private Action[][] action;
 	private List<Action> actionList = new ArrayList<Action>();
 
-	
-	private List<ChordLocation> chordLocations = new ArrayList<>();
-	//private Location clearAllLocation;
-	//private int clearAllValue;
-	//private List<Action> clearAllList = new ArrayList<>();
-	
 	private final GameStateModel myGame;
 	private final Solver solver;
 	private final int height;
 	private final int width;
 
 	private int totalFlags = 0;
-	private int totalFlagsConfirmed = 0;
+	private int confirmedMinesTotal = 0;
 	private int numOfHidden = 0;
 
 	private int[] unplayedMoves;
@@ -63,7 +55,8 @@ public class BoardState {
 	private int testMoveBalance = 0;
 	
 	private Set<Location> livingWitnesses = new HashSet<>();
-	//private Set<Location> isolatedDeadTiles = new HashSet<>();
+	
+	private final Cache cache;
 	
 	public BoardState(Solver solver) {
 
@@ -72,7 +65,7 @@ public class BoardState {
 		this.width = myGame.getWidth();
 		this.height = myGame.getHeight();
 
-		flagConfirmed = new boolean[myGame.getWidth()][myGame.getHeight()];
+		confirmedMine = new boolean[myGame.getWidth()][myGame.getHeight()];
 		adjFlagsConfirmed =  new int[myGame.getWidth()][myGame.getHeight()];
 		adjUnrevealed = new int[myGame.getWidth()][myGame.getHeight()];
 		revealed = new boolean[myGame.getWidth()][myGame.getHeight()];
@@ -84,9 +77,9 @@ public class BoardState {
 		action = new Action[myGame.getWidth()][myGame.getHeight()];
 
 		// look up the adjacent squares details
-		Cache cache = BoardStateCache.getInstance().getAdjacentSquares1(myGame.getWidth(), myGame.getHeight());
-		adjacentLocations1 = cache.adjacentLocations1;
-		adjacentLocations2 = cache.adjacentLocations2;
+		cache = BoardStateCache.getInstance().getAdjacentSquares1(myGame.getWidth(), myGame.getHeight());
+		//adjacentLocations1 = cache.adjacentLocations1;
+		//adjacentLocations2 = cache.adjacentLocations2;
 		
 
 		final int bottom = myGame.getHeight() - 1;
@@ -107,9 +100,6 @@ public class BoardState {
 
 				adjUnrevealed[x][y] = adjacent;
 				
-				//adjacentLocations1[x][y] = new AdjacentSquares(new Location(x,y), 1);
-				//adjacentLocations2[x][y] = new AdjacentSquares(new Location(x,y), 2);
-
 			}
 		}
 
@@ -118,10 +108,8 @@ public class BoardState {
 
 	public void process() {
 
-		//flagOnBoard = new boolean[myGame.getWidth()][myGame.getHeight()];
-		//adjFlagsOnBoard = new int[myGame.getWidth()][myGame.getHeight()];
 		totalFlags = 0;
-		totalFlagsConfirmed = 0;
+		confirmedMinesTotal = 0;
 		numOfHidden = 0;
 
 		// clear down this array, which is a lot faster then defining it fresh
@@ -138,7 +126,7 @@ public class BoardState {
 		for (int i=0; i < width; i++) {
 			for (int j=0; j < height; j++) {
 				
-				Location location = new Location(i, j);
+				Location location = getLocation(i, j);
 				
 				flagOnBoard[i][j] = false; // until proven otherwise
 				int info = myGame.query(location);
@@ -163,8 +151,8 @@ public class BoardState {
 							}
 						}    							
 
-						if (flagConfirmed[i][j]) {    // flag found by solver
-							totalFlagsConfirmed++;
+						if (confirmedMine[i][j]) {    // mine found by solver
+							confirmedMinesTotal++;
 						} else {
 							numOfHidden++;           // flag on the board but we can't confirm it
 						}
@@ -181,8 +169,6 @@ public class BoardState {
 						// if this is a new unrevealed location then set it up and inform it's neighbours they have one less unrevealed adjacent location
 						if (!revealed[i][j]) {
 
-							//isolatedDeadTiles.remove(location);   // remove 
-							
 							livingWitnesses.add(location);  // add this to living witnesses
 							//display("Location (" + i + "," + j + ") is revealed");
 							
@@ -199,17 +185,16 @@ public class BoardState {
 
 					}
 				} else {
-					if (solver.isFlagFree() && flagConfirmed[i][j]) {  // if we are playing flags free then all confirmed flags are consider to be on the board
-						//flagOnBoard[i][j] = true;
-						totalFlagsConfirmed++;   
+					if ((solver.getPlayStyle().flagless || solver.getPlayStyle().efficiency) && confirmedMine[i][j]) {  // if we are playing flags free then all confirmed mines are consider to be flagged
+						confirmedMinesTotal++;   
 						totalFlags++;
 					} else {
 						numOfHidden++;
 					}
 
-					// if we have an action again this location which we are 100% sure about then do it
+					// if we have an action against this location which we are 100% sure about then do it
 					if (act != null && act.isCertainty()) {
-						if (solver.isFlagFree() && act.getAction() == Action.FLAG) {
+						if ((solver.getPlayStyle().flagless || solver.getPlayStyle().efficiency) && act.getAction() == Action.FLAG) {
 							// unless the we are playing flag free and it's a flag
 						} else {
 							actionList.add(act);
@@ -283,11 +268,11 @@ public class BoardState {
 		action[a.x][a.y] = a;
 
 		if (a.getAction() == Action.FLAG) {
-			setFlagConfirmed(a);
+			setMineFound(a);
 		}
 		
-		if (solver.isFlagFree() && a.getAction() == Action.FLAG) {
-			// if it is flag free and we are placing a flag then don't do it
+		if ((solver.getPlayStyle().flagless || solver.getPlayStyle().efficiency)  && a.getAction() == Action.FLAG) {
+			// if it is flag free or efficiency and we have discovered a mine then don't flag it
 		} else if (isFlagOnBoard(a) && a.getAction() == Action.FLAG) {
 			// if the flag is already on the board then nothing to do
 		} else if (isFlagOnBoard(a) && a.getAction() == Action.CLEAR) {
@@ -295,9 +280,6 @@ public class BoardState {
 			actionList.add(new Action(a, Action.FLAG, MoveMethod.CORRECTION, "Remove flag", BigDecimal.ONE, 0));
 			actionList.add(a);			
 		} else {
-			//if (a.getAction() == Action.FLAG) {
-			//	setFlagConfirmed(a);
-			//}
 			actionList.add(a);
 		}
 
@@ -492,39 +474,6 @@ public class BoardState {
 		return work;
 	}
 	
-	
-	/*
-	// take a list of Locations and find all the un-revealed squares around them
-	protected List<Location> getUnrevealedSquares1(List<? extends Location> witnesses) {
-
-		ArrayList<Location> work = new ArrayList<>();       
-
-		for (Location loc: witnesses) {
-			
-			for (Location adj: this.getAdjacentSquaresIterable(loc)) {
-
-				if (isUnrevealed(adj)) {
-
-					boolean dup = false;
-					for (Location l: work) {
-						if (adj.equals(l)) {
-							dup = true;
-							break;                        		
-						}
-					}
-					if (!dup) {
-						work.add(adj);
-					}
-
-				}            		
-			}
-			
-		}
-
-		return work;
-	}
-	*/
-	
 	/**
 	 * Return all the unrevealed Locations on the board
 	 */
@@ -535,7 +484,7 @@ public class BoardState {
 		for (int i=0; i < width; i++) {
 			for (int j=0; j < height; j++) {
 				if (isUnrevealed(i,j)) {
-					work.add(new Location(i,j));
+					work.add(getLocation(i,j));
 				}
 			}
 		}                        
@@ -582,53 +531,34 @@ public class BoardState {
 	}
 
 	/**
+	 * Return the Location for this position, avoids having to instantiate one
+	 */
+	protected Location getLocation(int x, int y) {
+		if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+			return null;
+		} else {
+			return cache.getLocation(x, y);
+		}
+
+	}
+	
+	
+	/**
 	 * This returns the adjacent squares to a depth of size away. So (l,2) returns the 24 squares 2 deep surrounding l.
-	 * @param l
-	 * @param size
-	 * @return
 	 */
 	protected Iterable<Location> getAdjacentSquaresIterable(Location loc, int size) {
 		if (size == 1) {
 			return getAdjacentSquaresIterable(loc);
 		} else {
-			return adjacentLocations2[loc.x][loc.y];
+			return cache.adjacentLocations2[loc.x][loc.y];
 		}
 		
 	}
 
 	protected Iterable<Location> getAdjacentSquaresIterable(Location loc) {
-		//if (adjacentLocations1[loc.x][loc.y] == null) {
-		//	adjacentLocations1[loc.x][loc.y] = new AdjacentSquares(loc, 1);
-		//}
-		return adjacentLocations1[loc.x][loc.y];
-		//return new AdjacentSquares(loc, 1);
+		return cache.adjacentLocations1[loc.x][loc.y];
 	}
 
-
-	/**
-	 * return all the squares adjacent to this square
-	 */
-	/*
-     protected List<Location> getAdjacentSquares(Location l) {
-
-        ArrayList<Location> work = new ArrayList<>();       
-
-        for (Location a: getAdjacentSquaresIterable(l)) {
-    		work.add(a);
-        }
-
-
-        //int x = l.x;
-        //int y = l.y;
-        //for (int k=0; k < DX.length; k++) {
-        //    if (x + DX[k] >= 0 && x + DX[k] < myGame.getx() && y + DY[k] >= 0 && y + DY[k] < myGame.gety()) {
-        //    	work.add(new Location(x + DX[k], y + DY[k]));
-        //    }
-        //}
-
-        return work;
-    }
-	 */
 
 	/**
 	 * Done as part of validating Locations, must be undone using clearWitness()
@@ -638,12 +568,6 @@ public class BoardState {
 		revealed[l.x][l.y] = true;
 		
 		testMoveBalance++;
-		
-		//for (int k=0; k < DX.length; k++) {
-		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
-		//		adjUnrevealed[l.x + DX[k]][l.y + DY[k]]--;
-		//	}
-		//}    	
 		
 	}
 
@@ -656,11 +580,6 @@ public class BoardState {
 		
 		testMoveBalance--;
 		
-		//for (int k=0; k < DX.length; k++) {
-		//	if (l.x + DX[k] >= 0 && l.x + DX[k] < myGame.getWidth() && l.y + DY[k] >= 0 && l.y + DY[k] < myGame.getHeight()) {
-		//		adjUnrevealed[l.x + DX[k]][l.y + DY[k]]++;
-		//	}
-		//}    	
 	}
 
 	/**
@@ -691,7 +610,7 @@ public class BoardState {
 	 * indicates a flag is on the board, but the solver can't confirm it
 	 */
 	protected boolean isUnconfirmedFlag(int x, int y) {
-		return flagOnBoard[x][y] && !flagConfirmed[x][y];
+		return flagOnBoard[x][y] && !confirmedMine[x][y];
 	}        
 
 	/**
@@ -717,17 +636,15 @@ public class BoardState {
 		flagOnBoard[x][y] = true;
 	}
 
-	protected void setFlagConfirmed(Location loc) {
+	protected void setMineFound(Location loc) {
 
-		if (isConfirmedFlag(loc)) {
+		if (isConfirmedMine(loc)) {
 			return;
 		}
 
-		totalFlagsConfirmed++;
-		flagConfirmed[loc.x][loc.y] = true;
+		confirmedMinesTotal++;
+		confirmedMine[loc.x][loc.y] = true;
 
-		//isolatedDeadTiles.remove(loc);   // remove a tile which is definitely a mine from the Isolated Dead Tiles set
-		
 		// if the flag isn't already on the board then this is also another on the total of all flags
 		if (!flagOnBoard[loc.x][loc.y]) {
 			totalFlags++;
@@ -741,14 +658,14 @@ public class BoardState {
 		
 	}
 
-	protected void unsetFlagConfirmed(Location loc) {
+	protected void unsetMineFound(Location loc) {
 
-		if (!isConfirmedFlag(loc)) {
+		if (!isConfirmedMine(loc)) {
 			return;
 		}
 
-		totalFlagsConfirmed--;
-		flagConfirmed[loc.x][loc.y] = false;
+		confirmedMinesTotal--;
+		confirmedMine[loc.x][loc.y] = false;
 
 
 		// if the flag isn't already on the board then this is also another on the total of all flags
@@ -768,16 +685,16 @@ public class BoardState {
 	 * Since Flag Free is a thing, we can't rely on the GameState to tell us where the flags are,
 	 * so this replaces that.
 	 */
-	protected boolean isConfirmedFlag(Location l) {
-		return isConfirmedFlag(l.x, l.y);
+	protected boolean isConfirmedMine(Location l) {
+		return isConfirmedMine(l.x, l.y);
 	}
 
 	/**
 	 * Since Flag Free is a thing, we can't rely on the GameState to tell us where the flags are,
 	 * so this replaces that.
 	 */
-	protected boolean isConfirmedFlag(int x, int y) {
-		return flagConfirmed[x][y];
+	protected boolean isConfirmedMine(int x, int y) {
+		return confirmedMine[x][y];
 	}    
 
 	/**
@@ -805,7 +722,7 @@ public class BoardState {
 	 * Returns whether the location is unrevealed (neither revealed nor a confirmed flag)
 	 */
 	protected boolean isUnrevealed(int x, int y) {
-		return !flagConfirmed[x][y] && !revealed[x][y];
+		return !confirmedMine[x][y] && !revealed[x][y];
 	}    
 
 	/**
@@ -850,7 +767,7 @@ public class BoardState {
 
 		for (int i=0; i < DX.length; i++) {
 			if (x + DX[i] >= 0 && x + DX[i] < width && y + DY[i] >= 0 && y + DY[i] < height) {
-				if (flagConfirmed[x + DX[i]][y + DY[i]] || flagOnBoard[x + DX[i]][y + DY[i]]) {
+				if (confirmedMine[x + DX[i]][y + DY[i]] || flagOnBoard[x + DX[i]][y + DY[i]]) {
 					result++;
 				}
 			}
@@ -890,9 +807,9 @@ public class BoardState {
 	/**
 	 * Returns the number of mines the solver knows the location of
 	 */
-	protected int getConfirmedFlagCount() {
+	protected int getConfirmedMineCount() {
 
-		return totalFlagsConfirmed;
+		return confirmedMinesTotal;
 
 	}
 
@@ -945,42 +862,13 @@ public class BoardState {
 	 */
 	public boolean isHighDensity() {
 		
-		int minesLeft = getMines() - getConfirmedFlagCount();
+		int minesLeft = getMines() - getConfirmedMineCount();
 		int tilesLeft = getTotalUnrevealedCount();
 		
 		return (minesLeft * 5 > tilesLeft * 2) && Solver.CONSIDER_HIGH_DENSITY_STRATEGY;
 	}
 	
-	/**
-	 * Inform the board state that this location might benefit from using a clear all move, returns true if the move is accepted as a clear all
-	 * @param loc
-	 */
-	/*
-	
-	protected boolean setChordLocation(Location loc) {
-		
-		if (!solver.isPlayChords()) {
-			return false;
-		}
-		
-		
-		boolean accepted = false;
-		
-		int benefit = countAdjacentUnrevealed(loc);
-		int cost = getWitnessValue(loc) - countAdjacentFlagsOnBoard(loc);
-		
-		if (benefit - cost > 1) {
-			
-			accepted = true;
 
-			chordLocations.add(new ChordLocation(loc.x, loc.y, benefit - cost));
-			
-		}
-		
-		return accepted;
-		
-	}
-	*/
 	public int getTestMoveBalance() {
 		return this.testMoveBalance;
 	}

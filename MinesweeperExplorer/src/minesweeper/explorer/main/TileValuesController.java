@@ -140,16 +140,17 @@ public class TileValuesController {
 				BigDecimal safe2Prog = il.getSecondarySafety().multiply(BigDecimal.ONE.add(il.getProgressProbability().multiply(new BigDecimal("0.1"))));  // = 2nd Safety * (1 + progress*0.1);
 				BigDecimal essrSafe = null;
 
-				if (il.getProbability().compareTo(BigDecimal.ZERO) != 0) {
-					essrSafe = il.getExpectedSolutionSpaceReduction().divide(il.getProbability(), 3, RoundingMode.HALF_UP);
+				if (il.getSafety().compareTo(BigDecimal.ZERO) != 0) {
+					essrSafe = il.getExpectedSolutionSpaceReduction().divide(il.getSafety(), 3, RoundingMode.HALF_UP);
 				}
 				
 				BigDecimal safetyESSL = BigDecimal.ONE.subtract(il.getExpectedSolutionSpaceReduction()).multiply(il.getSecondarySafety()).multiply(il.getLongTermSafety()).setScale(3, RoundingMode.HALF_UP);
 				
 				for (ByValue bv: il.getByValueData()) {
+					//System.out.println(bv.probability);
 					items.add(new TileValueData(bv));
 				}
-				items.add(new TileValueData("Safety", Explorer.PERCENT.format(il.getProbability()), ""));
+				items.add(new TileValueData("Safety", Explorer.PERCENT.format(il.getSafety()), ""));
 				items.add(new TileValueData("Progress", Explorer.PERCENT.format(il.getProgressProbability()), Explorer.TWO_DP.format(il.getExpectedClears())));
 				items.add(new TileValueData("Safety.prog20%", Explorer.PERCENT.format(il.getWeighting()), ""));
 				items.add(new TileValueData("2nd Safety", Explorer.PERCENT.format(il.getSecondarySafety()), ""));

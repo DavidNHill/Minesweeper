@@ -5,6 +5,7 @@
 package minesweeperbulk;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,16 +13,17 @@ import java.util.Random;
 
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
-import minesweeper.solver.bulk.BulkController.PlayStyle;
 import minesweeper.solver.bulk.BulkEvent;
 import minesweeper.solver.bulk.BulkListener;
 import minesweeper.solver.bulk.BulkPlayer;
 import minesweeper.solver.bulk.GamePostListener;
+import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
+import minesweeper.structure.Location;
 
 /**
  *
@@ -39,45 +41,48 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 525198950;
+		seed = 1449234571;
 		//seed = 662429271;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(80,5,80);
+		//GameSettings gameSettings = GameSettings.create(100, 100, 2400);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings.setSingleThread(true);
-		//settings.setStartLocation(new Location(1,1));
+		//settings.setStartLocation(new Location(15,7));
 		//settings.set5050Check(false);
 		//settings.setTieBreak(false);
 		//settings.setTestMode(true);
 		//settings.setLongTermSafety(false);
-		//settings.setProgressContribution(new BigDecimal("0.05"));
+		//settings.setProgressContribution(new BigDecimal("0.02"));
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 200000, GameType.STANDARD, gameSettings, settings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
-		//controller.registerPreGameListener(new StartStrategy(twoCornerStart(gameSettings), 1));
+		//controller.registerPreGameListener(new StartStrategyResign(middle4CornerStart(gameSettings), 5));
+		//controller.registerPreGameListener(new StartStrategy(fourCornerStart(gameSettings), 5));
 		
 		//RandomGuesser random = new RandomGuesser(gameSettings);
 		//controller.registerPreGameListener(random);
 		
-		//EfficiencyMonitor monitor = new EfficiencyMonitor();
+		//EfficiencyMonitor monitor = new EfficiencyMonitor(140);
 		GamePostListener monitor = new GuessMonitor();
 		controller.registerPostGameListener(monitor);
 		
 		controller.registerEventListener(new BulkListener() {
 			@Override
 			public void intervalAction(BulkEvent event) {
-				double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+				//double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+				double p = event.getTotalGamesValue().doubleValue() / (double) event.getGamesPlayed();
+				
 				double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
 				
-				System.out.println("Seed: " + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", failed to start " + event.getFailedToStart() + ", won " + event.getGamesWon() +
+				System.out.println("Seed: " + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", failed to start " + event.getFailedToStart() + ", won " + event.getTotalGamesValue().setScale(4, RoundingMode.HALF_UP) +
 						", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() + ", solved 3BV " + event.getTotal3BVSolved() +
 						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
 						", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Time left " + Timer.humanReadable(event.getEstimatedTimeLeft()) );
@@ -151,6 +156,19 @@ public class MinesweeperBulk {
 	static private List<Action> fourCornerStart(GameSettings gameSettings) {
 		
 		List<Action> preactions = new ArrayList<>();
+		preactions.add(new Action(0, 0, Action.CLEAR));
+		preactions.add(new Action(0, gameSettings.height - 1, Action.CLEAR));
+		preactions.add(new Action(gameSettings.width - 1, 0, Action.CLEAR));
+		preactions.add(new Action(gameSettings.width - 1, gameSettings.height - 1, Action.CLEAR));
+		
+		return preactions;
+		
+	}
+	
+	static private List<Action> middle4CornerStart(GameSettings gameSettings) {
+		
+		List<Action> preactions = new ArrayList<>();
+		preactions.add(new Action(gameSettings.width / 2, gameSettings.height / 2, Action.CLEAR));
 		preactions.add(new Action(0, 0, Action.CLEAR));
 		preactions.add(new Action(0, gameSettings.height - 1, Action.CLEAR));
 		preactions.add(new Action(gameSettings.width - 1, 0, Action.CLEAR));

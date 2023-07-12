@@ -36,6 +36,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.solver.constructs.EvaluatedLocation;
+import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings.GuessMethod;
@@ -98,6 +99,7 @@ public class MainScreenController {
 	@FXML private RadioMenuItem rollout40;
 	@FXML private RadioMenuItem rolloutNoBF;
 	
+	@FXML private RadioMenuItem tileSize12;
 	@FXML private RadioMenuItem tileSize16;
 	@FXML private RadioMenuItem tileSize24;
 	@FXML private RadioMenuItem tileSize32;
@@ -180,7 +182,10 @@ public class MainScreenController {
 		
 		System.out.println("Resizing the board");
 		
-		if (tileSize16.isSelected()) {
+		if (tileSize12.isSelected()) {
+			this.graphicsSet = new Graphics().getGraphicsSet(12);
+
+		} else if (tileSize16.isSelected()) {
 			this.graphicsSet = new Graphics().getGraphicsSet(16);
 
 		} else if (tileSize24.isSelected()) {
@@ -316,6 +321,7 @@ public class MainScreenController {
 
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		Solver solver = new Solver(gs, settings, false);
+		solver.setPlayStyle(PlayStyle.NO_FLAG);
 		ProgressMonitor pm = new ProgressMonitor();
 		
 		// run this task in parallel while locking the screen against any other actions
@@ -648,14 +654,14 @@ public class MainScreenController {
 		
 		getBoardDisplayArea().getChildren().addAll(currentBoard, boardExpander);
 
-		minesToFind = new LedDigits(3);
+		minesToFind = new LedDigits(4);
 		minesToFind.relocate(10, 5);
 		minesToFind.setBackground(Explorer.GREY_BACKGROUND);
 		getHeader().getChildren().add(minesToFind);
 		minesToFind.setValue(minesLeft);
 		
-		minesPlaced = new LedDigits(3, true);
-		minesPlaced.relocate(100, 5);
+		minesPlaced = new LedDigits(4, true);
+		minesPlaced.relocate(120, 5);
 		minesPlaced.setBackground(Explorer.GREY_BACKGROUND);
 		minesPlaced.setValueListener(currentBoard.getMinesPlacedProperty());
 		minesPlaced.setValue(currentBoard.getFlagsPlaced());

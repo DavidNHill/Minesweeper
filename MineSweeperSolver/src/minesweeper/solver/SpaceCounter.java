@@ -60,7 +60,7 @@ public class SpaceCounter {
 		                if (this.board.isUnrevealed(x1, y1)) {
 		                	if (data[x1][y1] == 0) {  // unprocessed tile
 			                	data[x1][y1] = -1;
-			                	tiles.add(new Location(x1, y1));
+			                	tiles.add(this.board.getLocation(x1, y1));
 		                	
 		                	} else if (data[x1][y1] == 1) {  // if we meet a tile which is already in a large area, we are in a large area
 		                		large = true;
@@ -79,7 +79,7 @@ public class SpaceCounter {
 			    		        	if (this.board.isUnrevealed(x2, y2)) {
 					                	if (data[x2][y2] == 0) {  // unprocessed tile
 						                	data[x2][y2] = -1;
-						                	tiles.add(new Location(x2, y2));
+						                	tiles.add(this.board.getLocation(x2, y2));
 					                	
 					                	} else if (data[x2][y2] == 1) {  // if we meet a tile which is already in a large area, we are in a large area
 					                		large = true;

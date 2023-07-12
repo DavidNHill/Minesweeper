@@ -18,6 +18,8 @@ public class LedDigits extends HBox {
 	private final int numberOfDigits;
 	private final LedDigit[] digits;
 
+	private final int maxValue;
+	
 	private boolean locked;
 	//private int value;
 
@@ -31,7 +33,7 @@ public class LedDigits extends HBox {
 		this.digits = new LedDigit[numberOfDigits];
 
 		this.locked = locked;
-		
+	
 		int size = 1;
 
 		for (int i=0; i < numberOfDigits; i++) {
@@ -39,6 +41,9 @@ public class LedDigits extends HBox {
 			size = size * 10;
 		}
 
+		this.maxValue = size - 1;
+		//System.out.println(this.maxValue);
+		
 		// add the digits to the container
 		this.getChildren().addAll(digits);
 
@@ -67,8 +72,8 @@ public class LedDigits extends HBox {
 
 		if (value < 0) {
 			value = 0;
-		} else if (value > 999) {
-			value = 999;
+		} else if (value > this.maxValue) {
+			value = this.maxValue;
 		}
 		
 		int work = value;

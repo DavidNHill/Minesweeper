@@ -1,5 +1,7 @@
 package minesweeper.solver.bulk;
 
+import java.math.BigDecimal;
+
 public class BulkEvent {
 	
 	private int gamesToPlay;
@@ -7,6 +9,8 @@ public class BulkEvent {
 	private int gamesWon;
 	private int noGuessWins;
 	private int totalActions;
+	
+	private BigDecimal totalGamesValue;
 	
 	private long total3BV;
 	private long total3BVSolved;
@@ -115,6 +119,12 @@ public class BulkEvent {
 	}
 	protected void setTotal3BVSolved(long total3bvSolved) {
 		total3BVSolved = total3bvSolved;
+	}
+	public BigDecimal getTotalGamesValue() {
+		return totalGamesValue;
+	}
+	public void setTotalGamesValue(BigDecimal totalGamesValue) {
+		this.totalGamesValue = totalGamesValue;
 	}
 
 	

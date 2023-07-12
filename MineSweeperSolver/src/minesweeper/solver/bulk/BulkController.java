@@ -5,10 +5,12 @@ import java.util.Random;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.bulk.BulkRequest.BulkAction;
+import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SolverSettings;
 
 abstract public class BulkController implements Runnable {
 	
+	/*
 	public enum PlayStyle {
 		FLAGGED(false, false),
 		NO_FLAG(true, false),
@@ -23,6 +25,7 @@ abstract public class BulkController implements Runnable {
 		}
 		
 	}
+	*/
 	
 	private final int gamesToPlay;
 	private final int workers;
@@ -57,6 +60,8 @@ abstract public class BulkController implements Runnable {
 	private volatile int wins = 0;
 	private volatile int guesses = 0;
 	private volatile int noGuessWins = 0;
+	private volatile BigDecimal totalGamesValue = BigDecimal.ZERO;
+	
 	private volatile int totalActions = 0;
 	private volatile long total3BV = 0;
 	private volatile long total3BVSolved = 0;
@@ -68,7 +73,6 @@ abstract public class BulkController implements Runnable {
 	
 	private volatile boolean[] mastery = new boolean[100];
 	
-	//private boolean flagFree = false;
 	private PlayStyle playStyle = PlayStyle.NO_FLAG;
 	
 	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers) {
@@ -219,6 +223,8 @@ abstract public class BulkController implements Runnable {
 			if (request.gs.getGameState() == GameStateModel.WON) {
 				wins++;
 				
+				totalGamesValue = totalGamesValue.add(request.gameValue);
+				
 				//System.out.println(request.gs.getSeed() + " has 3BV " + request.gs.getTotal3BV() + " and actions " + request.gs.getActionCount());
 				
 				if (request.guesses == 0) {
@@ -321,6 +327,8 @@ abstract public class BulkController implements Runnable {
 		event.setGamesToPlay(gamesToPlay);
 		event.setGamesPlayed(waitingSequence);
 		event.setGamesWon(wins);
+		event.setTotalGamesValue(totalGamesValue);
+		
 		event.setTotalGuesses(guesses);
 		event.setNoGuessWins(noGuessWins);
 		if (guesses != 0) {

@@ -173,7 +173,7 @@ public class WitnessWeb {
         }
         
         
-        int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+        int minesLeft = boardState.getMines() - boardState.getConfirmedMineCount();
     	for (Box b: boxes) {
     		b.calculate(minesLeft);
     		//b.display();

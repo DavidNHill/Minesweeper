@@ -5,11 +5,16 @@
  */
 package minesweeper.gamestate;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Random;
 
 import minesweeper.random.DefaultRNG;
 import minesweeper.random.RNG;
 import minesweeper.settings.GameSettings;
+import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
 /**
@@ -33,6 +38,29 @@ public class GameStateStandard extends GameStateModelViewer {
         this.board = new int[width][height];
         
         this.rng = DefaultRNG.getRNG(seed); 
+    }
+    
+    
+    /**
+     * Returns a list of actions based on what is on the board, this is cheating.
+     * Used by the solver to allow it to always win BFDA parts of the board.
+     */
+    @Override
+    public List<Action> identifyLocations(Collection<? extends Location> locs) {
+    	
+    	List<Action> actions = new ArrayList<>();
+    	 
+    	for (Location loc: locs) {
+    		int value = this.board[loc.x][loc.y];
+    		if (value == GameStateModel.MINE) {
+    			actions.add(new Action(loc, Action.FLAG, MoveMethod.CHEAT, "", BigDecimal.ONE));
+    		} else {
+    			actions.add(new Action(loc, Action.CLEAR, MoveMethod.CHEAT, "", BigDecimal.ONE));
+    		}
+    	}
+    	
+    	return actions;
+    	
     }
     
     // in this gamestate we are building the board ourselves
@@ -117,8 +145,8 @@ public class GameStateStandard extends GameStateModelViewer {
     
     
     @Override
-    protected int queryHandle(Location m) {
-        return board[m.x][m.y];
+    protected int queryHandle(int x, int y) {
+        return board[x][y];
     }
     
     

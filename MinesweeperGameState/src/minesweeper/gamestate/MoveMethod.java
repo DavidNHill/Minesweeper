@@ -12,7 +12,8 @@ public enum MoveMethod {
 	BRUTE_FORCE_DEEP_ANALYSIS("Brute Force Deep Analysis"),
 	GUESS("Guess"),
 	ROLLOUT("Rollout"),
-	UNAVOIDABLE_GUESS("Unavoidable Guess");
+	UNAVOIDABLE_GUESS("Unavoidable Guess"),
+	CHEAT("Cheat");
 	
 	public final String description;
 	

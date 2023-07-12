@@ -71,14 +71,14 @@ public class LongTermRiskHelper {
 	 */
 	public BigInteger findInfluence(Location tile) {
 		
-		final int minesLeft = board.getMines() - board.getConfirmedFlagCount();
+		final int minesLeft = board.getMines() - board.getConfirmedMineCount();
 		
 		BigInteger influence = BigInteger.ZERO;
 		
 		Location tile1, tile2, tile3;
 		
 		// 2-tile 50/50
-		tile1 = new Location(tile.x - 1, tile.y);
+		tile1 = board.getLocation(tile.x - 1, tile.y);
 		
 		BigInteger influence1 = BigInteger.ZERO;
 		influence1 = maxNotNull(BigInteger.ZERO, getHorizontal(tile, 4, 4, minesLeft));
@@ -86,7 +86,7 @@ public class LongTermRiskHelper {
 
 		influence = influence.add(influence1);
 		
-		tile2 = new Location(tile.x, tile.y - 1);
+		tile2 = board.getLocation(tile.x, tile.y - 1);
 		
 		BigInteger influence2 = BigInteger.ZERO;
 		influence2 = maxNotNull(influence2, getVertical(tile, 4, 4, minesLeft));
@@ -95,7 +95,7 @@ public class LongTermRiskHelper {
 		influence = influence.add(influence2);
 		
 		// 4-tile 50/50
-		tile3 =  new Location(tile.x - 1, tile.y - 1);
+		tile3 = board.getLocation(tile.x - 1, tile.y - 1);
 	
 		BigInteger influence4 = BigInteger.ZERO;
 		influence4 = maxNotNull(influence4, getBoxInfluence(tile, 5, 5, minesLeft));
@@ -137,14 +137,14 @@ public class LongTermRiskHelper {
 		
 		board.getLogger().log(Level.INFO, "Checking for 2-tile 50/50 influence");
     	
-	   	final int minesLeft = board.getMines() - board.getConfirmedFlagCount();
+	   	final int minesLeft = board.getMines() - board.getConfirmedMineCount();
 
     	// horizontal 2x1
 		for (int i=0; i < board.getGameWidth() - 1; i++) {
 			for (int j=0; j < board.getGameHeight(); j++) {
 
-				Location tile1 = new Location(i, j);
-				Location tile2 = new Location(i + 1, j);
+				Location tile1 = board.getLocation(i, j);
+				Location tile2 = board.getLocation(i + 1, j);
 				
 				Result result = getHorizontal(tile1, minMissingMines, maxMissingMines, minesLeft);
 		
@@ -168,8 +168,8 @@ public class LongTermRiskHelper {
 		for (int i=0; i < board.getGameWidth(); i++) {
 			for (int j=0; j < board.getGameHeight() - 1; j++) {
 
-				Location tile1 = new Location(i, j);
-				Location tile2 = new Location(i, j + 1);
+				Location tile1 = board.getLocation(i, j);
+				Location tile2 = board.getLocation(i, j + 1);
 				
 				Result result = getVertical(tile1, minMissingMines, maxMissingMines, minesLeft);
 				
@@ -191,10 +191,14 @@ public class LongTermRiskHelper {
 
 	private Result getHorizontal(final Location subject, final int minMissingMines, final int maxMissingMines, final int minesLeft) {
 		
+		if (subject == null) {
+			return null;
+		}
+		
 		int i = subject.x;
 		int j = subject.y;
 		
-		if (i < 0 || i + 1 >= board.getGameWidth()) {
+		if (i < 0 || i + 1 >= board.getGameWidth()) {  // need 1 extra space to the right
 			return null;
 		}
 		
@@ -203,8 +207,8 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(new Location(i-1, j-1), new Location(i-1, j), new Location(i-1, j+1),
-				new Location(i+2, j-1), new Location(i+2, j), new Location(i+2, j+1));
+		List<Location> missingMines = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i-1, j), board.getLocation(i-1, j+1),
+				board.getLocation(i+2, j-1), board.getLocation(i+2, j), board.getLocation(i+2, j+1));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
 		if (missingMines == null || missingMines.size() + 1 > maxMissingMines || missingMines.size() + 1 > minesLeft) {
@@ -212,7 +216,7 @@ public class LongTermRiskHelper {
 		}
 		
 		Location tile1 = subject;
-		Location tile2 = new Location(i + 1, j);
+		Location tile2 = board.getLocation(i + 1, j);
 
 		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1);
 		
@@ -238,10 +242,14 @@ public class LongTermRiskHelper {
 	
 	private Result getVertical(final Location subject, final int minMissingMines, final int maxMissingMines, final int minesLeft) {
 		
+		if (subject == null) {
+			return null;
+		}
+		
 		int i = subject.x;
 		int j = subject.y;
 		
-		if (j < 0 || j + 1 >= board.getGameHeight()) {
+		if (j < 0 || j + 1 >= board.getGameHeight()) { // need 1 extra space below
 			return null;
 		}
 		
@@ -250,16 +258,16 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(new Location(i-1, j-1), new Location(i, j - 1), new Location(i + 1, j - 1),
-				new Location(i - 1, j + 2), new Location(i, j + 2), new Location(i + 1, j + 2));
+		List<Location> missingMines = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i, j - 1), board.getLocation(i + 1, j - 1),
+				board.getLocation(i - 1, j + 2), board.getLocation(i, j + 2), board.getLocation(i + 1, j + 2));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
 		if (missingMines == null || missingMines.size() + 1 > maxMissingMines || missingMines.size() + 1 > minesLeft) {
 			return null;
 		}
 		
-		Location tile1 = new Location(i, j);
-		Location tile2 = new Location(i, j + 1);
+		Location tile1 = board.getLocation(i, j);
+		Location tile2 = board.getLocation(i, j + 1);
 		
 		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1);
 		
@@ -288,7 +296,7 @@ public class LongTermRiskHelper {
 		final int minMissingMines = 2;
 		final int maxMissingMines = 2;
 		
-	   	int minesLeft = board.getMines() - board.getConfirmedFlagCount();
+	   	int minesLeft = board.getMines() - board.getConfirmedMineCount();
 		
 		board.getLogger().log(Level.INFO, "Checking for 2-tile 50/50 influence: Mines left %d", minesLeft);
 	   	
@@ -296,10 +304,10 @@ public class LongTermRiskHelper {
 		for (int i=0; i < board.getGameWidth() - 1; i++) {
 			for (int j=0; j < board.getGameHeight() - 1; j++) {
 
-				Location tile1 = new Location(i, j);
-				Location tile2 = new Location(i, j + 1);
-				Location tile3 = new Location(i + 1, j);
-				Location tile4 = new Location(i + 1, j + 1);
+				Location tile1 = board.getLocation(i, j);
+				Location tile2 = board.getLocation(i, j + 1);
+				Location tile3 = board.getLocation(i + 1, j);
+				Location tile4 = board.getLocation(i + 1, j + 1);
 				
 				Result result = getBoxInfluence(tile1, minMissingMines, maxMissingMines, minesLeft);
 				
@@ -323,10 +331,14 @@ public class LongTermRiskHelper {
 	
 	private Result getBoxInfluence(final Location subject, final int minMissingMines, final int maxMissingMines, final int minesLeft) {
 		
+		if (subject == null) {
+			return null;
+		}
+		
 		int i = subject.x;
 		int j = subject.y;
 		
-		if (j < 0 || j + 1 >= board.getGameHeight() || i < 0 || i + 1 >= board.getGameWidth()) {
+		if (j < 0 || j + 1 >= board.getGameHeight() || i < 0 || i + 1 >= board.getGameWidth()) { // need 1 extra space to the right and below
 			return null;
 		}
 		
@@ -335,17 +347,17 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(new Location(i - 1, j - 1), new Location(i + 2, j - 1), new Location(i - 1, j + 2), new Location(i + 2, j + 2));
+		List<Location> missingMines = getMissingMines(board.getLocation(i - 1, j - 1), board.getLocation(i + 2, j - 1), board.getLocation(i - 1, j + 2), board.getLocation(i + 2, j + 2));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
 		if (missingMines == null || missingMines.size() + 2 > maxMissingMines || missingMines.size() + 2 > minesLeft) {
 			return null;
 		}
 		
-		Location tile1 = new Location(i, j);
-		Location tile2 = new Location(i, j + 1);
-		Location tile3 = new Location(i + 1, j);
-		Location tile4 = new Location(i + 1, j + 1);
+		Location tile1 = board.getLocation(i, j);
+		Location tile2 = board.getLocation(i, j + 1);
+		Location tile3 = board.getLocation(i + 1, j);
+		Location tile4 = board.getLocation(i + 1, j + 1);
 		
 		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1, tile4);
 		
@@ -496,9 +508,9 @@ public class LongTermRiskHelper {
 
 		// if the 2 diagonals exist then choose the pseudo from those, other wise choose the pseudo from the other diagonal
 		if (found == 2) {
-			pseudo = new Location(maxX, maxY);
+			pseudo = board.getLocation(maxX, maxY);
 		} else {
-			pseudo = new Location(maxX - 1, maxY);
+			pseudo = board.getLocation(maxX - 1, maxY);
 		}
 		
 	}
@@ -550,7 +562,7 @@ public class LongTermRiskHelper {
 				
 				if (influence.signum() !=0 ) {	  // if we are influenced by 50/50s
 
-					Location loc = new Location(i,j);
+					Location loc = board.getLocation(i,j);
 	
 					if (!currentPe.getDeadLocations().contains(loc)) {  // and not dead
 						
@@ -592,7 +604,7 @@ public class LongTermRiskHelper {
 		for (Location loc: tiles) {
 			
 			// if out of range don't return the location
-			if (loc.x >= board.getGameWidth() || loc.x < 0 || loc.y < 0 || loc.y >= board.getGameHeight()) {
+			if (loc == null) {
 				continue;
 			}
 			
@@ -602,7 +614,7 @@ public class LongTermRiskHelper {
 			}
 			
 			// if the location is already a mine then don't return the location
-	    	if (board.isConfirmedFlag(loc) || isMineInPe(loc.x, loc.y)) {
+	    	if (board.isConfirmedMine(loc) || isMineInPe(loc.x, loc.y)) {
 	    		continue;
 	    	}
 	    	
@@ -621,7 +633,7 @@ public class LongTermRiskHelper {
     		return false;
     	}
     	
-    	if (board.isConfirmedFlag(x, y) || isMineInPe(x, y)) {
+    	if (board.isConfirmedMine(x, y) || isMineInPe(x, y)) {
     		return false;
     	} else {
     		return true;
@@ -632,7 +644,7 @@ public class LongTermRiskHelper {
     // not a certain mine or revealed
     private boolean isHidden(int x, int y) {
     	
-    	if (board.isConfirmedFlag(x, y)) {
+    	if (board.isConfirmedMine(x, y)) {
     		return false;
     	}
     	

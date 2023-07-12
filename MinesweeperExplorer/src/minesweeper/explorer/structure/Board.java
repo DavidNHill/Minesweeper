@@ -347,7 +347,7 @@ public class Board extends AnchorPane {
 		} else {
 			InformationLocation il = gameInformation.get(tile.getLocation());
 			if (il != null) {
-				tooltipText.setText(Explorer.PERCENT.format(il.getProbability()) + " safe");
+				tooltipText.setText(Explorer.PERCENT.format(il.getSafety()) + " safe");
 				populateTileDetails(tile);
 			}
 		}
@@ -382,7 +382,7 @@ public class Board extends AnchorPane {
 		if (info != null) {
 			for (InformationLocation il: info.values()) {
 				Tile tile = getTile(il.x, il.y);
-				tile.setTextValue(il.getProbability());
+				tile.setTextValue(il.getSafety());
 			}			
 		}
 

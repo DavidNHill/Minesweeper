@@ -626,8 +626,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		// create the top node 
 		Node top = buildTopNode(allSolutions);
 		
+		int best = 0;
+		
 		if (top.getLivingLocations().isEmpty()) {
 			allDead = true;
+			best = 1;  // only 1 winning line if everything is dead
 		}
 		
 		this.movesToProcess = top.getLivingLocations().size();
@@ -639,7 +642,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			this.processCountExtension = 0;
 		}
 		
-		int best = 0;
+
 		
 		for (LivingLocation move: top.getLivingLocations()) {
 			
@@ -963,6 +966,16 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 
 		// the chosen location hasn't been processed
 		return null;
+	}
+
+	@Override
+	BigDecimal getSolveChance() {
+		return this.currentNode.getProbability();
+	}
+
+	@Override
+	List<? extends Location> getLocations() {
+		return locations;
 	}
 	
 }

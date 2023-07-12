@@ -1,5 +1,8 @@
 package minesweeper.solver;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -43,5 +46,9 @@ abstract public class BruteForceAnalysisModel {
 	abstract protected boolean allDead();
 	
 	abstract Area getDeadLocations();
+	
+	abstract BigDecimal getSolveChance();
+	
+	abstract List<? extends Location> getLocations();
 	
 }

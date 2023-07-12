@@ -16,8 +16,14 @@ public class BoardStateCache {
 		private int width;
 		private int height;
 		
+		protected Location[][] locations;
+		
 		protected AdjacentSquares[][] adjacentLocations1;
 		protected AdjacentSquares[][] adjacentLocations2;
+		
+		protected Location getLocation(int x, int y) {
+			return locations[x][y];
+		}
 		
 	}
 	
@@ -25,12 +31,10 @@ public class BoardStateCache {
 	protected class AdjacentSquares implements Iterable<Location> {
 
 		private Location loc;
-		//private Location nextLoc;
-		//private int index = 0;
 		private final int size;
 		private List<Location> locations;
 
-		AdjacentSquares(Location l, int width, int height, int size) {
+		AdjacentSquares(Cache cache, Location l, int width, int height, int size) {
 			this.loc = l;
 			this.size = size;
 			
@@ -38,7 +42,7 @@ public class BoardStateCache {
 				locations = new ArrayList<>(8);
 				for (int i=0; i < DX.length; i++) {
 					if (loc.x + DX[i] >= 0 && loc.x + DX[i] < width && loc.y + DY[i] >= 0 && loc.y + DY[i] < height) {
-						locations.add(new Location(loc.x + DX[i], loc.y + DY[i]));
+						locations.add(cache.getLocation(loc.x + DX[i], loc.y + DY[i]));
 					}		
 					
 				}
@@ -55,7 +59,7 @@ public class BoardStateCache {
 						if (i == loc.x && j == loc.y) {
 							// don't send back the central location
 						} else {
-							locations.add(new Location(i,j));
+							locations.add(cache.getLocation(i,j));
 						}
 						
 					}
@@ -89,6 +93,16 @@ public class BoardStateCache {
 		
 		cache.height = height;
 		cache.width = width;
+		
+		cache.locations = new Location[width][height];
+		
+		// Create a Location for each entry yon the board
+		for (int x=0; x < width; x++) {
+			for (int y=0; y < height; y++) {
+				cache.locations[x][y] = new Location(x,y);
+			}
+		}
+		
 		cache.adjacentLocations1 = new AdjacentSquares[width][height];
 		cache.adjacentLocations2 = new AdjacentSquares[width][height];
 
@@ -96,8 +110,8 @@ public class BoardStateCache {
 		for (int x=0; x < width; x++) {
 			for (int y=0; y < height; y++) {
 
-				cache.adjacentLocations1[x][y] = new AdjacentSquares(new Location(x,y), width, height, 1);
-				cache.adjacentLocations2[x][y] = new AdjacentSquares(new Location(x,y), width, height, 2);
+				cache.adjacentLocations1[x][y] = new AdjacentSquares(cache, cache.getLocation(x,y), width, height, 1);
+				cache.adjacentLocations2[x][y] = new AdjacentSquares(cache, cache.getLocation(x,y), width, height, 2);
 
 			}
 		}

@@ -15,7 +15,6 @@ import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.Solver.RunPeResult;
-import minesweeper.solver.bulk.GamePostListener;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
@@ -55,6 +54,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private final LongTermRiskHelper ltrHelper;
 	
 	private final BigDecimal progressContribution;
+	private final static BigDecimal essrContribution = new BigDecimal("0.02");
 	
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
 	private EvaluatedLocation best;
@@ -314,7 +314,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		BigDecimal maxValueProgress = BigDecimal.ZERO;
 		BigDecimal secondarySafety = BigDecimal.ZERO;
 		BigDecimal progressProb = BigDecimal.ZERO;
-
+		BigDecimal ess = BigDecimal.ONE.subtract(safetyThisTile); // expect solution space = p(mine) + sum[ P(n)*p(n) ]
+		
 		BigDecimal safetyThisTileLeft = safetyThisTile;
 		
 		int validValues = 0;
@@ -339,6 +340,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			BigInteger sol = counter.getSolutionCount();
 			int clears = counter.getLivingClearCount();
 
+			
 			// keep track of the maximum probability across all valid values
 			if (sol.signum() != 0) {
 				
@@ -353,6 +355,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 				
 				maxValueProgress = maxValueProgress.max(prob);  // mini-max
+				
+				ess = ess.add(prob.multiply(prob));  // sum of p^2
 
 				// expected clears is the sum of the number of mines cleared * the probability of clearing them
 				expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
@@ -368,6 +372,14 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				secondarySafety = secondarySafety.add(prob.multiply(nextMoveSafety).multiply(fiftyFiftyInfluence));
 				
 				if (clears > linkedTilesCount) {
+					//BigDecimal modProb;
+					//if (clears == linkedTilesCount + 1) {
+					//	modProb = prob.multiply(BigDecimal.valueOf(0.8));
+					//} else {
+					//	modProb = prob;
+					//}
+					//modProb = prob.multiply(BigDecimal.valueOf(clears - linkedTilesCount));
+					
 					progressProb = progressProb.add(prob);
 				}
 				
@@ -385,8 +397,14 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			certainProgress = true;
 		}
 
+		// expected solution space reduction
+		BigDecimal essr = BigDecimal.ONE.subtract(ess);
+		
 		// calculate the weight
 		BigDecimal bonus = BigDecimal.ONE.add(progressProb.multiply(this.progressContribution));
+		
+		//bonus = bonus.add(essr.multiply(this.essrContribution));
+		
 		BigDecimal weight = secondarySafety.multiply(bonus);
 		
 		result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueProgress);
@@ -439,7 +457,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 			int unrevealed = boardState.getTotalUnrevealedCount() - 1;  // this is one less, because we have added a witness
 
-			int minesLeft = boardState.getMines() - boardState.getConfirmedFlagCount();
+			int minesLeft = boardState.getMines() - boardState.getConfirmedMineCount();
 
 			ProbabilityEngineModel counter = new ProbabilityEngineFast(boardState, newWeb, unrevealed, minesLeft);
 

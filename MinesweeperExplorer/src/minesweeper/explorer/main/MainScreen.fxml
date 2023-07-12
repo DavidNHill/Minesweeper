@@ -45,10 +45,12 @@
             <items>
                   <Menu mnemonicParsing="false" text="Tile size">
                     <items>
-                        <RadioMenuItem fx:id="tileSize16" mnemonicParsing="false" onAction="#resizeBoard" text="16 pixels">
+                        <RadioMenuItem fx:id="tileSize12" mnemonicParsing="false" onAction="#resizeBoard" text="12 pixels">
                            <toggleGroup>
                               <ToggleGroup fx:id="tilesize" />
-                           </toggleGroup></RadioMenuItem>
+                           </toggleGroup>
+                        </RadioMenuItem>
+                        <RadioMenuItem fx:id="tileSize16" mnemonicParsing="false" onAction="#resizeBoard" text="16 pixels" toggleGroup="$tilesize" />
                         <RadioMenuItem fx:id="tileSize24" mnemonicParsing="false" onAction="#resizeBoard" selected="true" text="24 Pixels" toggleGroup="$tilesize" />
                         <RadioMenuItem fx:id="tileSize32" mnemonicParsing="false" onAction="#resizeBoard" text="32 pixels" toggleGroup="$tilesize" />
                     </items>

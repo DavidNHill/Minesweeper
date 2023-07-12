@@ -5,6 +5,7 @@
 package minesweeper.gamestate;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import minesweeper.random.RNG;
@@ -46,6 +47,9 @@ abstract public class GameStateModel {
     private int total3BV;
     private int cleared3BV;
     private int actionCount = 0;
+    
+    // how many tiles with values 0 - 8 are on the board
+    private int[] values = new int[9];
     
     protected boolean allowEarlyFinish = true;
     
@@ -106,6 +110,14 @@ abstract public class GameStateModel {
         }
         
         return result;
+    }
+    
+    public List<Action> identifyLocations(Collection<? extends Location> locs) {
+    	return null;
+    }
+    
+    public void resign() {
+    	finish(GameStateModel.LOST);
     }
 
     // returns false if the move is not allowed
@@ -320,7 +332,6 @@ abstract public class GameStateModel {
             for (int j=0; j < height; j++) {
                 Location l = new Location(i,j);
                 if (query(l) == GameStateModel.HIDDEN) {
-                    //doAction(new Action(l, Action.FLAG));
                 	placeFlag(l);
                 }
             }
@@ -376,11 +387,13 @@ abstract public class GameStateModel {
     
     /**
      * to be overridden - returns the number of mines around the square at this location.
-     * or GameStateModel.HIDDENED, .MINE, .FLAG .EXPLODED_MINE
      */
-    abstract protected int queryHandle(Location m);
+    final protected int queryHandle(Location m) {
+    	return queryHandle(m.x, m.y);
+    };
     
-
+    abstract protected int queryHandle(int x, int y);
+    
     // allows a sub class to check what has been opened
     protected boolean isHidden(int x, int y) {
     	return !revealed[x][y] && !flag[x][y];
@@ -515,7 +528,17 @@ abstract public class GameStateModel {
     	
     	if (!supports3BV()) {
     		total3BV = 0;
+    		return;
     	}
+    	
+    	// find how many of each value there is on the board
+        for (int i=0; i < width; i++) {
+            for (int j=0; j < height; j++) {
+                if (queryHandle(i, j) != GameStateModel.MINE) {
+                   	values[queryHandle(i, j)]++;
+                }
+            }
+        }        
     	
     	total3BV = 0;
     	
@@ -526,8 +549,8 @@ abstract public class GameStateModel {
     	// find all the areas enclosing zeros
         for (int i=0; i < width; i++) {
             for (int j=0; j < height; j++) {
-                Location start = new Location(i,j);
-                if (!done[i][j] && queryHandle(start) != GameStateModel.MINE && queryHandle(start) == 0) {
+                //Location start = new Location(i,j);
+                if (!done[i][j] && queryHandle(i, j) != GameStateModel.MINE && queryHandle(i, j) == 0) {
 
                 	//System.out.println("found zeros at " + start.display());
                 	total3BV++;
@@ -535,7 +558,7 @@ abstract public class GameStateModel {
                 	
                     int processFrom = 0;
                     interiorList.clear();
-                    interiorList.add(start);
+                    interiorList.add(new Location(i,j));
                     
                     done[i][j] = true;
                     
@@ -552,15 +575,15 @@ abstract public class GameStateModel {
                             // check each of the surrounding squares which haven't already been checked
                             if (x1 >= 0 && x1 < width && y1 >= 0 && y1 < height) {
                             	
-                            	Location l = new Location(x1, y1);
+                            	//Location l = new Location(x1, y1);
                             	
                             	if (!done[x1][y1]) {
                             		
                             		done[x1][y1] = true;
 
                                     // if this square is also a zero then add it to the list of locations to be exploded
-                                    if (queryHandle(l) != GameStateModel.MINE && queryHandle(l) == 0) {
-                                    	interiorList.add(l);
+                                    if (queryHandle(x1, y1) != GameStateModel.MINE && queryHandle(x1, y1) == 0) {
+                                    	interiorList.add(new Location(x1, y1));
                                     }                		
                             	}
 
@@ -578,8 +601,8 @@ abstract public class GameStateModel {
     	// find all the non-mine tile left
         for (int i=0; i < width; i++) {
             for (int j=0; j < height; j++) {
-                Location start = new Location(i,j);
-                if (queryHandle(start) != GameStateModel.MINE && !done[i][j]) {
+                //Location start = new Location(i,j);
+                if (queryHandle(i, j) != GameStateModel.MINE && !done[i][j]) {
                 	//System.out.println("found non-edge " + start.display());
                    	is3BV[i][j] = true;
                 	total3BV++;
@@ -678,6 +701,13 @@ abstract public class GameStateModel {
      */
     final public int getHidden() {
     	return this.width * this.height - this.squaresRevealed;
+    }
+    
+    /**
+     * Returns the occurrences of value in the game
+     */
+    final public int getValueCount(int value) {
+    	return this.values[value];
     }
     
     /**

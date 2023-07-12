@@ -435,13 +435,10 @@ public class BruteForce {
 	
 	/**
 	 * Returns the probability that this square is not a mine
-	 * @param x
-	 * @param y
-	 * @return
 	 */
 	public BigDecimal getProbability(int x, int y) {
 		
-		Location l = new Location(x,y);
+		Location l = this.boardState.getLocation(x,y);
 		
 		if (crunchResult == null) {   // this can happen if there are no mines left to find, so everything is a clear
 			for (Location loc: web.getSquares()) {   // if the mouse is hovering over one of the brute forced squares

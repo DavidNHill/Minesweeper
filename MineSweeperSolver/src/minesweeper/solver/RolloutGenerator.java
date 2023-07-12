@@ -151,10 +151,10 @@ public class RolloutGenerator {
     	for (int x=0; x < width; x++) {
     		for (int y=0; y < height; y++) {
     			if (boardState.isRevealed(x, y)) {
-    				revealedTiles.add(new Location(x,y));
+    				revealedTiles.add(boardState.getLocation(x,y));
     			}
-    			if (boardState.isConfirmedFlag(x,y)) {
-    				placedMines.add(new Location(x,y));
+    			if (boardState.isConfirmedMine(x,y)) {
+    				placedMines.add(boardState.getLocation(x,y));
     			}
     		}
     	}

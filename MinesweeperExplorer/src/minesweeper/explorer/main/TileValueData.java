@@ -1,7 +1,5 @@
 package minesweeper.explorer.main;
 
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import minesweeper.solver.constructs.InformationLocation.ByValue;

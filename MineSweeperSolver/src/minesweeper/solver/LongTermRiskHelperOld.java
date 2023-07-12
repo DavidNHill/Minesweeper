@@ -550,7 +550,7 @@ public class LongTermRiskHelperOld {
     		return false;
     	}
     	
-    	if (board.isConfirmedFlag(x, y) || isMineInPe(x, y)) {
+    	if (board.isConfirmedMine(x, y) || isMineInPe(x, y)) {
     		return false;
     	} else {
     		return true;

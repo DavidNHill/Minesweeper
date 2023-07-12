@@ -66,8 +66,9 @@ public class BulkWorker implements Runnable {
 		}
 		
 		Solver solver = new Solver(request.gs, this.solverSettings, false);
-		solver.setFlagFree(controller.getPlayStyle().flagless);
-		solver.setPlayChords(controller.getPlayStyle().useChords);
+		solver.setPlayStyle(controller.getPlayStyle());
+		//solver.setFlagFree(controller.getPlayStyle().flagless);
+		//solver.setPlayChords(controller.getPlayStyle().useChords);
 		
 		int loopCounter = 0;
 		
@@ -123,7 +124,7 @@ public class BulkWorker implements Runnable {
 				}
 
 				if (state == GameStateModel.LOST && moves[i].isCertainty()) {
-					System.err.println("Game (" + request.gs.showGameKey() + ") lost on move with probablity = " + prob + " :" + moves[i].toString());
+					System.err.println("Game (" + request.gs.showGameKey() + ") lost on move with probability = " + prob + " :" + moves[i].toString());
 				}
 
 				if (state == GameStateModel.LOST || state == GameStateModel.WON) {
@@ -131,6 +132,8 @@ public class BulkWorker implements Runnable {
 				}
 			}            
 		}
+		
+		request.gameValue = solver.getWinValue();
 	}
 	
 	protected void stop() {

@@ -6,15 +6,15 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.bulk.GamePreListener;
 import minesweeper.structure.Action;
 
-public class StartStrategy extends GamePreListener {
+public class StartStrategyResign extends GamePreListener {
 
 	private List<Action> preActions;
 	private int requiredZeros;
 	
 	/**
-	 * Play the strategy until the required number of zeros has been found
+	 * Play the strategy until the required number of zeros has been found.  If first guess isn't a zero then resign
 	 */
-	public StartStrategy(List<Action> preActions, int requiredZeros) {
+	public StartStrategyResign(List<Action> preActions, int requiredZeros) {
 		this.preActions = preActions;
 		this.requiredZeros = requiredZeros;
 	}
@@ -31,6 +31,10 @@ public class StartStrategy extends GamePreListener {
 			actionCount++;
 			
 			if (game.getGameState() == GameStateModel.LOST  || game.getGameState() == GameStateModel.WON) {
+				break;
+			}
+			if (actionCount == 1 && game.query(a) != 0) {
+				game.resign();
 				break;
 			}
 			if (game.query(a) == 0) {

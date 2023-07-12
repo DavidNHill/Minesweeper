@@ -88,7 +88,7 @@ public class FiftyFiftyHelper {
 						}
 						
 						// if we are monitoring and not a mine then see if we are also monitoring all the other mines
-						if (toCheck && !board.isConfirmedFlag(adjTile) && !extraMines.contains(adjTile)) {  
+						if (toCheck && !board.isConfirmedMine(adjTile) && !extraMines.contains(adjTile)) {  
 							for (Square otherTile: witness.getSquares()) {
 								if (!otherTile.equals(adjTile) && !adjTile.isAdjacent(otherTile)) {
 									//board.display("Tile " + adjTile.display() + " is not monitoring " + otherTile.display());
@@ -107,7 +107,7 @@ public class FiftyFiftyHelper {
 					}
 				}
 				if (unavoidable) {
-					Location guess =  board.getSolver().getLowest(witness.getSquares());
+					Location guess =  board.getSolver().getLowest(witness.getSquares(), deadLocations);
 					board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess", guess);
 					return guess;
 				}
@@ -155,7 +155,7 @@ public class FiftyFiftyHelper {
 								if (extension.closed2) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
 										board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
-										return board.getSolver().getLowest(area5050);		
+										return board.getSolver().getLowest(area5050, deadLocations);		
 									} else {
 										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
@@ -178,7 +178,7 @@ public class FiftyFiftyHelper {
 								if (extension.closed1) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
 										board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
-										return board.getSolver().getLowest(area5050);		
+										return board.getSolver().getLowest(area5050, deadLocations);		
 									} else {
 										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
@@ -330,7 +330,7 @@ public class FiftyFiftyHelper {
 		
 		board.getLogger().log(Level.INFO, "Starting search for 50/50s");
     	
-    	int minesLeft = board.getMines() - board.getConfirmedFlagCount();
+    	int minesLeft = board.getMines() - board.getConfirmedMineCount();
     	
     	
     	// horizontal 2x1
@@ -347,8 +347,8 @@ public class FiftyFiftyHelper {
 					continue;  // this skips the rest of the logic below this in the for-loop 
 				}
 				
-				Location tile1 = new Location(i, j);
-				Location tile2 = new Location(i + 1, j);
+				Location tile1 = this.board.getLocation(i, j);
+				Location tile2 = this.board.getLocation(i + 1, j);
 				
 				//board.getLogger().log(Level.INFO, tile1 + " and " + tile2 + " is candidate 50/50");
 				
@@ -398,8 +398,8 @@ public class FiftyFiftyHelper {
 					continue;  // this skips the rest of the logic below this in the for-loop 
 				}
 				
-				Location tile1 = new Location(i, j);
-				Location tile2 = new Location(i, j + 1);
+				Location tile1 = this.board.getLocation(i, j);
+				Location tile2 = this.board.getLocation(i, j + 1);
 				
 				//board.getLogger().log(Level.INFO, tile1 + " and " + tile2 + " is candidate 50/50");
 				
@@ -599,10 +599,10 @@ public class FiftyFiftyHelper {
 					continue;  // this skips the rest of the logic below this in the for-loop 
 				}
 				
-				tiles[0] = new Location(i, j);
-				tiles[1] = new Location(i + 1, j);
-				tiles[2] = new Location(i, j + 1);
-				tiles[3] = new Location(i + 1, j + 1);
+				tiles[0] = this.board.getLocation(i, j);
+				tiles[1] = this.board.getLocation(i + 1, j);
+				tiles[2] = this.board.getLocation(i, j + 1);
+				tiles[3] = this.board.getLocation(i + 1, j + 1);
 				
 				board.getLogger().log(Level.INFO, "%s %s %s %s is candidate box pseudo-50/50", tiles[0], tiles[1], tiles[2], tiles[3]);
 
@@ -678,7 +678,7 @@ public class FiftyFiftyHelper {
     		return false;
     	}
     	
-    	if (board.isConfirmedFlag(x, y)) {
+    	if (board.isConfirmedMine(x, y)) {
     		return false;
     	} else {
     		return true;

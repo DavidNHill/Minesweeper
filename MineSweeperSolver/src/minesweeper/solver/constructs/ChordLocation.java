@@ -1,7 +1,6 @@
 package minesweeper.solver.constructs;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
 
@@ -22,10 +21,11 @@ public class ChordLocation extends Location {
 		this.benefit = benefit;
 		this.cost = cost;
 		this.exposedTiles = exposedTiles;
-		//this.netBenefit = BigDecimal.valueOf(benefit - cost).multiply(scale);   // absolute benefit without regard for the cost
 		 
 		this.netBenefit = chordReward(benefit, cost).multiply(scale);
-		this.scale = scale;
+		//this.netBenefit = chordReward(benefit, cost);
+		
+		this.scale = scale;  // probability of being a mine
 		this.mines = mines;
 	}
 	
@@ -83,11 +83,23 @@ public class ChordLocation extends Location {
 		@Override
 		public int compare(ChordLocation o1, ChordLocation o2) {
 			
-			if (o2.netBenefit == o1.netBenefit) {
-				return o2.exposedTiles - o1.exposedTiles;
-			} else {
-				return o2.netBenefit.compareTo(o1.netBenefit);
+			int c = o2.netBenefit.compareTo(o1.netBenefit);
+			
+			if (c==0) {
+				c = o2.exposedTiles - o1.exposedTiles;
 			}
+			
+			if (c==0) {
+				c = o2.scale.compareTo(o1.scale);
+			}
+			
+			return c;
+			
+			//if (o2.netBenefit == o1.netBenefit) {
+			//	return o2.exposedTiles - o1.exposedTiles;
+			//} else {
+			//	return o2.netBenefit.compareTo(o1.netBenefit);
+			//}
 
 		}
 	};

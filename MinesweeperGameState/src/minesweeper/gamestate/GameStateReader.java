@@ -283,8 +283,8 @@ public class GameStateReader extends GameStateModelViewer {
     
     
     @Override
-    protected int queryHandle(Location m) {
-        return board[m.x][m.y];
+    protected int queryHandle(int x, int y) {
+        return board[x][y];
     }
     
     

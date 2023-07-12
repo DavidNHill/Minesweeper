@@ -15,6 +15,14 @@ public class EfficiencyMonitor extends GamePostListener {
 	private int eff100 = 0;
 	private int wins = 0;
 	private int played = 0;
+	private int announcementCount = 0;
+	private int clicks = 0;
+	
+	private final double reportThreshold;
+	
+	public EfficiencyMonitor(double reportThreshold) {
+		this.reportThreshold = reportThreshold;
+	}
 	
 	@Override
 	public void postAction(BulkRequest request) {
@@ -22,18 +30,22 @@ public class EfficiencyMonitor extends GamePostListener {
 		GameStateModel game = request.getGame();
 		
 		played++;
+		clicks = clicks + game.getActionCount();
 		
 		if (game.getGameState() == GameStateModel.WON) {
 			wins++;
 			double efficiency = 100 * ((double) game.getTotal3BV() / (double) game.getActionCount());
-			if (efficiency >= 140) {
-				System.out.println(game.getSeed() + " has 3BV " + game.getTotal3BV() + " efficiency " + efficiency);
+			if (efficiency >= reportThreshold) {
+				announcementCount++;
+				System.out.println(announcementCount + ") " + game.getSeed() + " has 3BV " + game.getTotal3BV() + " efficiency " + efficiency);
 			}		
 			
 			int inteff = (int) Math.floor(efficiency);
-
 			if (inteff >= 100) {
 				eff100++;
+			}
+			
+			if (inteff >= 0) {
 				if (table.containsKey(inteff)) {
 					int tally = table.get(inteff);
 					tally++;
@@ -48,7 +60,12 @@ public class EfficiencyMonitor extends GamePostListener {
 
 	public void postResults() {
 		
-		System.out.println("Efficiency > 100% : " + eff100 + " from " + wins + " wins out of " + played + " played");
+		int clicksPerEff100 = 0;
+		if (eff100 > 0) {
+			clicksPerEff100 = clicks / eff100;
+		}
+		
+		System.out.println("Efficiency >= 100% : " + eff100 + " from " + wins + " wins out of " + played + " played, clicks " + clicks + ", clicks/eff100 " + clicksPerEff100);
 		
 		List<Integer> results = new ArrayList<>(table.keySet());
 		results.sort(null);

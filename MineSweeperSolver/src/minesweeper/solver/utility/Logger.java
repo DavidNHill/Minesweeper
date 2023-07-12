@@ -33,9 +33,9 @@ public class Logger {
 		this.logLevel = level;
 		this.logName = logName;
 		if (this.logName.isEmpty()) {
-			this.prefix = this.logLevel + " ";
+			this.prefix = " ";
 		} else {
-			this.prefix = this.logLevel + " " + this.logName + " ";
+			this.prefix = " " + this.logName + " ";
 		}
 
 	}
@@ -62,7 +62,7 @@ public class Logger {
 			output = sb.toString();
 		}
 		
-		System.out.println(prefix + output);
+		System.out.println(level + prefix + output);
 		
 	}
 	

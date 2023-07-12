@@ -10,7 +10,7 @@ import minesweeper.structure.Location;
 
 public class InformationLocation extends Location {
 
-	public final static BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
+	//public final static BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 	
 	public class ByValue {
 		
@@ -27,7 +27,7 @@ public class InformationLocation extends Location {
 	}
 	
 	
-	private BigDecimal prob;
+	private BigDecimal safety;
 	private BigDecimal expectedClears;
 	private BigDecimal progressProbability;
 	private BigDecimal weighting;
@@ -49,7 +49,7 @@ public class InformationLocation extends Location {
 		
 		BigDecimal expClears = BigDecimal.ZERO;
 		BigDecimal progProb = BigDecimal.ZERO;
-		BigDecimal essr = BigDecimal.ZERO;
+		BigDecimal ess = BigDecimal.ONE.subtract(this.safety); // expect solution space = p(mine) + sum[ P(n)*p(n) ]
 		BigDecimal powerClears = BigDecimal.ZERO;
 		
 		
@@ -60,7 +60,7 @@ public class InformationLocation extends Location {
 		for (ByValue bv: byValues) {
 			
 			//essr = essr.add(bv.probability.multiply(BigDecimal.ONE.subtract(bv.probability)));  // sum of p(1-p)
-			essr = essr.add(bv.probability.multiply(bv.probability));  // sum of p^2
+			ess = ess.add(bv.probability.multiply(bv.probability));  // sum of p^2
 			
 			if (bv.clears != 0) {
 				progProb = progProb.add(bv.probability);
@@ -72,14 +72,14 @@ public class InformationLocation extends Location {
 		
 		this.expectedClears = expClears;
 		this.progressProbability = progProb;
-		this.expectedSolutionSpaceReduction = essr;
+		this.expectedSolutionSpaceReduction = ess;
 		
 		BigDecimal bonus = BigDecimal.ONE.add(progressProbability.multiply(Solver.PROGRESS_VALUE));
 		
-		this.weighting = this.prob.multiply(bonus);
+		this.weighting = this.safety.multiply(bonus);
 		
-		if (this.prob.compareTo(BigDecimal.ONE) != 0) {
-			this.mTanzerRatio = this.progressProbability.divide(BigDecimal.ONE.subtract(prob), 4, RoundingMode.HALF_DOWN);
+		if (this.safety.compareTo(BigDecimal.ONE) != 0) {
+			this.mTanzerRatio = this.progressProbability.divide(BigDecimal.ONE.subtract(safety), 4, RoundingMode.HALF_DOWN);
 		}
 
 		//if (this.prob.compareTo(BigDecimal.ONE) != 0) {
@@ -88,12 +88,12 @@ public class InformationLocation extends Location {
 		
 	}
 	
-	public BigDecimal getProbability() {
-		return this.prob;
+	public BigDecimal getSafety() {
+		return this.safety;
 	}
 
-	public void setProbability(BigDecimal prob) {
-		this.prob = prob;
+	public void setSafety(BigDecimal prob) {
+		this.safety = prob;
 	}
 	
 	public void setByValue(int value, int clears, BigDecimal prob) {

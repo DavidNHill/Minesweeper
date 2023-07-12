@@ -1,5 +1,8 @@
 package minesweeper.solver.bulk;
 
+/**
+ * The "postAction" method is run after each game finishes
+ */
 public abstract class GamePostListener {
 
 	/**
