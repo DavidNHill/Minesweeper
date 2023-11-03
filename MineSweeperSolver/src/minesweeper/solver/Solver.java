@@ -102,6 +102,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 	public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety
 	final static BigDecimal PROB_ENGINE_HARD_TOLERENCE = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
+	
 	final static BigDecimal PROGRESS_MULTIPLIER = BigDecimal.ONE.add(PROGRESS_VALUE);
 	//final static BigDecimal OFF_EDGE_TOLERENCE = BigDecimal.ONE.subtract(PROGRESS_VALUE); // consider off edge tiles which if they are above the threshold of the best on edge tile
 
@@ -176,8 +177,6 @@ public class Solver implements Asynchronous<Action[]> {
 	// won't play the book opening on start if false
 	private boolean playOpening = true;
 
-	private boolean early5050Check = false;
-	
 	// If we are only interested in the win rate we can cheat when we encounter isolated edges
 	// if there is x chance of surviving the edge then 
 	private boolean winRateOnly = false;
@@ -302,14 +301,6 @@ public class Solver implements Asynchronous<Action[]> {
 	 * @param flagFree
 	 */
 
-	//public void setFlagFree(boolean flagFree) {
-	//	this.flagFree = flagFree;
-	//}
-
-	//public boolean isFlagFree() {
-	//	return this.flagFree;
-	//}
-
 	/**
 	 * True indicates the solver should play the opening move at the start
 	 * @param flagFree
@@ -318,13 +309,6 @@ public class Solver implements Asynchronous<Action[]> {
 		this.playOpening = playOpening;
 	}
 
-	/**
-	 * Use this to override the default start location (which depends on the game type being played)
-	 * @param startLocation
-	 */
-	//public void setStartLocation(Location startLocation) {
-	//	overriddenStartLocation = startLocation;
-	//}
 
 	/**
 	 * Sets the solver play style
@@ -524,8 +508,28 @@ public class Solver implements Asynchronous<Action[]> {
 		newLine("There are " + displayLessObvious + " locally certain moves found in " + (time3 - time2) + " milliseconds");
 
 		this.logger.log(Level.INFO, "There are %d trivial / locally discoverable certain moves", (displayObvious + displayLessObvious));
+		
+		// look for unavoidable 50/50 here if we are doing early checks
+		// -7317529077410525620
+		if (this.preferences.isEarly5050Check()) {
+	        FiftyFiftyHelper fiftyFiftyHelper = null;
+             if (preferences.isDo5050Check()) {
+            	fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, Area.EMPTY_AREA);
+            	Location findFifty = fiftyFiftyHelper.findUnavoidable5050(Collections.emptyList());
 
-		if (this.playStyle.efficiency || early5050Check) {
+            	if (findFifty != null) {
+    				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5));  
+    				fm = new FinalMoves(a);
+
+            		newLine("--------- Unavoidable Guess ---------");
+            		newLine("An unavoidable guess has been found - playing now to save time");
+            		this.logger.log(Level.DEBUG, "Fifty/Fifty found in game %s : %s", myGame.showGameKey(), fm.result[0] );
+            		return fm;
+            	}
+            }
+		}
+
+		if (this.playStyle.efficiency) {
 
 			fm = new FinalMoves(new Action[0]); 
 
@@ -653,27 +657,6 @@ public class Solver implements Asynchronous<Action[]> {
 		}
 
 		boolean certainClearFound = pe.foundCertainty();
-
-		// look for unavoidable 50/50 here if we are doing early checks
-		// -7317529077410525620
-		if (early5050Check) {
-	        FiftyFiftyHelper fiftyFiftyHelper = null;
-             if (preferences.isDo5050Check()) {
-            	fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
-            	Location findFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
-
-            	if (findFifty != null) {
-    				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
-    				fm = new FinalMoves(a);
-
-            		newLine("--------- Unavoidable Guess ---------");
-            		newLine("An unavoidable guess has been found - playing now to save time");
-            		this.logger.log(Level.DEBUG, "Fifty/Fifty found in game %s : %s", myGame.showGameKey(), fm.result[0] );
-            		return fm;
-            	}
-            }
-		}
-
 
 		// if there are no certain moves then process any Isolated non-dead edges we have found
 		if (!certainClearFound && !pe.getIsolatedEdges().isEmpty()) {
@@ -873,7 +856,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 		// look for unavoidable 50/50
 		FiftyFiftyHelper fiftyFiftyHelper = null;
-		if (!certainClearFound && !fm.moveFound && !early5050Check) {
+		if (!certainClearFound && !fm.moveFound) {
 			if (preferences.isDo5050Check()) {
 				fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
 				Location findFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
@@ -895,12 +878,11 @@ public class Solver implements Asynchronous<Action[]> {
 		if (!certainClearFound && !fm.moveFound) {
 			ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
 			if (preferences.isDo5050Check()) {
-				//Location findFifty = fiftyFiftyHelper.process(pe);
 
 				Location findFifty = ltr.findInfluence();
 
 				if (findFifty != null) {
-					Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
+					Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Pseudo Fifty-Fifty",  pe.getProbability(findFifty));  
 					fm = new FinalMoves(a);
 
 					newLine("--------- Unavoidable Guess ---------");
@@ -1644,14 +1626,14 @@ public class Solver implements Asynchronous<Action[]> {
 
 		// looking for created 50/50s doesn't seem to help the win rate
 		/*
-    	 Location findFifty = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations).findUnavoidable5050(result.pe.getMines());
-
-    	 if (findFifty != null) {
-    		 //this.logger.log(Level.WARN, "Fifty/Fifty created in game %s : %s", myGame.showGameKey(), findFifty );
-    		 result.found5050 = true;
-    	 }
-		 */
-
+		Location findFifty = new FiftyFiftyHelper(boardState, edge, deadLocations).findUnavoidable5050(result.pe.getMines(), Logger.NO_LOGGING);
+	
+		if (findFifty != null) {
+			this.logger.log(Level.WARN, "Fifty/Fifty created in game %s : %s", myGame.showGameKey(), findFifty );
+			result.found5050 = true;
+		}
+		*/
+		
 		// undo the move
 		boardState.clearWitness(location);
 

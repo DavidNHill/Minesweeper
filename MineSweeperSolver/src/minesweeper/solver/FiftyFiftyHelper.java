@@ -10,6 +10,7 @@ import java.util.Set;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
@@ -57,8 +58,12 @@ public class FiftyFiftyHelper {
 		this.deadLocations = deadLocations;
 		
 	}
-
+	
 	public Location findUnavoidable5050(List<Location> extraMines) {
+		return findUnavoidable5050(extraMines, board.getLogger());
+	}
+
+	public Location findUnavoidable5050(List<Location> extraMines, Logger logger) {
 		
 		List<Link> links = new ArrayList<>();
 		
@@ -72,7 +77,7 @@ public class FiftyFiftyHelper {
 				link.tile2 = witness.getSquares().get(1);
 				
 				
-				board.getLogger().log(Level.INFO, "Witness %s is a possible unavoidable guess witness for %s and %s", witness, link.tile1, link.tile2);
+				logger.log(Level.INFO, "Witness %s is a possible unavoidable guess witness for %s and %s", witness, link.tile1, link.tile2);
 				boolean unavoidable = true;
 				// if every monitoring tile also monitors all the other tiles then it can't provide any information
 				for (Square tile: witness.getSquares()) {  
@@ -92,7 +97,7 @@ public class FiftyFiftyHelper {
 							for (Square otherTile: witness.getSquares()) {
 								if (!otherTile.equals(adjTile) && !adjTile.isAdjacent(otherTile)) {
 									//board.display("Tile " + adjTile.display() + " is not monitoring " + otherTile.display());
-									board.getLogger().log(Level.DEBUG, "Tile %S can receive exclusive information from %s", tile, adjTile);
+									logger.log(Level.DEBUG, "Tile %S can receive exclusive information from %s", tile, adjTile);
 									link.trouble.add(adjTile);
 									if (tile.equals(link.tile1)) {
 										link.closed1 = false;
@@ -108,7 +113,7 @@ public class FiftyFiftyHelper {
 				}
 				if (unavoidable) {
 					Location guess =  board.getSolver().getLowest(witness.getSquares(), deadLocations);
-					board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess", guess);
+					logger.log(Level.INFO, "Tile %s is an unavoidable guess", guess);
 					return guess;
 				}
 				
@@ -154,10 +159,10 @@ public class FiftyFiftyHelper {
 								
 								if (extension.closed2) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
-										board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
+										logger.log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
 										return board.getSolver().getLowest(area5050, deadLocations);		
 									} else {
-										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
+										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
 										openTile = null;
 									}		
@@ -177,10 +182,10 @@ public class FiftyFiftyHelper {
 								
 								if (extension.closed1) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
-										board.getLogger().log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
+										logger.log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
 										return board.getSolver().getLowest(area5050, deadLocations);		
 									} else {
-										board.getLogger().log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
+										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
 										openTile = null;
 									}
@@ -285,7 +290,7 @@ public class FiftyFiftyHelper {
 		}
 		*/
 		
-		board.getLogger().log(Level.INFO, "%d locations set to defered guessing", deferGuessing.size());
+		logger.log(Level.INFO, "%d locations set to defered guessing", deferGuessing.size());
 		return null;
 		
 	}

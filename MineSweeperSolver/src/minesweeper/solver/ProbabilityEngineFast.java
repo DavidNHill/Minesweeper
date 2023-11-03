@@ -18,6 +18,7 @@ import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
+import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Area;
@@ -156,6 +157,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 	}
 	
+	private SolverSettings settings;
 	private long duration;
 	
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
@@ -212,12 +214,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 	public ProbabilityEngineFast(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft) {
 		this(boardState, web, squaresLeft, minesLeft, boardState.getLogger());
-		
 	}
+	
 	public ProbabilityEngineFast(BoardState boardState, WitnessWeb web, int squaresLeft, int minesLeft, Logger logger) {
 		
 		this.boardState = boardState;
 		this.logger = logger;
+		this.settings = this.boardState.getSolver().preferences;
+		
 		this.web = web;
 		this.minesLeft = minesLeft;
 		this.squaresLeft = squaresLeft - web.getSquares().size();
@@ -1083,6 +1087,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	}
 	
+	/*
 	@Override
 	protected BigDecimal getBestNotDeadSafety() {
 		
@@ -1104,6 +1109,50 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	
 		return safest;
+		
+	}
+	*/
+	
+	@Override
+	protected BigDecimal getBestNotDeadSafety() {
+		
+		// see if we can do better than off edge
+		BigDecimal safest1 = this.offEdgeSafety;
+		BigDecimal safest2 = this.offEdgeSafety;
+		
+		for (Box b: this.boxes) {
+			if (b.getSafety().compareTo(safest2) > 0 ) {
+				for (Square squ: b.getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					if (!isDead) {  // if not a dead location then use it
+						if (b.getSafety().compareTo(safest1) > 0) {
+							safest2 = safest1;
+							safest1 = b.getSafety();
+						} else {
+							safest2 = b.getSafety();
+						}						
+
+					} else {
+						//logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
+					}
+				}
+			}
+		}
+		
+	
+		return weightedAverage(safest1, settings.getWeight1(), safest2, settings.getWeight2());
+		
+	}
+	
+	
+	private BigDecimal weightedAverage(BigDecimal d1, int w1, BigDecimal d2, int w2) {
+		
+		BigDecimal r1 = d1.multiply(BigDecimal.valueOf(w1));
+		BigDecimal r2 = d2.multiply(BigDecimal.valueOf(w2));
+		
+		BigDecimal result = r1.add(r2).divide(BigDecimal.valueOf(w1 + w2), Solver.DP, RoundingMode.HALF_UP);
+		
+		return result;
 		
 	}
 	

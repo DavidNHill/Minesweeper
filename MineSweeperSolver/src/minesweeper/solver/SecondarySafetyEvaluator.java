@@ -29,7 +29,9 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	//private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.1");  // was 0.1
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 	
-	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");
+	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");   // was 0.9
+	
+	private final static BigDecimal HALF = new BigDecimal("0.5");
 	
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT; 
 	
@@ -223,27 +225,27 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private EvaluatedLocation doFullEvaluateTile(Location tile) {
 		
 		// find how many common tiles 
-		SolutionCounter counter1 = solver.validatePosition(wholeEdge, Collections.emptyList(), Arrays.asList(tile), Area.EMPTY_AREA);
+		SolutionCounter counter1 = solver.validatePosition(wholeEdge, Collections.emptyList(), Arrays.asList(tile), pe.getDeadLocations());
 
-		int linkedTilesCount = 0;
+		///int linkedTilesCount = 0;
+		
+		int linkedTilesCount = counter1.getLivingClearCount();
 		
 		boolean dominated = false;
-		boolean linked = false;
 		for (Box box: counter1.getEmptyBoxes()) {
 			if (box.contains(tile)) {  // if the box contains the tile to be processed then ignore it
 				
 			} else {
 				if (box.getSquares().size() > 1) {
 					dominated = true;
-					linkedTilesCount = linkedTilesCount + box.getSquares().size();
+					//linkedTilesCount = linkedTilesCount + box.getSquares().size();
 				} else {
-					linked = true;
-					linkedTilesCount++;
+					//linkedTilesCount++;
 				}
 			}
 		}
 		
-		solver.logger.log(Level.INFO, "%s has %d linked tiles and dominated=%b", tile, linkedTilesCount, dominated);
+		solver.logger.log(Level.INFO, "%s has %d linked living tiles and dominated=%b", tile, linkedTilesCount, dominated);
 		
 		EvaluatedLocation result;
 		
@@ -318,6 +320,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		BigDecimal safetyThisTileLeft = safetyThisTile;
 		
+		BigDecimal create5050Chance = BigDecimal.ZERO;
+		
 		int validValues = 0;
 		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
@@ -353,6 +357,10 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				}
 				
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+				
+				if (peResult.found5050) {
+					create5050Chance = create5050Chance.add(prob);
+				}
 				
 				maxValueProgress = maxValueProgress.max(prob);  // mini-max
 				
@@ -396,7 +404,20 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			solver.logger.log(Level.DEBUG, "%s has certain progress if survive", tile);
 			certainProgress = true;
 		}
-
+		
+		// no measurable benefit in trying to prevent 50/50s being created
+		/*
+		BigDecimal create5050ChanceIfSurvive = create5050Chance.divide(safetyThisTile, Solver.DP, RoundingMode.HALF_UP);
+		
+		solver.logger.log(Level.INFO, "%s has a %f chance of creating a 50/50", tile, create5050ChanceIfSurvive);
+		BigDecimal create5050Modifier;
+		if (solver.preferences.isTestMode() && create5050ChanceIfSurvive.compareTo(BigDecimal.ONE) == 0) {
+			create5050Modifier = BigDecimal.ONE.subtract(HALF.multiply(create5050ChanceIfSurvive));   // 1 - 0.5 * 5050 chance
+		} else {
+			create5050Modifier = BigDecimal.ONE;
+		}
+		*/
+		
 		// expected solution space reduction
 		BigDecimal essr = BigDecimal.ONE.subtract(ess);
 		

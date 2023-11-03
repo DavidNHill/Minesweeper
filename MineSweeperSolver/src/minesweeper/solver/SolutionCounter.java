@@ -244,10 +244,19 @@ public class SolutionCounter {
 			
 			workingProbs = mergeProbabilities(witness);
 			
+			if (workingProbs.isEmpty()) {
+				boardState.getLogger().log(Level.INFO, "No solutions after witness %s", witness.witness);
+				heldProbs.clear();
+				break;
+				//System.out.println("No solutions after witness " + witness.witness.toString());
+			}
+			
 			witness = findNextWitness(witness);
 			
 		}
 
+		//System.out.println("Held probs count " + heldProbs.size());
+		
 		// have we got a valid position
 		if (!heldProbs.isEmpty()) {
 			calculateBoxProbabilities();
