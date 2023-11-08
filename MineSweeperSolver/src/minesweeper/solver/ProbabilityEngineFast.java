@@ -168,7 +168,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private boolean offEdgeBest = true;
 	private BigDecimal offEdgeSafety;
 	private BigInteger offEdgeTally;
-	private BigDecimal bestProbability;
+	private BigDecimal bestSafety;
+	private BigDecimal bestLivingSafety;
+	private BigDecimal blendedSafety;
 	//private BigDecimal cutoffProbability;
 
 	//when set to true indicates that the box has been part of this analysis
@@ -538,18 +540,12 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				for (Box b: this.boxes) {
 					BigInteger contribution = mult.multiply(pl.mineBoxCount[b.getUID()]).divide(BigInteger.valueOf(b.getSquares().size()));
 					
-					// the 50/50 component doesn't count
-					//if (pl.solutionCount.compareTo(BigInteger.valueOf(2)) == 0 && pl.mineBoxCount[b.getUID()].compareTo(BigInteger.ONE) == 0 && b.getSquares().size() == 1) {  
-					//	contribution = BigInteger.ZERO;
-					//}
-					
 					BigInteger tally = b.getTally().add(contribution);
 					b.setTally(tally);
 
 				}
 				
 				for (int i=0; i < hashTally.length; i++) {
-					//tally[i] = tally[i].add(mult.multiply(pl.mineBoxCount[i]).divide(BigInteger.valueOf(boxes.get(i).getSquares().size())));
 					hashTally[i] = hashTally[i].add(pl.hashCount[i]);
 				}				
 			}
@@ -613,6 +609,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			
 		}
 		
+		
+		/*
 		// see if we can find a guess which is better than outside the boxes
 		BigDecimal hwm = offEdgeSafety;
 		
@@ -643,6 +641,69 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		}
 
 		bestProbability = hwm;
+		*/
+		
+		// see if we can do better than off edge
+		BigDecimal safest1 = this.offEdgeSafety;  // best living
+		BigDecimal safest2 = this.offEdgeSafety;  // second best living
+		
+		this.bestSafety = this.offEdgeSafety;   // best living or dead (100% safe is always living)
+		
+		for (Box b: this.boxes) {
+
+			
+			if (b.getSafety().compareTo(safest2) > 0 ) {
+				for (Square squ: b.getSquares()) {
+					boolean isDead = deadLocations.contains(squ);
+					if (!isDead || b.getSafety().compareTo(BigDecimal.ONE) == 0) {   // not dead or 100% safe
+						if (b.getSafety().compareTo(this.bestSafety) >= 0) {
+							this.offEdgeBest = false;
+							this.bestSafety = b.getSafety();
+						}						
+					}
+					
+					if (!isDead) {  // if not a dead location then use it
+						allDead = false;
+					
+						if (b.getSafety().compareTo(safest1) > 0) {
+							safest2 = safest1;
+							safest1 = b.getSafety();
+						} else {
+							safest2 = b.getSafety();
+						}						
+
+					} else {
+						//logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
+					}
+				}
+			}
+		}
+		
+		/*
+		if (this.bestSafety == null) {
+			this.offEdgeBest = true;
+		} else {
+			this.offEdgeBest = (this.offEdgeSafety.compareTo(this.bestSafety) > 0);
+		}
+		*/
+		
+		this.bestLivingSafety = safest1;
+		this.blendedSafety = weightedAverage(safest1, settings.getWeight1(), safest2, settings.getWeight2());
+		
+		// if we still think everything is dead then check again just to be sure
+		if (allDead) {
+			top: for (Box b: boxes) {
+				if (b.getSafety().signum() != 0 ) {  // if the box isn't all mines
+					for (Square squ: b.getSquares()) {
+						if (!deadLocations.contains(squ)) {
+							allDead = false;
+							break top;
+						}
+					}					
+				}
+
+			}
+		}
 		
 		//solver.display("probability off web is " + outsideProb);
 		
@@ -1011,10 +1072,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	 * The probability of the safest witnessed tile
 	 * @return
 	 */
+	/*
 	protected BigDecimal getBestOnEdgeProb() {
-		return bestProbability;
+		return bestSafety;
 	}
-	
+	*/
 	
 	protected boolean isBestGuessOffEdge() {
 		return this.offEdgeBest;
@@ -1025,7 +1087,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	 * @return
 	 */
 	protected boolean foundCertainty() {
-		return (bestProbability.compareTo(BigDecimal.ONE) == 0);
+		return (bestSafety.compareTo(BigDecimal.ONE) == 0);
 	}
 	
 	
@@ -1044,13 +1106,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		//	test = bestProbability.multiply(freshhold);
 		//} else 
 		
-		if (bestProbability.compareTo(BigDecimal.ONE) == 0){  // if we have a probability of one then don't allow lesser probs to get a look in
-			test = bestProbability;
+		if (bestSafety.compareTo(BigDecimal.ONE) == 0){  // if we have a safety of one then don't allow lesser safeties to get a look in
+			test = bestSafety;
 		} else {
-			test = bestProbability.multiply(freshhold);
+			test = bestLivingSafety.multiply(freshhold);  // if we are using a threshold then use the living safety
 		}
 
-		logger.log(Level.INFO, "Best probability is %f, cutoff freshhold is %f", bestProbability, test);
+		logger.log(Level.INFO, "Best probability is %f, cutoff freshhold is %f", bestSafety, test);
 		
 		/*
 		for (int i=0; i < boxProb.length; i++) {
@@ -1114,8 +1176,19 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	*/
 	
 	@Override
-	protected BigDecimal getBestNotDeadSafety() {
+	protected BigDecimal getBestSafety() {
+		return this.bestSafety;
+	}
+	
+	@Override
+	protected BigDecimal getBestLivingSafety() {
+		return this.bestLivingSafety;
+	}
+	
+	@Override
+	protected BigDecimal getBlendedSafety() {
 		
+		/*
 		// see if we can do better than off edge
 		BigDecimal safest1 = this.offEdgeSafety;
 		BigDecimal safest2 = this.offEdgeSafety;
@@ -1138,9 +1211,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				}
 			}
 		}
-		
 	
 		return weightedAverage(safest1, settings.getWeight1(), safest2, settings.getWeight2());
+		*/
+		
+		return this.blendedSafety;
 		
 	}
 	

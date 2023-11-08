@@ -22,7 +22,7 @@ abstract public class ProbabilityEngineModel {
 	abstract protected List<CandidateLocation> getProbableMines(BigDecimal freshhold);
 	abstract protected List<Location> getFiftyPercenters();
 	abstract protected BigInteger getSolutionCount();
-	abstract protected BigDecimal getBestOnEdgeProb();
+	//abstract protected BigDecimal getBestOnEdgeProb();
 	abstract protected BigDecimal getOffEdgeProb();
 	abstract protected BigInteger getOffEdgeTally();
 	abstract protected boolean foundCertainty();
@@ -37,6 +37,9 @@ abstract public class ProbabilityEngineModel {
 	abstract protected int getLivingClearCount();
 	abstract protected List<Box> getEmptyBoxes();
 
-	abstract protected BigDecimal getBestNotDeadSafety();
+	abstract protected BigDecimal getBlendedSafety();
+	abstract protected BigDecimal getBestSafety();
+	abstract protected BigDecimal getBestLivingSafety();
+	
 	
 }

@@ -161,7 +161,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	 */
 	public void evaluateLocations() {
 
-		BigDecimal threshold = pe.getBestNotDeadSafety().multiply(Solver.PROB_ENGINE_HARD_TOLERENCE);
+		BigDecimal threshold = pe.getBestSafety().multiply(Solver.PROB_ENGINE_HARD_TOLERENCE);
 		for (Location loc: ltrHelper.getInfluencedTiles(threshold)) {
 			if (!tileOfInterestOff.contains(loc)) {  // if we aren't in the other set then add it to this one
 				tileOfInterestOn.add(loc);
@@ -303,11 +303,27 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		}
 		
 		BigDecimal fiftyFiftyInfluence;
+		BigDecimal fiftyFiftyContribution;
 		if (this.solver.preferences.considerLongTermSafety()) {
-			BigDecimal tally = new BigDecimal(ltrHelper.findInfluence(tile)).multiply(FIFTYFIFTY_SCALE);
-			fiftyFiftyInfluence = new BigDecimal(safetyTally).add(tally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
+			BigInteger tally = ltrHelper.findInfluence(tile);
+			BigDecimal bdTally = new BigDecimal(tally);
+			
+			BigDecimal modifiedTally = bdTally.multiply(FIFTYFIFTY_SCALE);
+			fiftyFiftyInfluence = new BigDecimal(safetyTally).add(modifiedTally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
+			fiftyFiftyContribution = new BigDecimal(tally).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+			
+			/*
+			try {
+				fiftyFiftyInfluence = new BigDecimal(safetyTally).subtract(bdTally).divide(new BigDecimal(pe.getSolutionCount()).subtract(bdTally).subtract(bdTally), Solver.DP, RoundingMode.HALF_UP);
+				fiftyFiftyInfluence = fiftyFiftyInfluence.divide(safetyThisTile, Solver.DP, RoundingMode.HALF_UP);
+			} catch (Exception e) {
+				fiftyFiftyInfluence = BigDecimal.valueOf(10);
+			}
+			*/
+			
 		} else {
 			fiftyFiftyInfluence = BigDecimal.ONE;
+			fiftyFiftyContribution = BigDecimal.ZERO;
 		}
 		
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
@@ -370,7 +386,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				expectedClears = expectedClears.add(BigDecimal.valueOf(clears).multiply(prob));   
 				
 				
-				BigDecimal nextMoveSafety = counter.getBestNotDeadSafety();
+				BigDecimal nextMoveSafety = counter.getBlendedSafety();
 				
 				//BigDecimal lts = this.ltrHelperOld.getLongTermSafety(tile, counter);
 				//BigDecimal lts = BigDecimal.ONE;
@@ -380,14 +396,6 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				secondarySafety = secondarySafety.add(prob.multiply(nextMoveSafety).multiply(fiftyFiftyInfluence));
 				
 				if (clears > linkedTilesCount) {
-					//BigDecimal modProb;
-					//if (clears == linkedTilesCount + 1) {
-					//	modProb = prob.multiply(BigDecimal.valueOf(0.8));
-					//} else {
-					//	modProb = prob;
-					//}
-					//modProb = prob.multiply(BigDecimal.valueOf(clears - linkedTilesCount));
-					
 					progressProb = progressProb.add(prob);
 				}
 				

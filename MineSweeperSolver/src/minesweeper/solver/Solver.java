@@ -638,7 +638,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 		List<Location> allUnrevealedSquares = null;
 
-		BigDecimal offEdgeCutoff = pe.getBestOnEdgeProb().multiply(Solver.OFF_EDGE_TOLERENCE);
+		//BigDecimal offEdgeCutoff = pe.getBestOnEdgeProb().multiply(Solver.OFF_EDGE_TOLERENCE);
+		BigDecimal offEdgeCutoff = pe.getBestSafety().multiply(Solver.OFF_EDGE_TOLERENCE);
 
 		this.logger.log(Level.INFO, "Off edge threshold is %f", offEdgeCutoff);
 

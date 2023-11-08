@@ -8,7 +8,8 @@ import minesweeper.structure.Location;
 
 public class SolverSettings {
 
-	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.052");
+	//private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.052");
+	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.001");  // tiny amount to force a tie-break if everything else is the same
 	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
@@ -39,7 +40,7 @@ public class SolverSettings {
     protected GuessMethod guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
     
     // weighted average of safest and 2nd safest guess 
-    protected int weight1 = 3;
+    protected int weight1 = 4;
     protected int weight2 = 1;
 	
     
