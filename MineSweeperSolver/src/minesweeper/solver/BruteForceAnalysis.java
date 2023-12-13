@@ -135,6 +135,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		private byte count;  // number of possible values at this location
 		
 		private Node[] children;
+		private List<Node> childrenList;
 
 		private LivingLocation(short index) {
 			this.index = index;
@@ -156,6 +157,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				index++;
 			}
 			
+	
 			Node[] work = new Node[9];
 			for (int i=this.minValue; i < this.maxValue + 1; i++) {
 				
@@ -175,6 +177,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					temp.endLocation = index;
 					
 					work[i] = temp;
+
 					
 				} else {
 					//System.out.println("In cache " + temp.position.key + " " + temp1.position.key);
@@ -197,12 +200,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				System.out.println("Didn't read all the elements in the array; index = " + index + " end = " + parent.endLocation);
 			}
 			
+			//List<Node> workList = new ArrayList<>(9);
 			
 			for (int i=this.minValue; i <= this.maxValue; i++) {
 				if (work[i].getSolutionSize() > 0) {
 					//if (!work[i].fromCache) {
 					//	work[i].determineLivingLocations(this.livingLocations, living.index);
 					//}
+					//workList.add(work[i]);
 				} else {
 					work[i] = null;   // if no solutions then don't hold on to the details
 				}
@@ -210,6 +215,9 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			}
 
 			this.children = work;
+			
+			//Collections.sort(workList);
+			//this.childrenList = workList;
 			
 		}
 		
@@ -244,7 +252,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	/**
 	 * A representation of a possible state of the game
 	 */
-	private class Node {
+	private class Node implements Comparable<Node> {
 
 		private Position position ;        // representation of the position we are analysing / have reached
 		
@@ -493,6 +501,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			} else {
 				return false;
 			}
+		}
+
+		/**
+		 * Sort so the node with the most solutions is first
+		 */
+		@Override
+		public int compareTo(Node o) {
+			return - (this.endLocation - this.startLocation) - (o.endLocation - o.startLocation);
 		}
 		
 	}

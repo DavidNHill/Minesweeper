@@ -1101,7 +1101,6 @@ public class Solver implements Asynchronous<Action[]> {
 
 	}
 
-
 	/**
 	 * This method will find the number of solutions which satisfy the constraints on the board
 	 */

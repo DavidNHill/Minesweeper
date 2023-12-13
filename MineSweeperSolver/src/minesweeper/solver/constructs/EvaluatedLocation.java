@@ -20,6 +20,7 @@ public class EvaluatedLocation extends Location {
 	private List<Box> emptyBoxes;
 	private boolean pruned = false;
 	private boolean deferGuessing = false;
+	private Location dominatingLocation;    // this tile is a better choice
 
 	public EvaluatedLocation(int x, int y, BigDecimal safeProbability, BigDecimal weight, BigDecimal expectedClears, int fixedClears, 
 			List<Box> emptyBoxes, BigDecimal maxValueProgress) {
@@ -69,6 +70,14 @@ public class EvaluatedLocation extends Location {
 	
 	public boolean isDeferGuessing() {
 		return this.deferGuessing;
+	}
+	
+	public void setDominatingLocation(Location loc) {
+		this.dominatingLocation = loc;
+	}
+	
+	public Location getDominatingLocation() {
+		return this.dominatingLocation;
 	}
 	
 	@Override

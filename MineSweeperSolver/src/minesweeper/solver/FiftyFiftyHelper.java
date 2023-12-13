@@ -1,12 +1,16 @@
 package minesweeper.solver;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import minesweeper.solver.bulk.StaticCounter;
+import minesweeper.solver.bulk.StaticCounter.SCType;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
@@ -123,7 +127,7 @@ public class FiftyFiftyHelper {
 		
 		List<Location> area5050 = new ArrayList<>();  // used to hold the expanding candidate 50/50
 		
-		// try and connect 2 or links together to form an unavoidable 50/50.  Closed at both ends.
+		// try and connect 2 or more links together to form an unavoidable 50/50.  Closed at both ends.
 		for (Link link: links) {
 			if (!link.processed && (link.closed1 ^ link.closed2)) {  // this is the XOR operator, so 1 and only 1 of these is closed 
 
@@ -160,7 +164,15 @@ public class FiftyFiftyHelper {
 								if (extension.closed2) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
 										logger.log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
+										
+										if (area5050.get(0).y == area5050.get(area5050.size() - 1).y  && Math.abs(area5050.get(0).x - area5050.get(area5050.size() - 1).x) > 2
+												|| area5050.get(0).x == area5050.get(area5050.size() - 1).x && Math.abs(area5050.get(0).y - area5050.get(area5050.size() - 1).y) > 2) {
+											StaticCounter.count(SCType.LONG_5050);
+										}
+									
+										//return getBest5050Tile(area5050, deadLocations);
 										return board.getSolver().getLowest(area5050, deadLocations);		
+
 									} else {
 										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
@@ -183,7 +195,15 @@ public class FiftyFiftyHelper {
 								if (extension.closed1) {
 									if (extensions % 2 == 0 && noTrouble(link, area5050)) {
 										logger.log(Level.INFO, "Tile %s is an unavoidable guess, with %d extensions", openTile, extensions);
+										
+										if (area5050.get(0).y == area5050.get(area5050.size() - 1).y  && Math.abs(area5050.get(0).x - area5050.get(area5050.size() - 1).x) > 2
+												|| area5050.get(0).x == area5050.get(area5050.size() - 1).x && Math.abs(area5050.get(0).y - area5050.get(area5050.size() - 1).y) > 2) {
+											StaticCounter.count(SCType.LONG_5050);
+										}
+										
+										//return getBest5050Tile(area5050, deadLocations);
 										return board.getSolver().getLowest(area5050, deadLocations);		
+
 									} else {
 										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
 										deferGuessing.addAll(area5050);
@@ -206,7 +226,7 @@ public class FiftyFiftyHelper {
 			}
 		}
 		
-		/*  This makes results worse, preumaby because some non-50/50s are getting through
+		/*  This makes results worse, presumaby because some non-50/50s are getting through
 		// try and find a circular unavoidable 50/50.  Not closed.
 		for (Link link: links) {
 			if (!link.processed && !link.closed1 &&  !link.closed2) {  // not processed and open at both ends
@@ -323,6 +343,106 @@ public class FiftyFiftyHelper {
 		return true;
 		
 	}
+	
+	/**
+	 * Finds the tiles in the 50/50 which are adjacent to odd number of neighbours more often
+	 */
+	private <T extends Location> T getBest5050Tile(List<T> targets, Area deadLocations) {
+
+		int even1 = 0;
+		int odd1 = 0;
+		int score1 = 0;
+		
+		// look at the even entries
+		for (int i=0; i < targets.size(); i = i + 2) {
+			T tile = targets.get(i);
+			
+			if (deadLocations.contains(tile)) {
+				continue;
+			}
+			
+			int adjTilesOutside5050 = 0;
+			for (Location adjTile: board.getAdjacentUnrevealedSquares(tile)) {
+				if (!targets.contains(adjTile)) {
+					adjTilesOutside5050++;
+				}
+			}
+			if (adjTilesOutside5050 % 2 == 0) {
+				even1++;
+			} else {
+				odd1++;
+			}
+			
+			if (adjTilesOutside5050 == 1) {
+				score1 = score1 + 100;
+			} else if (adjTilesOutside5050 == 3) {
+				score1 = score1 + 10;
+			} else {
+				score1++;
+			}
+			
+			
+		}
+
+		board.getLogger().log(Level.INFO, "Even tiles ==> odd neighbours %d, even neighbours %d ", odd1, even1);
+		
+		int even2 = 0;
+		int odd2 = 0;
+		int score2 = 0;
+		
+		// look at the odd entries
+		for (int i=1; i < targets.size(); i = i + 2) {
+			T tile = targets.get(i);
+			
+			if (deadLocations.contains(tile)) {
+				continue;
+			}
+			
+			int adjTilesOutside5050 = 0;
+			for (Location adjTile: board.getAdjacentUnrevealedSquares(tile)) {
+				if (!targets.contains(adjTile)) {
+					adjTilesOutside5050++;
+				}
+			}
+			if (adjTilesOutside5050 % 2 == 0) {
+				even2++;
+			} else {
+				odd2++;
+			}
+			
+			if (adjTilesOutside5050 == 1) {
+				score2 = score2 + 100;
+			} else if (adjTilesOutside5050 == 3) {
+				score2 = score2 + 10;
+			} else {
+				score2++;
+			}
+		}
+		
+		board.getLogger().log(Level.INFO, "Odd tiles ==> odd neighbours %d, even neighbours %d ", odd2, even2);
+		
+		if (score1 >= score2) {
+			return targets.get(0);
+		} else {
+			return targets.get(1);
+		}
+		
+		/*
+		if (odd1 > odd2) {
+			return targets.get(0);
+		
+		} else if (odd1 < odd2) { 
+			return targets.get(1);
+		
+		} else if (even1 >= even2) {
+			return targets.get(0);
+		} else {
+			return targets.get(1);
+		}
+		*/
+
+	}
+	
 	
 	public boolean isDeferGuessing(Location l) {
 		return deferGuessing.contains(l);

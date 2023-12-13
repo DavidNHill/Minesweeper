@@ -17,6 +17,8 @@ import minesweeper.solver.bulk.BulkEvent;
 import minesweeper.solver.bulk.BulkListener;
 import minesweeper.solver.bulk.BulkPlayer;
 import minesweeper.solver.bulk.GamePostListener;
+import minesweeper.solver.bulk.StaticCounter;
+import minesweeper.solver.bulk.StaticCounter.SCType;
 import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
@@ -41,27 +43,28 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = -1922830466;
-		//seed = 662429271;   // expert 10,000,000 run
+		seed = -15331584;
+		//seed = -60442780;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(10, 100, 125);
+		//GameSettings gameSettings = GameSettings.create(14, 12, 64);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings.setSingleThread(true);
-		//settings.setStartLocation(new Location(15,7));
+		//settings.setStartLocation(new Location(2,2));
 		//settings.set5050Check(false);
 		//settings.setEarly5050Check(true);
 		//settings.setTieBreak(false);
 		//settings.setTestMode(true);
 		//settings.setLongTermSafety(false);
-		//settings.setProgressContribution(new BigDecimal("0.02"));
+		//settings.setProgressContribution(new BigDecimal("0.052"));
+		//settings.setSafetyWeights(1, 0);
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, settings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
@@ -124,6 +127,7 @@ public class MinesweeperBulk {
 		
 		
 		}
+		System.out.println("Long 50/50s encountered " + StaticCounter.report(SCType.LONG_5050));
 		
 		monitor.postResults();
 		//random.displayTable();

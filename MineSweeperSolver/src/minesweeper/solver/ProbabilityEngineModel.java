@@ -40,6 +40,8 @@ abstract public class ProbabilityEngineModel {
 	abstract protected BigDecimal getBlendedSafety();
 	abstract protected BigDecimal getBestSafety();
 	abstract protected BigDecimal getBestLivingSafety();
+
+	abstract protected Location getSingleSafestTile();
 	
 	
 }
