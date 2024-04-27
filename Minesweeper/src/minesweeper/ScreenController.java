@@ -1142,6 +1142,7 @@ public class ScreenController {
 			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
 		} else {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
+			//guessMethod = GuessMethod.RECURSIVE_SAFETY;
 		}
         
         if (sol4000.isSelected()) {

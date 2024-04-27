@@ -1,16 +1,12 @@
 package minesweeper.solver.bulk;
 
-import java.math.BigDecimal;
-
-public class BulkEvent {
+public class BulkEventGame {
 	
 	private int gamesToPlay;
 	private int gamesPlayed;
 	private int gamesWon;
 	private int noGuessWins;
 	private int totalActions;
-	
-	private BigDecimal totalGamesValue;
 	
 	private long total3BV;
 	private long total3BVSolved;
@@ -23,10 +19,6 @@ public class BulkEvent {
 	
 	private int failedToStart;   // this is when the game didn't survive the start sequence
 	
-	private long timeSoFar;
-	private long estimatedTimeLeft;
-	
-	private boolean isFinished = false;
 	
 	public int getFailedToStart() {
 		return failedToStart;
@@ -96,35 +88,11 @@ public class BulkEvent {
 	protected void setTotalActions(int actions) {
 		this.totalActions = actions;
 	}
-	public long getTimeSoFar() {
-		return timeSoFar;
-	}
-	public long getEstimatedTimeLeft() {
-		return estimatedTimeLeft;
-	}
-	protected void setTimeSoFar(long timeSoFar) {
-		this.timeSoFar = timeSoFar;
-	}
-	protected void setEstimatedTimeLeft(long estimatedTimeLeft) {
-		this.estimatedTimeLeft = estimatedTimeLeft;
-	}
-	public boolean isFinished() {
-		return isFinished;
-	}
-	protected void setFinished(boolean isFinished) {
-		this.isFinished = isFinished;
-	}
 	protected void setTotal3BV(long total3bv) {
 		total3BV = total3bv;
 	}
 	protected void setTotal3BVSolved(long total3bvSolved) {
 		total3BVSolved = total3bvSolved;
-	}
-	public BigDecimal getTotalGamesValue() {
-		return totalGamesValue;
-	}
-	public void setTotalGamesValue(BigDecimal totalGamesValue) {
-		this.totalGamesValue = totalGamesValue;
 	}
 
 	

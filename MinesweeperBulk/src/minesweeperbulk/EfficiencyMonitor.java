@@ -27,7 +27,7 @@ public class EfficiencyMonitor extends GamePostListener {
 	@Override
 	public void postAction(BulkRequest request) {
 		
-		GameStateModel game = request.getGame();
+		GameStateModel game = request.getRequestGames()[0].getGame();
 		
 		played++;
 		clicks = clicks + game.getActionCount();

@@ -24,7 +24,8 @@ import javafx.stage.WindowEvent;
 import minesweeper.explorer.main.Explorer;
 import minesweeper.explorer.main.Graphics;
 import minesweeper.solver.RolloutGenerator;
-import minesweeper.solver.bulk.BulkEvent;
+import minesweeper.solver.bulk.BulkEventGame;
+import minesweeper.solver.bulk.BulkEventMain;
 import minesweeper.solver.bulk.BulkListener;
 import minesweeper.solver.bulk.BulkRollout;
 import minesweeper.solver.settings.SolverSettings;
@@ -168,7 +169,7 @@ public class RolloutController {
 			bulkRunner = new BulkRollout(new Random(gameGenerator), gamesMax, generator, startLocation, safeStart.isSelected(), preferences, threads);
 			bulkRunner.registerEventListener(new BulkListener() {
 				@Override
-				public void intervalAction(BulkEvent event) {
+				public void intervalAction(BulkEventMain event) {
 					update(event);
 				}
 				
@@ -282,35 +283,37 @@ public class RolloutController {
 		return wasCancelled;
 	}
 	
-	private void update(BulkEvent event) {
+	private void update(BulkEventMain mainEvent) {
+		
+		final BulkEventGame gameEvent = mainEvent.getGameEvents()[0];
 		
         Platform.runLater(new Runnable() {
             @Override public void run() {
-            	double prog = (double) event.getGamesPlayed() / (double) event.getGamesToPlay();
+            	double prog = (double) gameEvent.getGamesPlayed() / (double) gameEvent.getGamesToPlay();
             	progressRun.setProgress(prog);
             	
-            	progressRunLabel.setText(event.getGamesPlayed() + "(" + event.getGamesWon() + ") /" + event.getGamesToPlay());
+            	progressRunLabel.setText(gameEvent.getGamesPlayed() + "(" + gameEvent.getGamesWon() + ") /" + gameEvent.getGamesToPlay());
             	
-            	double winPerc = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+            	double winPerc = (double) gameEvent.getGamesWon() / (double) gameEvent.getGamesPlayed();
             	
-            	double err = Math.sqrt(winPerc * ( 1- winPerc) / (double) event.getGamesPlayed()) * 1.9599d;
+            	double err = Math.sqrt(winPerc * ( 1- winPerc) / (double) gameEvent.getGamesPlayed()) * 1.9599d;
             	
             	winPercentage.setText(PERCENT.format(winPerc) + " +/- " + PERCENT.format(err));
             	
-            	totalGuesses.setText(String.valueOf(event.getTotalGuesses()));
+            	totalGuesses.setText(String.valueOf(gameEvent.getTotalGuesses()));
             	
-            	String fairnessText = PERCENT.format(event.getFairness());
+            	String fairnessText = PERCENT.format(gameEvent.getFairness());
             	
             	fairnessPercentage.setText(fairnessText);
-            	bestWinStreak.setText(String.valueOf(event.getWinStreak()));
-            	bestMastery.setText(String.valueOf(event.getMastery()));
+            	bestWinStreak.setText(String.valueOf(gameEvent.getWinStreak()));
+            	bestMastery.setText(String.valueOf(gameEvent.getMastery()));
             	
-            	if (event.getGamesPlayed() == event.getGamesToPlay()) {
-            		messageBox.setText("Duration " + Timer.humanReadable(event.getTimeSoFar()));
-            	} else if (event.isFinished()) {
-            		messageBox.setText("Stopped after " + Timer.humanReadable(event.getTimeSoFar()));
+            	if (gameEvent.getGamesPlayed() == gameEvent.getGamesToPlay()) {
+            		messageBox.setText("Duration " + Timer.humanReadable(mainEvent.getTimeSoFar()));
+            	} else if (mainEvent.isFinished()) {
+            		messageBox.setText("Stopped after " + Timer.humanReadable(mainEvent.getTimeSoFar()));
             	} else {
-                	messageBox.setText("Time left " + Timer.humanReadable(event.getEstimatedTimeLeft()));
+                	messageBox.setText("Time left " + Timer.humanReadable(mainEvent.getEstimatedTimeLeft()));
             	}
             	
         }

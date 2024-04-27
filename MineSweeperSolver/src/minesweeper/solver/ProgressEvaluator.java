@@ -118,7 +118,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 	}
 
 	@Override
-	public void addLocations(Collection<? extends Location> tiles) {
+	public void addLocations(Collection<CandidateLocation> tiles) {
 		tileOfInterest.addAll(tiles);
 		
 	}

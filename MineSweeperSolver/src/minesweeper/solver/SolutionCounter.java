@@ -941,7 +941,7 @@ public class SolutionCounter {
 		//solver.display(text);
 	}
 
-	// forces a box to contain a tile chich isn't a mine.  If the location isn't in a box false is returned. If the box can't support zero mines false is returned.
+	// forces a box to contain a tile which isn't a mine.  If the location isn't in a box false is returned. If the box can't support zero mines false is returned.
 	public boolean setMustBeEmpty(Location loc) {
 		Box box = getBox(loc);
 		
@@ -956,7 +956,9 @@ public class SolutionCounter {
 		//	this.valid = false;
 		//	return false;
 		} else {
-			box.incrementEmptyTiles();
+			if (!box.incrementEmptyTiles()) {
+				this.valid = false;
+			}
 		}
 		
 		return true;

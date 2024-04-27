@@ -1,6 +1,5 @@
 package minesweeper.solver.bulk;
 
-import java.math.BigDecimal;
 import java.util.Random;
 
 import minesweeper.gamestate.GameStateModel;
@@ -10,26 +9,9 @@ import minesweeper.solver.settings.SolverSettings;
 
 abstract public class BulkController implements Runnable {
 	
-	/*
-	public enum PlayStyle {
-		FLAGGED(false, false),
-		NO_FLAG(true, false),
-		EFFICIENCY(true, true);
-		
-		public final boolean flagless;
-		public final boolean useChords;
-		
-		private PlayStyle(boolean flagless, boolean useChords) {
-			this.flagless = flagless;
-			this.useChords = useChords;
-		}
-		
-	}
-	*/
-	
 	private final int gamesToPlay;
 	private final int workers;
-	private final SolverSettings solverSettings;
+	private final SolverSettings[] solverSettings;
 	private final int bufferSize;
 	private final BulkRequest[] buffer;
 	private final BulkWorker[] bulkWorkers;
@@ -45,8 +27,8 @@ abstract public class BulkController implements Runnable {
 	private volatile int reportInterval = REPORT_INTERVAL;
 	private final Random seeder;
 	private volatile boolean finished = false;
-	private volatile BulkEvent event;
-	private volatile BulkEvent finalEvent;
+	private volatile BulkEventMain event;
+	private volatile BulkEventMain finalEvent;
 	
 	private Thread mainThread;
 	private long startTime;
@@ -54,13 +36,15 @@ abstract public class BulkController implements Runnable {
 	
 	private BulkListener eventListener;
 	private GamePostListener postGameListener;
-	private GamePreListener preGameListener;
+	private GamePreListener[] preGameListeners;
+	private BulkEventController[] bulkEventControllers;
 	
+	/*
 	private volatile int failedToStart = 0;
 	private volatile int wins = 0;
 	private volatile int guesses = 0;
 	private volatile int noGuessWins = 0;
-	private volatile BigDecimal totalGamesValue = BigDecimal.ZERO;
+	//private volatile BigDecimal totalGamesValue = BigDecimal.ZERO;
 	
 	private volatile int totalActions = 0;
 	private volatile long total3BV = 0;
@@ -72,14 +56,19 @@ abstract public class BulkController implements Runnable {
 	private volatile int bestMastery = 0;
 	
 	private volatile boolean[] mastery = new boolean[100];
+	*/
 	
 	private PlayStyle playStyle = PlayStyle.NO_FLAG;
 	
 	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers) {
+		this(seeder, gamesToPlay, new SolverSettings[] {solverSettings}, workers, DEFAULT_BUFFER_PER_WORKER);
+	}
+	
+	public BulkController(Random seeder, int gamesToPlay, SolverSettings[] solverSettings, int workers) {
 		this(seeder, gamesToPlay, solverSettings, workers, DEFAULT_BUFFER_PER_WORKER);
 	}
 	
-	public BulkController(Random seeder, int gamesToPlay, SolverSettings solverSettings, int workers, int bufferPerWorker) {
+	public BulkController(Random seeder, int gamesToPlay, SolverSettings[] solverSettings, int workers, int bufferPerWorker) {
 		this.seeder = seeder;
 		this.gamesToPlay = gamesToPlay;
 		this.workers = workers;
@@ -88,6 +77,14 @@ abstract public class BulkController implements Runnable {
 		
 		this.bufferSize = bufferPerWorker * this.workers;
 		this.buffer = new BulkRequest[bufferSize];
+		
+		// allow for as many of these as there are solver settings
+		this.preGameListeners = new GamePreListener[solverSettings.length];  
+		this.bulkEventControllers = new BulkEventController[solverSettings.length];
+		
+		for (int i=0; i < solverSettings.length; i++) {
+			this.bulkEventControllers[i] = new BulkEventController(this.gamesToPlay);
+		}
 	}
 	
 	public void registerEventListener(BulkListener listener) {
@@ -100,8 +97,16 @@ abstract public class BulkController implements Runnable {
 	}
 	
 	public void registerPreGameListener(GamePreListener listener) {
-		this.preGameListener = listener;
+		registerPreGameListener(0, listener);
 	}
+	public void registerPreGameListener(int index, GamePreListener listener) {
+		this.preGameListeners[index] = listener;
+	}
+	
+	// create an array from a list of things
+	//static protected <T> T[] toArray(T... things) {
+	//	return things;
+	//}
 	
 	/**
 	 * Set the play style
@@ -181,7 +186,7 @@ abstract public class BulkController implements Runnable {
 	/**
 	 * When the process is finished you can get the final results from here
 	 */
-	public BulkEvent getResults() {
+	public BulkEventMain getResults() {
 		return this.finalEvent;
 	}
 	
@@ -211,69 +216,17 @@ abstract public class BulkController implements Runnable {
 	private void processSlots() {
 		
 		boolean doEvent = false;
-		BulkEvent bulkEvent = null; 
+		BulkEventMain mainEvent = null; 
 		
 		// process all the games which have been processed and are waiting in the buffer 
 		while (buffer[waitingSlot] != null) {
 			
 			BulkRequest request = buffer[waitingSlot];
-			
-			int masteryIndex = request.sequence % 100;
-			
-			if (request.gs.getGameState() == GameStateModel.WON) {
-				wins++;
-				
-				totalGamesValue = totalGamesValue.add(request.gameValue);
-				
-				//System.out.println(request.gs.getSeed() + " has 3BV " + request.gs.getTotal3BV() + " and actions " + request.gs.getActionCount());
-				
-				if (request.guesses == 0) {
-					noGuessWins++;
-				}
-				
-				currentWinStreak++;
-				if (currentWinStreak > bestWinStreak) {
-					bestWinStreak = currentWinStreak;
-				}
-				
-				// if we lost 100 games ago then mastery is 1 more
-				if (!mastery[masteryIndex]) {
-					mastery[masteryIndex] = true;
-					currentMastery++;
-					if (currentMastery > bestMastery) {
-						bestMastery = currentMastery;
-					}
-				}
-				
-				double efficiency = 100 * ((double) request.gs.getTotal3BV() / (double) request.gs.getActionCount());
-	
-				
-			} else {
-				
-				if (!request.startedOkay) {
-					failedToStart++;
-				}
-				
-				currentWinStreak = 0;
-				
-				// if we won 100 games ago, then mastery is now 1 less
-				if (mastery[masteryIndex]) {
-					mastery[masteryIndex] = false;
-					currentMastery--;
-				}
+
+			// accumulate the stats for each game played
+			for (int i=0; i < solverSettings.length; i++) {
+				this.bulkEventControllers[i].processGame(request, i);;
 			}
-
-			// accumulate the total actions taken
-			totalActions = totalActions + request.gs.getActionCount();
-			
-			// accumulate 3BV in the game and how much was solved
-			total3BV = total3BV + request.gs.getTotal3BV();
-			total3BVSolved = total3BVSolved + request.gs.getCleared3BV();
-
-			// accumulate total guesses made
-			guesses = guesses + request.guesses;
-			
-			fairness = fairness.add(request.fairness);
 			
 			// clear the buffer and move on to the next slot
 			buffer[waitingSlot] = null; 
@@ -292,14 +245,13 @@ abstract public class BulkController implements Runnable {
 				finished = true;
 				
 				this.finalEvent = createEvent();
-				bulkEvent = this.finalEvent;
+				mainEvent = this.finalEvent;
 
 				doEvent = true;
-				//mainThread.interrupt();
 				
 			// provide an update every now and again, do that on the main thread
 			} else if (this.reportInterval != 0 && waitingSequence % this.reportInterval == 0) {
-				bulkEvent = createEvent();
+				mainEvent = createEvent();
 				doEvent = true;
 			}
 		
@@ -312,7 +264,7 @@ abstract public class BulkController implements Runnable {
 		// if we have an event to do then interrupt the main thread which will post it
 		if (doEvent) {
 			if (this.event == null) {
-				this.event = bulkEvent;
+				this.event = mainEvent;
 				mainThread.interrupt();
 			} else {
 				System.out.println("Event suppressed because earlier event is still in progress");
@@ -321,28 +273,11 @@ abstract public class BulkController implements Runnable {
 		
 	}
 	
-	private BulkEvent createEvent() {
+	private BulkEventMain createEvent() {
 		
-		BulkEvent event = new BulkEvent();
+		BulkEventMain event = new BulkEventMain();
 		event.setGamesToPlay(gamesToPlay);
 		event.setGamesPlayed(waitingSequence);
-		event.setGamesWon(wins);
-		event.setTotalGamesValue(totalGamesValue);
-		
-		event.setTotalGuesses(guesses);
-		event.setNoGuessWins(noGuessWins);
-		if (guesses != 0) {
-			event.setFairness(fairness.doubleValue() / guesses);
-		} else {
-			event.setFairness(0);
-		}
-
-		event.setMastery(bestMastery);
-		event.setWinStreak(bestWinStreak);
-		event.setTotalActions(totalActions);
-		event.setFailedToStart(failedToStart);
-		event.setTotal3BV(total3BV);
-		event.setTotal3BVSolved(total3BVSolved);
 		
 		long duration = getDuration();
 		
@@ -357,7 +292,15 @@ abstract public class BulkController implements Runnable {
 		event.setEstimatedTimeLeft(timeLeft);
 		
 		event.setFinished(finished);
-
+		
+		BulkEventGame[] gameEvents = new BulkEventGame[this.solverSettings.length];
+		
+		for (int i=0; i < this.solverSettings.length; i++) {
+			gameEvents[i] = this.bulkEventControllers[i].createEvent();		
+		}
+	
+		event.setGameEvents(gameEvents);
+		
 		return event;
 		
 	}
@@ -387,23 +330,34 @@ abstract public class BulkController implements Runnable {
 			return BulkRequest.WAIT;
 		}
 		
-		// otherwise dispatch the next game to be played
-		//GameSettings gameSettings = GameSettings.EXPERT;
-		//GameType gameType = GameType.STANDARD;
-		//SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setExperimentalScoring(true);
 		
 		BulkRequest next = new BulkRequest();
 		next.action = BulkAction.RUN;
 		next.sequence = this.nextSequence;
 		next.slot = this.nextSlot;
-		next.gs = getGameState(Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl));
 		
-		if (this.preGameListener != null) {
-			preGameListener.preAction(next.gs);
-		}
+		next.games = new BulkRequestGame[solverSettings.length];
 		
-		if (next.gs.getGameState() == GameStateModel.LOST) {
-			next.startedOkay = false;
+		long seed = Math.abs(seeder.nextLong() & 0xFFFFFFFFFFFFFl);
+		
+		for (int i=0; i < solverSettings.length; i++) {
+			
+			BulkRequestGame game = new BulkRequestGame();
+			
+			game.solverSettings = solverSettings[i];
+			game.gs = getGameState(seed);
+			
+			// if this setting hs a pre-game listener than run it
+			if (this.preGameListeners[i] != null) {
+				this.preGameListeners[i].preAction(game.gs);
+			}
+			
+			if (game.gs.getGameState() == GameStateModel.LOST) {
+				game.startedOkay = false;
+			}
+			
+			next.games[i] = game;
+			
 		}
 
 		// roll onto the next sequence

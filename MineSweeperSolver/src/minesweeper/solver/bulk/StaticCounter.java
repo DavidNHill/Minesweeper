@@ -3,7 +3,8 @@ package minesweeper.solver.bulk;
 public class StaticCounter {
 
 	public enum SCType {
-		LONG_5050 (0, "Long 50/50")
+		LONG_5050 (0, "Long 50/50"),
+		RECURSIVE_SAFETY_CACHE_HIT (1, "Recursive Safety cache hit")
 		;
 		
 		final public String name;
@@ -15,7 +16,7 @@ public class StaticCounter {
 		}
 	}
 	
-	private final static int[] counter = new int[SCType.values().length];
+	private final static long[] counter = new long[SCType.values().length];
 	
 	private StaticCounter() {
 	}
@@ -25,7 +26,7 @@ public class StaticCounter {
 	}
 
 	
-	final static public int report(SCType type) {
+	final static public long report(SCType type) {
 		return counter[type.index];
 	}
 	

@@ -75,7 +75,8 @@
                            <toggleGroup>
                               <ToggleGroup fx:id="guessMethod" />
                            </toggleGroup></RadioMenuItem>
-                        <RadioMenuItem fx:id="secondarySafetyProgress" mnemonicParsing="false" selected="true" text="Secondary safety with progress" toggleGroup="$guessMethod" />
+                        <RadioMenuItem fx:id="secondarySafetyProgress" mnemonicParsing="false" selected="true" text="Secondary safety blended" toggleGroup="$guessMethod" />
+                        <RadioMenuItem fx:id="recursiveSafety" mnemonicParsing="false" text="Recursive safety" toggleGroup="$guessMethod" />
                     </items>
                   </Menu>
                   <Menu mnemonicParsing="false" text="Solver">

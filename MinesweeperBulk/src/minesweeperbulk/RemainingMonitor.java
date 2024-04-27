@@ -18,7 +18,7 @@ public class RemainingMonitor extends GamePostListener {
 	@Override
 	public void postAction(BulkRequest request) {
 		
-		GameStateModel game = request.getGame();
+		GameStateModel game = request.getRequestGames()[0].getGame();
 		
 		played++;
 		

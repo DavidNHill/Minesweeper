@@ -179,8 +179,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 	// If we are only interested in the win rate we can cheat when we encounter isolated edges
 	// if there is x chance of surviving the edge then 
-	private boolean winRateOnly = false;
-	private BigDecimal winValue = BigDecimal.ONE;
+	//private boolean winRateOnly = false;
+	//private BigDecimal winValue = BigDecimal.ONE;
 
 	/**
 	 * Start the solver without a coach display
@@ -268,9 +268,9 @@ public class Solver implements Asynchronous<Action[]> {
 	}    
 	// end of Asynchronous methods
 
-	public BigDecimal getWinValue() {
-		return this.winValue;
-	}
+	//public BigDecimal getWinValue() {
+	//	return this.winValue;
+	//}
 	
 	/**
 	 * Return a list of Tiles which were considered when picking a guess
@@ -592,14 +592,6 @@ public class Solver implements Asynchronous<Action[]> {
 				this.logger.log(Level.INFO, "All locations are dead");
 			}
 			
-			if (winRateOnly) {
-				BigDecimal chance = BigDecimal.ONE.divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-				fm = identifyLocations(deadLocations.getLocations(), chance);
-				if (fm != null) {
-					return fm;
-				}
-			}
-			
 			// if there are no squares next to a witness then just guess
 			if (allWitnessedSquares.getLocations().isEmpty()) {
 				return guess(wholeEdge);
@@ -690,14 +682,6 @@ public class Solver implements Asynchronous<Action[]> {
 
 					} else { // otherwise try and get the best long term move
 
-						//TODO
-						if (winRateOnly) {
-							fm = identifyLocations(bfa.getLocations(), bfa.getSolveChance());
-							if (fm != null) {
-								return fm;
-							}
-						}
-						
 						bruteForceAnalysis = bfa;  // by setting this we will walk the tree until completed in subsequent solver calls
 
 						newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
@@ -818,14 +802,6 @@ public class Solver implements Asynchronous<Action[]> {
 
 						deadLocations = bruteForceAnalysis.getDeadLocations();
 
-						// do win rate only
-						if (winRateOnly) {
-							fm = identifyLocations(bruteForceAnalysis.getLocations(), bruteForceAnalysis.getSolveChance());
-							if (fm != null) {
-								return fm;
-							}
-						}
-						
 						newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
 						Action move = bruteForceAnalysis.getNextMove(boardState);
 						if (move != null) {
@@ -897,7 +873,11 @@ public class Solver implements Asynchronous<Action[]> {
 		//  evaluate positions
 		if (preferences.getGuessMethod() == GuessMethod.SECONDARY_SAFETY_PROGRESS) {
 			evaluateLocations = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, ltr);
-		} else {
+			
+		} else if (preferences.getGuessMethod() == GuessMethod.RECURSIVE_SAFETY) {
+			evaluateLocations = new RecursiveSafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, ltr);
+			
+		} else{
 			evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
 		}
 
@@ -1045,34 +1025,6 @@ public class Solver implements Asynchronous<Action[]> {
 
 	}
 
-	/**
-	 * Identify which tiles are safe and which are mines by cheating
-	 */
-	private FinalMoves identifyLocations(Collection<? extends Location> locs, BigDecimal value) {
-		
-		FinalMoves fm;
-		
-		if (locs.isEmpty()) {
-			System.err.println("Nothing to identify");
-		}
-		
-		List<Action> acts = this.myGame.identifyLocations(locs);
-		if (acts != null) {
-			for (Action a: acts) {
-				this.boardState.setAction(a);
-			}
-			
-			this.winValue = this.winValue.multiply(value);
-			
-			//fm = new FinalMoves(acts.toArray(new Action[0]));
-			fm = new FinalMoves(this.boardState.getActions().toArray(new Action[0]));
-		} else {
-			fm = null;
-		}
-		
-		return fm;
-	}
-	
 	/**
 	 * Returns the tile with the lowest hash code.  This results in a consistent tile being returned.
 	 */

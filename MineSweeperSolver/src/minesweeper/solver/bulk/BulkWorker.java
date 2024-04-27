@@ -12,9 +12,9 @@ public class BulkWorker implements Runnable {
 
 	private boolean stop = false;
 	private final BulkController controller;
-	private final SolverSettings solverSettings;
+	private final SolverSettings[] solverSettings;
 
-	protected BulkWorker(BulkController controller, SolverSettings solverSettings) {
+	protected BulkWorker(BulkController controller, SolverSettings solverSettings[]) {
 		this.controller = controller;
 		this.solverSettings = solverSettings;
 	}
@@ -42,8 +42,10 @@ public class BulkWorker implements Runnable {
 			} else {
 
 				//System.out.println("Playing game sequence " + request.sequence);
-				// play the game
-				playGame(request);
+				// play the games
+				for (BulkRequestGame brg: request.games) {
+					playGame(brg);
+				}
 
 				// return it to the controller
 				request = controller.getNextRequest(request);	
@@ -56,7 +58,7 @@ public class BulkWorker implements Runnable {
 
 	}
 
-	private void playGame(BulkRequest request) {
+	private void playGame(BulkRequestGame request) {
 
 		int state;
 
@@ -65,10 +67,9 @@ public class BulkWorker implements Runnable {
 			return;
 		}
 		
-		Solver solver = new Solver(request.gs, this.solverSettings, false);
+		Solver solver = new Solver(request.gs, request.solverSettings, false);
 		solver.setPlayStyle(controller.getPlayStyle());
-		//solver.setFlagFree(controller.getPlayStyle().flagless);
-		//solver.setPlayChords(controller.getPlayStyle().useChords);
+
 		
 		int loopCounter = 0;
 		
@@ -133,7 +134,7 @@ public class BulkWorker implements Runnable {
 			}            
 		}
 		
-		request.gameValue = solver.getWinValue();
+		//request.gameValue = solver.getWinValue();
 	}
 	
 	protected void stop() {

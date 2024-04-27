@@ -13,7 +13,8 @@ public class SolverSettings {
 	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
-		SECONDARY_SAFETY_PROGRESS("Secondary safety with progress");
+		SECONDARY_SAFETY_PROGRESS("Secondary safety with progress"),
+		RECURSIVE_SAFETY("Recursive safety");
 		
 		public final String name;
 		
@@ -29,6 +30,8 @@ public class SolverSettings {
 	protected int bruteForceTreeDepth = 50;
     protected BigInteger bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
 
+    protected int recursiveSafetyDepth = 2;
+    
     protected boolean doTiebreak = true;
     protected int rolloutSolutions = 0;
     protected boolean doDomination = true;
@@ -137,6 +140,14 @@ public class SolverSettings {
     	return this;
 	}
     
+	public SolverSettings setRecursiveSafetyDepth(int depth) {
+		
+    	if (!locked) {
+    		this.recursiveSafetyDepth = depth;
+    	}
+    	return this;
+	}
+	
 	public SolverSettings setStartLocation(Location start) {
 		
 		// this can be changed
@@ -228,6 +239,10 @@ public class SolverSettings {
 		return guessMethod;
 	}
 
+	public int getRecursiveSafetyDepth() {
+		return this.recursiveSafetyDepth;
+	}
+	
 	public Location getStartLocation() {
 		return this.startLocation;
 	}

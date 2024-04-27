@@ -2,10 +2,8 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package minesweeperbulk;
+package bulkCompare;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,16 +22,14 @@ import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
-import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
-import minesweeper.structure.Location;
 
 /**
  *
  * @author David
  */
-public class MinesweeperBulk {
+public class BulkCompare {
 
 	
 	private static final DecimalFormat MASK = new DecimalFormat("#0.000");
@@ -55,8 +51,8 @@ public class MinesweeperBulk {
 		GameSettings gameSettings = GameSettings.EXPERT;
 		//GameSettings gameSettings = GameSettings.create(14, 12, 64);
 		
-		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
-		settings.setSingleThread(true);
+		SolverSettings settings0 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		settings0.setSingleThread(true);
 		//settings.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
 		//settings.setRecursiveSafetyDepth(1);
 		//settings.setStartLocation(new Location(2,2));
@@ -68,34 +64,37 @@ public class MinesweeperBulk {
 		//settings.setProgressContribution(new BigDecimal("0.052"));
 		//settings.setSafetyWeights(1, 0);
 		
+		SolverSettings settings1 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		settings1.setSingleThread(true);
+		
+		// can have an arbitrary number of settings in the array
+		SolverSettings[] solverSettings = new SolverSettings[] {settings0, settings1};
+		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 10, 10000);
-		controller.setPlayStyle(PlayStyle.EFFICIENCY);
+		BulkPlayer controller = new BulkPlayer(seeder, 20000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
+		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
-		//controller.registerPreGameListener(new StartStrategyResign(middle4CornerStart(gameSettings), 5));
-		//controller.registerPreGameListener(new StartStrategy(fourCornerStart(gameSettings), 5));
+		// Optionally a listener for each solver settings.  
+		//controller.registerPreGameListener(0, new StartStrategy(twoCornerStart(gameSettings), 5));
+		controller.registerPreGameListener(1, new StartStrategy(fourCornerStart(gameSettings), 5));
 		
-		//RandomGuesser random = new RandomGuesser(gameSettings);
-		//controller.registerPreGameListener(random);
-		
-		//EfficiencyMonitor monitor = new EfficiencyMonitor(139.5);
-		GamePostListener monitor = new GuessMonitor();
+		GamePostListener monitor = new CompareMonitor();
 		controller.registerPostGameListener(monitor);
 		
+		// this acts as a heart beat for the processing
 		controller.registerEventListener(new BulkListener() {
 			@Override
 			public void intervalAction(BulkEventMain mainEvent) {
 				
-				BulkEventGame event = mainEvent.getGameEvents()[0];
+				BulkEventGame event0 = mainEvent.getGameEvents()[0];  // get the statistics for solver settings 0
+				BulkEventGame event1 = mainEvent.getGameEvents()[1];  // get the statistics for solver settings 1
 				
-				double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
-				double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
-				
-				System.out.println("Seed: " + bulkSeed + ", Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", failed to start " + event.getFailedToStart() + ", won " + event.getGamesWon() +
-						", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() + ", solved 3BV " + event.getTotal3BVSolved() +
-						", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
-						", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Time left " + Timer.humanReadable(mainEvent.getEstimatedTimeLeft()) );
+				for (int i=0; i < mainEvent.getGameEvents().length; i++) {
+					String stats = statisticsToString(mainEvent, i);
+					System.out.println("Seed: " + bulkSeed + " Run: " + i + " ==> " + stats);
+				}
+
 			}
 			
 		});
@@ -133,16 +132,28 @@ public class MinesweeperBulk {
 				", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
 				", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Duration " + Timer.humanReadable(mainEvent.getTimeSoFar()) );
 		
-		
 		}
-		System.out.println("Long 50/50s encountered " + StaticCounter.report(SCType.LONG_5050));
-		System.out.println("Recursive Safety cache hits " + StaticCounter.report(SCType.RECURSIVE_SAFETY_CACHE_HIT));		
 		
 		monitor.postResults();
 		//random.displayTable();
 
 	}
 
+	// expand the statistics
+	static private String statisticsToString(BulkEventMain mainEvent, int index) {
+		
+		BulkEventGame event = mainEvent.getGameEvents()[index];
+		
+		double p = (double) event.getGamesWon() / (double) event.getGamesPlayed();
+		double err = Math.sqrt(p * ( 1- p) / (double) event.getGamesPlayed()) * 1.9599d;
+		
+		return "Played " + event.getGamesPlayed() + " of " + event.getGamesToPlay() + ", failed to start " + event.getFailedToStart() + ", won " + event.getGamesWon() +
+				", without guessing " + event.getNoGuessWins() + ", guesses " + event.getTotalGuesses() + ", actions " + event.getTotalActions() + ", solved 3BV " + event.getTotal3BVSolved() +
+				", fairness " + MASK5DP.format(event.getFairness()) + ", win streak " + event.getWinStreak() + ", mastery " + event.getMastery() + 
+				", win percentage " + MASK.format(p * 100) + " +/- " + MASK.format(err * 100) + ", Time left " + Timer.humanReadable(mainEvent.getEstimatedTimeLeft());
+		
+	}
+	
 	static private List<Action> twoCornerStart(GameSettings gameSettings) {
 		
 		List<Action> preactions = new ArrayList<>();

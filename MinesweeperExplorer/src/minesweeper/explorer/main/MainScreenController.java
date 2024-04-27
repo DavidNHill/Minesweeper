@@ -106,6 +106,7 @@ public class MainScreenController {
 	
 	@FXML private RadioMenuItem secondarySafetyProgress;
 	@FXML private RadioMenuItem safetyProgress;
+	@FXML private RadioMenuItem recursiveSafety;
 	
 	@FXML private CheckMenuItem useBruteForce;
 	@FXML private CheckMenuItem useLongTermSafety;
@@ -273,6 +274,8 @@ public class MainScreenController {
 		GuessMethod guessMethod;
 		if (secondarySafetyProgress.isSelected()) {
 			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
+		} else if (recursiveSafety.isSelected()) {
+			guessMethod = GuessMethod.RECURSIVE_SAFETY;
 		} else {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}
@@ -380,6 +383,8 @@ public class MainScreenController {
 		GuessMethod guessMethod;
 		if (secondarySafetyProgress.isSelected()) {
 			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
+		} else if (recursiveSafety.isSelected()) {
+			guessMethod = GuessMethod.RECURSIVE_SAFETY;
 		} else {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}

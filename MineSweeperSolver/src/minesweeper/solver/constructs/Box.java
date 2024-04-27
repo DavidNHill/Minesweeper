@@ -260,16 +260,18 @@ public class Box {
 		return this.tally;
 	}
 	
-	public void incrementEmptyTiles() {
+	public boolean incrementEmptyTiles() {
 		this.emptyTiles++;
 		// can't have more mines than there are squares to put them
 		if (this.maxMines > this.squares.size() - this.emptyTiles) {
 			this.maxMines = this.squares.size() - this.emptyTiles;
 			
 			if (this.maxMines < this.minMines) {
-				System.out.println("Illegal Mines: max " + maxMines + " min " + minMines);
+				//System.out.println("Illegal Mines: max " + maxMines + " min " + minMines);
+				return false;
 			}
 		}
+		return true;
 	}
 	
 	public void display() {

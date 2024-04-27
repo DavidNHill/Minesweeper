@@ -1,4 +1,4 @@
-package minesweeperbulk;
+package bulkCompare;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;

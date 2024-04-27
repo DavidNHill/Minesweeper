@@ -21,12 +21,13 @@ import minesweeper.structure.Location;
 
 public class EfficiencyHelper {
 	
-	private static final BigDecimal MINE_THRESHOLD = BigDecimal.valueOf(0.75);   // probability of mine to consider
+	private static final BigDecimal MINE_THRESHOLD = BigDecimal.valueOf(1);   // probability of mine to consider
 	private static final int RISK_ADVANTAGE = 2;   // <= benefit - cost
 	private static final BigDecimal ONE_ADVANTAGE_THRESHOLD = BigDecimal.valueOf(0.85);   // accept mine probability when benefit - cost = 1
 	
 	private static final BigDecimal CLEAR_ZERO_VALUE = BigDecimal.valueOf(1.0);   // clear a possible zero if chance if >= this value regardless of any other consideration
 	private static final BigDecimal IGNORE_ZERO_THRESHOLD = BigDecimal.valueOf(0.375);   // ignore a zero when the chance it happens is less than this
+	private static final BigDecimal SAFE_3BV_CLICK_THRESHOLD = BigDecimal.valueOf(1);   // a 3BV safe tile with safety greater or equal than this is included as a click possibility
 	
 	
 	private static final BigDecimal NFE_BLAST_PENALTY = BigDecimal.valueOf(0.75);
@@ -223,10 +224,26 @@ public class EfficiencyHelper {
 			highest = new BigDecimal(currSolnCount.getSolutionCount()).multiply(bestNetBenefit);
 		}
 		
+		// find all the tiles next to a confirmed mine, or safe
+		List<Location> candidates = new ArrayList<>();
+		for (Action act: actions) {
+			if (!zeroProbs.containsKey(act)) {
+				candidates.add(act);
+			}
+		}
+		candidates.addAll(zeroProbs.keySet());
+
 		// look for click then chord if the right number turns up
 		// or chord then chord if the right number turns up
-		for (Action act: actions) {
 
+		//for (Action act: actions) {
+		for (Location loc: candidates) {
+			
+			BigDecimal testP = this.pe.getProbability(loc);
+			if (testP.compareTo(SAFE_3BV_CLICK_THRESHOLD) < 0) {
+				continue;
+			}
+			Action act = new Action(loc, Action.CLEAR, MoveMethod.TRIVIAL, "Clear", testP, 0);
 			if (act.getAction() == Action.CLEAR) {
 				
 				// check to see if the tile (trivially) can't be next to a zero. i.e. 3BV safe
@@ -245,7 +262,7 @@ public class EfficiencyHelper {
                 }
                 
                 
-                // find the best chord adjacent to this clear if there is one
+                // find all the chords adjacent to this clear 
                 List<ChordLocation> adjChords = new ArrayList<>();
                 
                 for (ChordLocation cl: chordLocations) {
@@ -286,6 +303,11 @@ public class EfficiencyHelper {
 				if (chordReward.compareTo(bestNetBenefit) > 0) {
 					
 					SolutionCounter counter = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, act, adjMines, Area.EMPTY_AREA);
+					
+					// if no solutions for this click value then move to the next option
+					//if (counter.getSolutionCount().signum() == 0) {
+					//	continue;
+					//}
 					
 					BigDecimal current = new BigDecimal(counter.getSolutionCount()).multiply(chordReward);
 					
@@ -335,7 +357,8 @@ public class EfficiencyHelper {
                     	
                         BigDecimal tempCurrent = chordChordCombo(cl, act, counter.getSolutionCount(), currSolnCount.getSolutionCount());
                         
-                        if (current.compareTo(tempCurrent) < 0) {  // keep track of the best chord / chord combo
+                        // chose the better option or if the same choose the chord/chord option over the click/chord
+                        if (current.compareTo(tempCurrent) < 0 || current.compareTo(tempCurrent) == 0 && adjChord == null) {  // keep track of the best chord / chord combo
                             current = tempCurrent;
                             adjChord = cl;
                         }
