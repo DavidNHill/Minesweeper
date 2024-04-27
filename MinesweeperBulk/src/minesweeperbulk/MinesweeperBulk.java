@@ -70,7 +70,7 @@ public class MinesweeperBulk {
 		
 		final long bulkSeed = seed;
 		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 10, 10000);
-		controller.setPlayStyle(PlayStyle.EFFICIENCY);
+		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
 		//controller.registerPreGameListener(new StartStrategyResign(middle4CornerStart(gameSettings), 5));
