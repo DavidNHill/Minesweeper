@@ -14,7 +14,6 @@ import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
-import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
@@ -22,6 +21,8 @@ import minesweeper.structure.Location;
 
 public class ProgressEvaluator implements LocationEvaluator {
 
+	public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");
+	
 	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_PROGRESS_PROBABILITY;  // this works well
 	private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_WEIGHT;   // trying this
 	//private final static Comparator<EvaluatedLocation> SORT_ORDER = EvaluatedLocation.SORT_BY_FIXED_CLEARS_PROGRESS;      // trying this
@@ -359,7 +360,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 		for (int i = minMines; i <= maxMines; i++) {
 
 			// calculate the weight
-			BigDecimal bonus = BigDecimal.ONE.add(progressProb.add(probThisTileLeft).multiply(Solver.PROGRESS_VALUE));
+			BigDecimal bonus = BigDecimal.ONE.add(progressProb.add(probThisTileLeft).multiply(PROGRESS_VALUE));
 			BigDecimal weight = probThisTile.multiply(bonus);
 			
 			// if the remaining safe component for the tile can now never reach the best if if 100% safe for all future values then abandon analysis
@@ -412,7 +413,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 		}
 		
 		// calculate the weight
-		BigDecimal bonus = BigDecimal.ONE.add(progressProb.multiply(Solver.PROGRESS_VALUE));
+		BigDecimal bonus = BigDecimal.ONE.add(progressProb.multiply(PROGRESS_VALUE));
 		BigDecimal weighting = probThisTile.multiply(bonus);
 		
 		result = new EvaluatedLocation(tile.x, tile.y, probThisTile, weighting, expectedClears, 0, commonClears, maxValueProgress);

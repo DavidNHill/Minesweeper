@@ -270,7 +270,7 @@ public class MainScreenController {
 			e.printStackTrace();
 		}
 
-		
+		int depth = 2;
 		GuessMethod guessMethod;
 		if (secondarySafetyProgress.isSelected()) {
 			guessMethod = GuessMethod.SECONDARY_SAFETY_PROGRESS;
@@ -282,13 +282,13 @@ public class MainScreenController {
 		
 		SolverSettings settings;
 		if (rolloutNoBF.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod);
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else if (rollout40.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setGuessMethod(guessMethod);
+			settings = SettingsFactory.GetSettings(Setting.TINY_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else if (rollout400.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setGuessMethod(guessMethod);
+			settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else {
-			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setGuessMethod(guessMethod);
+			settings = SettingsFactory.GetSettings(Setting.LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		}
 		
 		settings.setLongTermSafety(useLongTermSafetyRollout.isSelected());
@@ -389,11 +389,12 @@ public class MainScreenController {
 			guessMethod = GuessMethod.SAFETY_PROGRESS;
 		}
 		
+		int depth = 4;
 		SolverSettings settings;
 		if (this.useBruteForce.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
+			settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else {
-			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod);			
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);;			
 		}
 		
 		settings.setLongTermSafety(this.useLongTermSafety.isSelected());

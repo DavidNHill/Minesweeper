@@ -4,6 +4,8 @@
  */
 package minesweeper.gamestate;
 
+import java.io.File;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -726,6 +728,53 @@ abstract public class GameStateModel {
         
         return (finishTS - startTS) / 1000;
         
+    }
+    
+    public boolean savePosition(File file, String message) throws Exception {
+    	
+    	if (file == null || file.exists()) {
+    		return false;
+    	}
+
+    	List<String> records = new ArrayList<>();
+    	
+    	String header =  this.width + "x" + this.height + "x" + this.mines;
+    	records.add(header);
+    	
+    	for (int y=0; y < this.height; y++) {
+    		
+    		StringBuilder record = new StringBuilder();
+        	for (int x=0; x < this.width; x++) {
+        		
+         		if (isFlag(x, y)) {
+                	record.append("F");
+                	
+                } else if (isHidden(x, y)) {
+                	 record.append("H");
+                	 
+                } else {
+                	record.append(String.valueOf(queryHandle(x, y)));
+                }
+        	}   		
+    		
+        	records.add(record.toString());
+    		
+    	}
+
+    	// add an option message at the bottom
+    	if (message != null && !message.isEmpty()) {
+    	   	records.add("MSG:" + message);
+    	}
+    	
+    	try (PrintStream output = new PrintStream(file)) {
+    	   	for (String record: records) {
+        		output.println(record);
+        	}    		
+    	} catch (Exception e) {
+    		throw e;
+    	}
+    	
+    	return true;
     }
     
     

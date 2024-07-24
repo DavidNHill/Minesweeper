@@ -4,6 +4,7 @@
  */
 package bulkCompare;
 
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,7 @@ import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
 
@@ -42,44 +44,49 @@ public class BulkCompare {
 		long seed = (new Random()).nextInt();
 
 		//seed = 1373631748;
-		seed = 462440595;
+		//seed = 462440595;
 		//seed = -60442780;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
-		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(14, 12, 64);
+		//GameSettings gameSettings = GameSettings.EXPERT;
+		GameSettings gameSettings = GameSettings.create(15, 15, 80);
 		
 		SolverSettings settings0 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings0.setSingleThread(true);
-		//settings.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
-		//settings.setRecursiveSafetyDepth(1);
+		//settings0.setHardCutOff(null);
+		//settings0.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
+		//settings0.setRecursiveSafetyDepth(1);
 		//settings.setStartLocation(new Location(2,2));
 		//settings.set5050Check(false);
 		//settings.setEarly5050Check(true);
 		//settings.setTieBreak(false);
 		//settings.setTestMode(true);
-		//settings.setLongTermSafety(false);
+		//settings0.setLongTermSafety(false);
 		//settings.setProgressContribution(new BigDecimal("0.052"));
 		//settings.setSafetyWeights(1, 0);
 		
 		SolverSettings settings1 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings1.setSingleThread(true);
+		//settings1.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
+		//settings1.setRecursiveSafetyDepth(2);
+		settings1.setLongTermSafety(false);
+		//settings1.setHardCutOff(new BigDecimal("0.8"));
 		
 		// can have an arbitrary number of settings in the array
 		SolverSettings[] solverSettings = new SolverSettings[] {settings0, settings1};
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 20000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
 		// Optionally a listener for each solver settings.  
 		//controller.registerPreGameListener(0, new StartStrategy(twoCornerStart(gameSettings), 5));
-		controller.registerPreGameListener(1, new StartStrategy(fourCornerStart(gameSettings), 5));
+		//controller.registerPreGameListener(1, new StartStrategy(fourCornerStart(gameSettings), 5));
 		
-		GamePostListener monitor = new CompareMonitor();
+		GamePostListener monitor = new TwoWayCompare();
 		controller.registerPostGameListener(monitor);
 		
 		// this acts as a heart beat for the processing

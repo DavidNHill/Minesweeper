@@ -100,13 +100,13 @@ public class Solver implements Asynchronous<Action[]> {
 	final static boolean PRUNE_BF_ANALYSIS = true;
 	final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = false;
 
-	public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety
-	final static BigDecimal PROB_ENGINE_HARD_TOLERENCE = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
+	//public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety 
+	//final static BigDecimal PROB_ENGINE_HARD_TOLERENCE = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
 	
-	final static BigDecimal PROGRESS_MULTIPLIER = BigDecimal.ONE.add(PROGRESS_VALUE);
+	//final static BigDecimal PROGRESS_MULTIPLIER = BigDecimal.ONE.add(PROGRESS_VALUE);
 	//final static BigDecimal OFF_EDGE_TOLERENCE = BigDecimal.ONE.subtract(PROGRESS_VALUE); // consider off edge tiles which if they are above the threshold of the best on edge tile
 
-	final static BigDecimal PROB_ENGINE_TOLERENCE = BigDecimal.ONE.subtract(PROGRESS_VALUE).max(PROB_ENGINE_HARD_TOLERENCE);
+	//final static BigDecimal PROB_ENGINE_TOLERENCE = BigDecimal.ONE.subtract(PROGRESS_VALUE).max(PROB_ENGINE_HARD_TOLERENCE);
 	//final static BigDecimal PROB_ENGINE_TOLERENCE = new BigDecimal("0.85");  // for experimental tiebreak
 
 	// won't play the book opening on start if false
@@ -625,7 +625,7 @@ public class Solver implements Asynchronous<Action[]> {
 			//} else if (preferences.isExperimentalScoring()) {
 			//	bestCandidates = pe.getBestCandidates(BigDecimal.valueOf(0.8d), true);
 		} else {
-			bestCandidates = pe.getBestCandidates( PROB_ENGINE_TOLERENCE, true);
+			bestCandidates = pe.getBestCandidates( this.preferences.getHardCutOff(), true);
 		}
 
 		List<Location> allUnrevealedSquares = null;

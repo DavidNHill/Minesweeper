@@ -160,8 +160,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	 * Evaluate a set of tiles to see the expected number of clears it will provide
 	 */
 	public void evaluateLocations() {
-
-		BigDecimal threshold = pe.getBestSafety().multiply(Solver.PROB_ENGINE_HARD_TOLERENCE);
+		
+		BigDecimal threshold = pe.getBestSafety().multiply(solver.preferences.getHardCutOff());
 		for (Location loc: ltrHelper.getInfluencedTiles(threshold)) {
 			if (!tileOfInterestOff.contains(loc)) {  // if we aren't in the other set then add it to this one
 				tileOfInterestOn.add(loc);

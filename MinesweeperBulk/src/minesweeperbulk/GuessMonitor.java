@@ -1,5 +1,6 @@
 package minesweeperbulk;
 
+import java.io.File;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,19 @@ public class GuessMonitor extends GamePostListener {
 		} else {
 			table = loseTable;
 		}
+		
+		// save every 1000th game
+		/*
+		if (played % 1000 == 0) {
+			File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + game.getSeed() + ".mine");
+			try {
+				System.out.println("Saving position in file " + saveFile.getAbsolutePath());
+				game.savePosition(saveFile, "");
+			} catch (Exception e) {
+				System.out.println("Save position failed: " + e.getMessage());
+			}
+		}
+		*/
 		
 		int guesses = req.getGuesses();
 		

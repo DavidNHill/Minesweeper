@@ -10,6 +10,7 @@ public class SolverSettings {
 
 	//private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.052");
 	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.001");  // tiny amount to force a tie-break if everything else is the same
+	private final static BigDecimal SELECTION_HARD_CUTOFF = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
 	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
@@ -24,6 +25,7 @@ public class SolverSettings {
 	}
 	
 	protected BigDecimal progressContribution = PROGRESS_CONTRIBUTION;
+	protected BigDecimal hardCutOff = SELECTION_HARD_CUTOFF;
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
@@ -156,11 +158,26 @@ public class SolverSettings {
 	}
     
 	public SolverSettings setProgressContribution(BigDecimal contribution) {
-		if (contribution == null) {
-			this.progressContribution = PROGRESS_CONTRIBUTION;
-		} else {
-			this.progressContribution = contribution;
+		if (!locked) {
+			if (contribution == null) {
+				this.progressContribution = PROGRESS_CONTRIBUTION;
+			} else {
+				this.progressContribution = contribution;
+			}
 		}
+
+		return this;
+	}
+	
+	public SolverSettings setHardCutOff(BigDecimal cutoff) {
+		if (!locked) {
+			if (cutoff == null) {
+				this.hardCutOff = SELECTION_HARD_CUTOFF;
+			} else {
+				this.hardCutOff = cutoff;
+			}
+		}
+
 		return this;
 	}
 	
@@ -249,6 +266,10 @@ public class SolverSettings {
 
 	public BigDecimal getProgressContribution() {
 		return this.progressContribution;
+	}
+	
+	public BigDecimal getHardCutOff() {
+		return this.hardCutOff;
 	}
 	
 	public int getWeight1() {

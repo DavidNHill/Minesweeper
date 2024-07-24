@@ -5,6 +5,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
+import minesweeper.solver.ProgressEvaluator;
 import minesweeper.solver.Solver;
 import minesweeper.structure.Location;
 
@@ -74,7 +75,7 @@ public class InformationLocation extends Location {
 		this.progressProbability = progProb;
 		this.expectedSolutionSpaceReduction = ess;
 		
-		BigDecimal bonus = BigDecimal.ONE.add(progressProbability.multiply(Solver.PROGRESS_VALUE));
+		BigDecimal bonus = BigDecimal.ONE.add(progressProbability.multiply(ProgressEvaluator.PROGRESS_VALUE));
 		
 		this.weighting = this.safety.multiply(bonus);
 		
