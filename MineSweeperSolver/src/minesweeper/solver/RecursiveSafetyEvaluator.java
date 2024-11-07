@@ -658,15 +658,17 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 				bestSafety = totalSafety;
 				bestTile = tile;
 				this.bestPath[depth] = tile;   // keep track of the best path
-				//if (depth == 0) {
+				if (depth == 0) {
 					solver.logger.log(Level.INFO, "BEST at depth %d: %s with recursive safety %f", depth, bestTile, bestSafety);
-				//}
+				}
 				if (depth == 0) {
 					solver.logger.log(Level.INFO, "--- Next Tile ----");
 				}
 					
 			} else {
-				solver.logger.log(Level.INFO, "PRUNED at depth %d: %s with recursive safety %f ", depth, tile, totalSafety);
+				if (depth == 0) {
+					solver.logger.log(Level.INFO, "PRUNED at depth %d: %s with recursive safety %f ", depth, tile, totalSafety);
+				}
 			}
 			
 		}

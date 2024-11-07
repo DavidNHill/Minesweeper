@@ -28,7 +28,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 	private final static BigDecimal ESS_CONTRIBUTION = new BigDecimal("0.00");
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
-	
+		
 	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");   // was 0.9
 	
 	private final static BigDecimal HALF = new BigDecimal("0.5");
@@ -56,7 +56,6 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private final LongTermRiskHelper ltrHelper;
 	
 	private final BigDecimal progressContribution;
-	private final static BigDecimal essrContribution = new BigDecimal("0.02");
 	
 	private List<EvaluatedLocation> evaluated = new ArrayList<>();
 	private EvaluatedLocation best;
@@ -77,7 +76,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		//this.ltrHelperOld = new LongTermRiskHelperOld(boardState, wholeEdge, pe);
 		//this.ltrHelperOld.findRisks();
 		
-		// find major 50/50 influence on the board - wip
+		// find major 50/50 influence on the board
 		this.ltrHelper = ltr;
 		
 		this.spaceCounter = new SpaceCounter(boardState, 8);
@@ -208,6 +207,15 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		}
 		
 	}
+	
+	/**
+	 * Evaluate a set of tiles to see the expected number of clears it will provide
+	 */
+	public void evaluateLocations(List<Location> locations) {
+		for (Location tile: locations) {
+			evaluateLocation(tile);
+		}						
+	}
 
 	/**
 	 * Evaluate a tile to see the expected number of clears it will provide
@@ -305,7 +313,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		BigDecimal fiftyFiftyInfluence;
 		BigDecimal fiftyFiftyContribution;
-		if (this.solver.preferences.considerLongTermSafety()) {
+		if (this.solver.preferences.considerLongTermSafety() && this.ltrHelper != null) {
 			BigInteger tally = ltrHelper.findInfluence(tile);
 			BigDecimal bdTally = new BigDecimal(tally);
 			
@@ -408,9 +416,6 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				
 				
 				BigDecimal nextMoveSafety = counter.getBlendedSafety();
-				
-				//BigDecimal lts = this.ltrHelperOld.getLongTermSafety(tile, counter);
-				//BigDecimal lts = BigDecimal.ONE;
 				
 				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f, secondary safety %f, 50/50 influence %f and %d tiles on edge", tile, i, clears, prob, nextMoveSafety, fiftyFiftyInfluence, tilesOnEdge);
 				

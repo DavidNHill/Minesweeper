@@ -50,8 +50,8 @@ public class BulkCompare {
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
-		//GameSettings gameSettings = GameSettings.EXPERT;
-		GameSettings gameSettings = GameSettings.create(15, 15, 80);
+		GameSettings gameSettings = GameSettings.EXPERT;
+		//GameSettings gameSettings = GameSettings.create(15, 15, 80);
 		
 		SolverSettings settings0 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings0.setSingleThread(true);
@@ -71,8 +71,9 @@ public class BulkCompare {
 		settings1.setSingleThread(true);
 		//settings1.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
 		//settings1.setRecursiveSafetyDepth(2);
-		settings1.setLongTermSafety(false);
+		//settings1.setLongTermSafety(false);
 		//settings1.setHardCutOff(new BigDecimal("0.8"));
+		settings1.setTestMode(true);
 		
 		// can have an arbitrary number of settings in the array
 		SolverSettings[] solverSettings = new SolverSettings[] {settings0, settings1};

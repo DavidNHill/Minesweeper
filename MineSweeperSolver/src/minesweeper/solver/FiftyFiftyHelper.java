@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -63,11 +64,11 @@ public class FiftyFiftyHelper {
 		
 	}
 	
-	public Location findUnavoidable5050(List<Location> extraMines) {
+	public List<Location> findUnavoidable5050(List<Location> extraMines) {
 		return findUnavoidable5050(extraMines, board.getLogger());
 	}
 
-	public Location findUnavoidable5050(List<Location> extraMines, Logger logger) {
+	public List<Location> findUnavoidable5050(List<Location> extraMines, Logger logger) {
 		
 		List<Link> links = new ArrayList<>();
 		
@@ -118,7 +119,7 @@ public class FiftyFiftyHelper {
 				if (unavoidable) {
 					Location guess =  board.getSolver().getLowest(witness.getSquares(), deadLocations);
 					logger.log(Level.INFO, "Tile %s is an unavoidable guess", guess);
-					return guess;
+					return Arrays.asList(guess);
 				}
 				
 				links.add(link);
@@ -170,8 +171,8 @@ public class FiftyFiftyHelper {
 											StaticCounter.count(SCType.LONG_5050);
 										}
 									
-										//return getBest5050Tile(area5050, deadLocations);
-										return board.getSolver().getLowest(area5050, deadLocations);		
+										return area5050;
+										//return board.getSolver().getLowest(area5050, deadLocations);		
 
 									} else {
 										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));
@@ -201,8 +202,8 @@ public class FiftyFiftyHelper {
 											StaticCounter.count(SCType.LONG_5050);
 										}
 										
-										//return getBest5050Tile(area5050, deadLocations);
-										return board.getSolver().getLowest(area5050, deadLocations);		
+										return area5050;
+										//return board.getSolver().getLowest(area5050, deadLocations);		
 
 									} else {
 										logger.log(Level.INFO, "Tile %s is a closed extension with %d parts", openTile, (extensions + 1));

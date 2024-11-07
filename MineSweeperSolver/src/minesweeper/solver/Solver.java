@@ -515,10 +515,11 @@ public class Solver implements Asynchronous<Action[]> {
 	        FiftyFiftyHelper fiftyFiftyHelper = null;
              if (preferences.isDo5050Check()) {
             	fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, Area.EMPTY_AREA);
-            	Location findFifty = fiftyFiftyHelper.findUnavoidable5050(Collections.emptyList());
+            	List<Location> fiftyFifty = fiftyFiftyHelper.findUnavoidable5050(Collections.emptyList());
 
-            	if (findFifty != null) {
-    				Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5));  
+            	if (fiftyFifty != null) {
+            		Location bestTile = this.getLowest(fiftyFifty, Area.EMPTY_AREA);
+    				Action a = new Action(bestTile, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5));  
     				fm = new FinalMoves(a);
 
             		newLine("--------- Unavoidable Guess ---------");
@@ -836,11 +837,28 @@ public class Solver implements Asynchronous<Action[]> {
 		if (!certainClearFound && !fm.moveFound) {
 			if (preferences.isDo5050Check()) {
 				fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
-				Location findFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
+				List<Location> fiftyFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
 
-				if (findFifty != null) {
-					Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(findFifty));  
-					fm = new FinalMoves(a);
+				if (fiftyFifty != null) {
+
+					this.logger.log(Level.INFO, "Selecting best tile in 50/50");
+					SecondarySafetyEvaluator evaluator = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, null);
+					evaluator.evaluateLocations(fiftyFifty);
+					
+					evaluator.showResults();
+					Action a[] = evaluator.bestMove();
+					fm = new FinalMoves(a[0]);
+
+					/*
+					if (this.preferences.isTestMode()) {
+
+						
+					} else {
+						Location lowestTile = getLowest(fiftyFifty, deadLocations); 
+						Action a = new Action(lowestTile, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(lowestTile));  
+						fm = new FinalMoves(a);
+					}
+					*/
 
 					newLine("--------- Unavoidable Guess ---------");
 					newLine("An unavoidable guess has been found - playing now to save time");
@@ -856,11 +874,19 @@ public class Solver implements Asynchronous<Action[]> {
 			ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
 			if (preferences.isDo5050Check()) {
 
-				Location findFifty = ltr.findInfluence();
-
-				if (findFifty != null) {
-					Action a = new Action(findFifty, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Pseudo Fifty-Fifty",  pe.getProbability(findFifty));  
-					fm = new FinalMoves(a);
+				List<Location> pseudos = ltr.findInfluence();
+				
+				if (!pseudos.isEmpty()) {
+					
+					this.logger.log(Level.INFO, "Selecting best pseudo");
+					SecondarySafetyEvaluator evaluator = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, ltr);
+					evaluator.evaluateLocations(pseudos);
+					
+					evaluator.showResults();
+					Action a[] = evaluator.bestMove();
+					
+					//Action a = new Action(pseudos, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Pseudo Fifty-Fifty",  pe.getProbability(pseudo));  
+					fm = new FinalMoves(a[0]);
 
 					newLine("--------- Unavoidable Guess ---------");
 					newLine("An unavoidable guess has been found - playing now to save time");

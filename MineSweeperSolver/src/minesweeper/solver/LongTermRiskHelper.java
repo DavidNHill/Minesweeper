@@ -1,5 +1,6 @@
 package minesweeper.solver;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -13,7 +14,10 @@ import minesweeper.structure.Location;
 
 public class LongTermRiskHelper {
 
-	private final static BigDecimal APPROX_THRESHOLD = new BigDecimal("0.01");
+	//private final static BigDecimal APPROX_THRESHOLD = new BigDecimal("0.01");
+	private final static BigDecimal APPROX_THRESHOLD = new BigDecimal("0.00");
+	private final static BigDecimal CORRECT_THRESHOLD = new BigDecimal("0.000");
+	private final static BigDecimal FINAL_THRESHOLD = new BigDecimal("0.025");
 	
 	private class Result {
 		private final BigInteger influence;
@@ -25,6 +29,16 @@ public class LongTermRiskHelper {
 		}
 	}
 	
+	private class MineDetails {
+		private final List<Location> present;   // these are mines which needed to form the outer part of the 50/50 and are present
+		private final List<Location> missing;   // these are mines which needed to form the outer part of the 50/50 but are missing
+		
+		private MineDetails(List<Location> present, List<Location> missing) {
+			this.present = present;
+			this.missing = missing;
+		}
+	}
+	
 	private final BoardState board;
 	private final WitnessWeb wholeEdge;
 	private final ProbabilityEngineModel currentPe;
@@ -33,7 +47,8 @@ public class LongTermRiskHelper {
 	// this is only an approximation based on the most common types of 50/50
 	private BigInteger[][] influence5050s;
 	private BigInteger[][] influenceEnablers;
-	private Location pseudo;
+	//private Location pseudo;
+	private List<Location> pseudos = new ArrayList<>();
 	
 	final List<Location> mines = new ArrayList<>();
 	final List<Location> notMines = new ArrayList<>();
@@ -52,17 +67,27 @@ public class LongTermRiskHelper {
 	/**
 	 * Scan whole board looking for tiles heavily influenced by 50/50s
 	 */
-	public Location findInfluence() {
+	public List<Location> findInfluence() {
+		
+		// if we aren't considering long term safety then we can skip all of this
+		if (!this.board.getSolver().preferences.considerLongTermSafety()) {
+			return pseudos;
+		}
 		
 		checkFor2Tile5050();
 		
-		checkForBox5050();
-		
-		if (pseudo != null) {
-			board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", pseudo);
+		if (!pseudos.isEmpty()) {
+			//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", pseudo);
+			return pseudos;
 		}
 		
-		return pseudo;
+		checkForBox5050();
+		
+		if (!pseudos.isEmpty()) {
+			//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", pseudo);
+		}
+		
+		return pseudos;
 		
 	}
 
@@ -150,16 +175,21 @@ public class LongTermRiskHelper {
 		
 				if (result != null) {
 					BigInteger influenceTally = addNotNull(BigInteger.ZERO,  result);
-					BigDecimal influence = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-					board.getLogger().log(Level.INFO, "%s and %s have horiontal 2-tile 50/50 influence %f", tile1, tile2, influence);
+					BigDecimal influenceRatio = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+					board.getLogger().log(Level.INFO, "%s and %s have horiontal 2-tile 50/50 influence %f", tile1, tile2, influenceRatio);
 					
-					addInfluence(influenceTally, result.enablers, tile1, tile2);
-					if (pseudo != null) {  // if we've found a pseudo then we can stop here
+					if (influenceRatio.compareTo(CORRECT_THRESHOLD) < 0) {
+						continue;
+					}
+					
+					checkForPseudo(result, tile1, tile2);
+					if (!pseudos.isEmpty()) {
 						return;
 					}
-				}
-				
+					
+					addInfluence(influenceTally, influenceRatio, result, tile1, tile2);
 
+				}
 				
 			}
 		}                        
@@ -176,13 +206,20 @@ public class LongTermRiskHelper {
 				if (result != null) {
 					
 					BigInteger influenceTally = addNotNull(BigInteger.ZERO, result);
-					BigDecimal influence = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-					board.getLogger().log(Level.INFO, "%s and %s have vertical 2-tile 50/50 influence %f", tile1, tile2, influence);
+					BigDecimal influenceRatio = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+					board.getLogger().log(Level.INFO, "%s and %s have vertical 2-tile 50/50 influence %f", tile1, tile2, influenceRatio);
 					
-					addInfluence(influenceTally, result.enablers, tile1, tile2);
-					if (pseudo != null) {  // if we've found a pseudo then we can stop here
+					if (influenceRatio.compareTo(CORRECT_THRESHOLD) < 0) {
+						continue;
+					}
+					
+					checkForPseudo(result, tile1, tile2);
+					if (!pseudos.isEmpty()) {
 						return;
 					}
+					
+					addInfluence(influenceTally, influenceRatio, result, tile1, tile2);
+
 				}
 	
 			}
@@ -207,23 +244,23 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i-1, j), board.getLocation(i-1, j+1),
+		MineDetails md = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i-1, j), board.getLocation(i-1, j+1),
 				board.getLocation(i+2, j-1), board.getLocation(i+2, j), board.getLocation(i+2, j+1));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
-		if (missingMines == null || missingMines.size() + 1 > maxMissingMines || missingMines.size() + 1 > minesLeft) {
+		if (md == null || md.missing.size() + 1 > maxMissingMines || md.missing.size() + 1 > minesLeft) {
 			return null;
 		}
 		
 		Location tile1 = subject;
 		Location tile2 = board.getLocation(i + 1, j);
 
-		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1);
+		BigDecimal approxChance = calculateApproxChanceOf5050(md.missing, tile1);
 		
 		board.getLogger().log(Level.INFO, "Evaluating candidate 50/50 - %s %s - approx chance %f", tile1, tile2, approxChance);
 		
 		// if the estimate chance is too low then don't consider it
-		if (missingMines.size() + 1 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
+		if (md.missing.size() + 1 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
 			return null;
 		}
 		
@@ -231,12 +268,12 @@ public class LongTermRiskHelper {
 		notMines.clear();
 		
 		// add the missing Mines and the mine required to form the 50/50
-		mines.addAll(missingMines);
+		mines.addAll(md.missing);
 		mines.add(tile1);
 		notMines.add(tile2);
 		SolutionCounter counter = board.getSolver().validatePosition(wholeEdge, mines, notMines, Area.EMPTY_AREA);
 		
-		return new Result(counter.getSolutionCount(), missingMines);
+		return new Result(counter.getSolutionCount(), md.missing);
 		
 	}
 	
@@ -258,23 +295,23 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i, j - 1), board.getLocation(i + 1, j - 1),
+		MineDetails md = getMissingMines(board.getLocation(i-1, j-1), board.getLocation(i, j - 1), board.getLocation(i + 1, j - 1),
 				board.getLocation(i - 1, j + 2), board.getLocation(i, j + 2), board.getLocation(i + 1, j + 2));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
-		if (missingMines == null || missingMines.size() + 1 > maxMissingMines || missingMines.size() + 1 > minesLeft) {
+		if (md == null || md.missing.size() + 1 > maxMissingMines || md.missing.size() + 1 > minesLeft) {
 			return null;
 		}
-		
+
 		Location tile1 = board.getLocation(i, j);
 		Location tile2 = board.getLocation(i, j + 1);
 		
-		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1);
+		BigDecimal approxChance = calculateApproxChanceOf5050(md.missing, tile1);
 		
 		board.getLogger().log(Level.INFO, "Evaluating candidate 50/50 - %s %s - approx chance %f", tile1, tile2, approxChance);
 		
 		// if the estimate chance is too low then don't consider it
-		if (missingMines.size() + 1 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
+		if (md.missing.size() + 1 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
 			return null;
 		}
 		
@@ -282,19 +319,19 @@ public class LongTermRiskHelper {
 		notMines.clear();
 		
 		// add the missing Mines and the mine required to form the 50/50
-		mines.addAll(missingMines);
+		mines.addAll(md.missing);
 		mines.add(tile1);
 		notMines.add(tile2);
 		SolutionCounter counter = board.getSolver().validatePosition(wholeEdge, mines, notMines, Area.EMPTY_AREA);
 		
-		return new Result(counter.getSolutionCount(), missingMines);
+		return new Result(counter.getSolutionCount(), md.missing);
 		
 	}
 
 	private void checkForBox5050() {
 		
 		final int minMissingMines = 2;
-		final int maxMissingMines = 2;
+		final int maxMissingMines = 3;
 		
 	   	int minesLeft = board.getMines() - board.getConfirmedMineCount();
 		
@@ -315,13 +352,33 @@ public class LongTermRiskHelper {
 					
 					BigInteger influenceTally = addNotNull(BigInteger.ZERO, result);
 					
-					BigDecimal influence = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-					board.getLogger().log(Level.INFO, "%s %s %s %s have box 4-tile 50/50 influence %f", tile1, tile2, tile3, tile4, influence);
+					BigDecimal influenceRatio = new BigDecimal(influenceTally).divide(new BigDecimal(currentPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
+					board.getLogger().log(Level.INFO, "%s %s %s %s have box 4-tile 50/50 influence %f", tile1, tile2, tile3, tile4, influenceRatio);
 					
-					addInfluence(influenceTally, result.enablers, tile1, tile2, tile3, tile4);
-					if (pseudo != null) {  // if we've found a pseudo then we can stop here
+					if (influenceRatio.compareTo(CORRECT_THRESHOLD) < 0) {
+						continue;
+					}
+					
+					checkForPseudo(result, tile1, tile2, tile3, tile4);
+					if (!pseudos.isEmpty()) {
+						
+						/*
+						if (result.enablers.size() > 1) {
+							File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + board.getSolver().getGame().getSeed() + ".mine");
+							try {
+								System.out.println("Saving position in file " + saveFile.getAbsolutePath());
+								board.getSolver().getGame().savePosition(saveFile, "Pseudo");
+							} catch (Exception e) {
+								System.out.println("Save position failed: " + e.getMessage());
+							}
+							
+						}
+						*/
+						
 						return;
 					}
+					
+					addInfluence(influenceTally, influenceRatio, result, tile1, tile2, tile3, tile4);
 				}
 				
 			}
@@ -347,10 +404,10 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
-		List<Location> missingMines = getMissingMines(board.getLocation(i - 1, j - 1), board.getLocation(i + 2, j - 1), board.getLocation(i - 1, j + 2), board.getLocation(i + 2, j + 2));
+		MineDetails md = getMissingMines(board.getLocation(i - 1, j - 1), board.getLocation(i + 2, j - 1), board.getLocation(i - 1, j + 2), board.getLocation(i + 2, j + 2));
 		
 		// only consider possible 50/50s with less than 3 missing mines or requires more mines then are left in the game (plus 1 to allow for the extra mine in the 50/50)
-		if (missingMines == null || missingMines.size() + 2 > maxMissingMines || missingMines.size() + 2 > minesLeft) {
+		if (md == null || md.missing.size() + 2 > maxMissingMines || md.missing.size() + 2 > minesLeft) {
 			return null;
 		}
 		
@@ -359,12 +416,12 @@ public class LongTermRiskHelper {
 		Location tile3 = board.getLocation(i + 1, j);
 		Location tile4 = board.getLocation(i + 1, j + 1);
 		
-		BigDecimal approxChance = calculateApproxChanceOf5050(missingMines, tile1, tile4);
+		BigDecimal approxChance = calculateApproxChanceOf5050(md.missing, tile1, tile4);
 		
 		board.getLogger().log(Level.INFO, "Evaluating candidate 50/50 - %s %s %s %s - approx chance %f", tile1, tile2, tile3, tile4, approxChance);
 		
 		// if the estimate chance is too low then don't consider it
-		if (missingMines.size() + 2 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
+		if (md.missing.size() + 2 > minMissingMines && approxChance.compareTo(APPROX_THRESHOLD) < 0) {
 			return null;
 		}
 		
@@ -372,7 +429,7 @@ public class LongTermRiskHelper {
 		notMines.clear();
 		
 		// add the missing Mines and the mine required to form the 50/50
-		mines.addAll(missingMines);
+		mines.addAll(md.missing);
 		mines.add(tile1);
 		mines.add(tile4);
 		notMines.add(tile2);
@@ -381,7 +438,7 @@ public class LongTermRiskHelper {
 		
 		board.getLogger().log(Level.INFO, "Candidate 50/50 - %s %s %s %s influence %d", tile1, tile2, tile3, tile4, counter.getSolutionCount());
 		
-		return new Result(counter.getSolutionCount(), missingMines);
+		return new Result(counter.getSolutionCount(), md.missing);
 		
 	}
 	
@@ -421,23 +478,21 @@ public class LongTermRiskHelper {
 	
 	}
 	
-	private void addInfluence(BigInteger influence, List<Location> enablers, Location... tiles) {
+	//private void addInfluence(BigInteger influence, List<Location> enablers, Location... tiles) {
+	private void addInfluence(BigInteger influenceTally, BigDecimal influenceRatio, Result result, Location... tiles) {
 		
-		List<Location> pseudos = new ArrayList<>();
-		
+
 		// the tiles which enable a 50/50 but aren't in it also get an influence
 
-		if (enablers != null) {
+		if (result.enablers != null && influenceRatio.compareTo(FINAL_THRESHOLD) > 0) {
 			
-			//BigInteger influence2 = influence.multiply(BigInteger.valueOf(2)).divide(BigInteger.valueOf(3));
-			
-			for (Location loc: enablers) {
+			for (Location loc: result.enablers) {
 				
 				// store the influence
 				if (influenceEnablers[loc.x][loc.y] == null) {
-					influenceEnablers[loc.x][loc.y] = influence;
+					influenceEnablers[loc.x][loc.y] = influenceTally;
 				} else {
-					influenceEnablers[loc.x][loc.y] = function(influenceEnablers[loc.x][loc.y],influence);
+					influenceEnablers[loc.x][loc.y] = function(influenceEnablers[loc.x][loc.y],influenceTally);
 				}
 				
 			}
@@ -453,38 +508,50 @@ public class LongTermRiskHelper {
 			} else {
 				mineTally = b.getTally();
 			}			
-			// If the mine influence covers the whole of the mine tally then it is a pseudo-5050
-			//if (influence.compareTo(mineTally) == 0 && pseudo == null) {
-			//	if (!currentPe.getDeadLocations().contains(loc)) {  // don't accept dead tiles
-			//		//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", loc);
-			//		pseudo = loc;
-			//	}
-			//}
-			if (influence.compareTo(mineTally) == 0 && pseudo == null) {
-				if (!currentPe.getDeadLocations().contains(loc)) {  // don't accept dead tiles
-					//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", loc);
-					pseudos.add(loc);
+
+			board.getLogger().log(Level.INFO, "Tile %s has mine tally %d of which %d are in a 50/50.", loc, mineTally, result.influence);
+			
+			if (influenceRatio.compareTo(FINAL_THRESHOLD) > 0) {
+				// store the influence
+				if (influence5050s[loc.x][loc.y] == null) {
+					influence5050s[loc.x][loc.y] = influenceTally;
+				} else {
+					//influences[loc.x][loc.y] = influences[loc.x][loc.y].max(influence);
+					influence5050s[loc.x][loc.y] = function(influence5050s[loc.x][loc.y],influenceTally);
 				}
 			}
-			// store the influence
-			if (influence5050s[loc.x][loc.y] == null) {
-				influence5050s[loc.x][loc.y] = influence;
-			} else {
-				//influences[loc.x][loc.y] = influences[loc.x][loc.y].max(influence);
-				influence5050s[loc.x][loc.y] = function(influence5050s[loc.x][loc.y],influence);
-			}
+
 
 		}
 	
-		if (pseudos.size() == 3) {
-			pickPseudo(pseudos);
-		} else if (!pseudos.isEmpty()) {
-			pseudo = pseudos.get(0);
-		}
-		
-		
 	}
 	
+	// see if any of the tiles in this possible 50/50 are a pseudo
+	private void checkForPseudo(Result result, Location... tiles) {
+		
+		for (Location loc: tiles) {
+			
+			Box b = currentPe.getBox(loc);
+			BigInteger mineTally;
+			if (b == null) {
+				mineTally = currentPe.getOffEdgeTally();
+			} else {
+				mineTally = b.getTally();
+			}			
+
+			board.getLogger().log(Level.INFO, "Tile %s has mine tally %d of which %d are in a 50/50.", loc, mineTally, result.influence);
+			
+			if (result.influence.compareTo(mineTally) == 0) {
+				if (!currentPe.getDeadLocations().contains(loc)) {  // don't accept dead tiles
+					board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", loc);
+					pseudos.add(loc);
+				}
+			}
+		}
+	
+	}
+	
+	/*
 	private void pickPseudo(List<Location> locations) {
 		
 		int maxX = 0;
@@ -514,7 +581,7 @@ public class LongTermRiskHelper {
 		}
 		
 	}
-	
+	*/
 	
 	
 	/**
@@ -597,9 +664,10 @@ public class LongTermRiskHelper {
 	
 	// given a list of tiles return those which are on the board but not a mine
 	// if any of the tiles are revealed then return null
-	private List<Location> getMissingMines(Location... tiles) {
+	private MineDetails getMissingMines(Location... tiles) {
 		
-		List<Location> result = new ArrayList<>();
+		List<Location> missing = new ArrayList<>();
+		List<Location> present = new ArrayList<>();
 		
 		for (Location loc: tiles) {
 			
@@ -615,13 +683,14 @@ public class LongTermRiskHelper {
 			
 			// if the location is already a mine then don't return the location
 	    	if (board.isConfirmedMine(loc) || isMineInPe(loc.x, loc.y)) {
+	    		present.add(loc);
 	    		continue;
 	    	}
 	    	
-	    	result.add(loc);
+	    	missing.add(loc);
 		}
 		
-		return result;
+		return new MineDetails(present, missing);
 	}
 	
 

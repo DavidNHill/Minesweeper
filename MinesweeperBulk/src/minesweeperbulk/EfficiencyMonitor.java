@@ -20,9 +20,15 @@ public class EfficiencyMonitor extends GamePostListener {
 	private int clicks = 0;
 	
 	private final double reportThreshold;
+	private final double saveThreshold;
 	
 	public EfficiencyMonitor(double reportThreshold) {
+		this(reportThreshold, reportThreshold);
+	}
+	
+	public EfficiencyMonitor(double reportThreshold, double saveThreshold) {
 		this.reportThreshold = reportThreshold;
+		this.saveThreshold = saveThreshold;
 	}
 	
 	@Override
@@ -37,10 +43,14 @@ public class EfficiencyMonitor extends GamePostListener {
 			wins++;
 			double efficiency = 100 * ((double) game.getTotal3BV() / (double) game.getActionCount());
 			
+			// report the board if over a certain threshold
 			if (efficiency >= reportThreshold) {
 				announcementCount++;
 				System.out.println(announcementCount + ") " + game.getSeed() + " has 3BV " + game.getTotal3BV() + " efficiency " + efficiency);
-				
+			}	
+			
+			// save the board if over a certain threshold
+			if (efficiency >= saveThreshold) {
 				File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + game.getSeed() + ".mine");
 				try {
 					System.out.println("Saving position in file " + saveFile.getAbsolutePath());
@@ -48,8 +58,7 @@ public class EfficiencyMonitor extends GamePostListener {
 				} catch (Exception e) {
 					System.out.println("Save position failed: " + e.getMessage());
 				}
-				
-			}	
+			}
 			
 			int inteff = (int) Math.floor(efficiency);
 			if (inteff >= 100) {
