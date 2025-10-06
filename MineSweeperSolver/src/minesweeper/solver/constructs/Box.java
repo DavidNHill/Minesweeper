@@ -37,6 +37,7 @@ public class Box {
 	private int edgeLength;
 	private BigDecimal safety;
 	private BigInteger tally = BigInteger.ZERO;
+	//private BigInteger tileTally = BigInteger.ZERO;
 	
 	public Box(Square square, int uid) {
 		
@@ -254,11 +255,19 @@ public class Box {
 	
 	public void setTally(BigInteger tally) {
 		this.tally = tally;
+		//this.tileTally = tally.divide(BigInteger.valueOf(this.squares.size()));
 	}
 	
 	public BigInteger getTally() {
 		return this.tally;
 	}
+	
+	/**
+	 * The box tally divided by the number of tiles in the box
+	 */
+	//public BigInteger getTileTally() {
+	//	return this.tileTally;
+	//}
 	
 	public boolean incrementEmptyTiles() {
 		this.emptyTiles++;

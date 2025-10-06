@@ -50,6 +50,8 @@ public class Tile extends StackPane {
 	
 	// generic mouse click event for tiles
 	private final static EventHandler<ScrollEvent> SCROLLED = new EventHandler<ScrollEvent>() {
+		
+		private long lastScroll = System.currentTimeMillis();
 
 		@Override
 		public void handle(ScrollEvent event) {
@@ -57,6 +59,12 @@ public class Tile extends StackPane {
 			Tile tile = (Tile) event.getSource();
 			
 			//System.out.println("Scroll detected on tile " + tile.asText() + " TextDeltaY() is " + event.getTextDeltaY());
+			long time = System.currentTimeMillis();
+			if (time - lastScroll < 50) {
+				return;
+			}
+			
+			lastScroll = time;
 			
 			int delta;
 			if (event.getTextDeltaY() < 0) {

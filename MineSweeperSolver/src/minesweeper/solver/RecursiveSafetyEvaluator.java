@@ -109,7 +109,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 		if (allUnrevealedSquares.size() - web.getSquares().size() < 30) {
 			for (Location tile: allUnrevealedSquares) {
 				if (!web.isOnWeb(tile)) {
-					result.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+					result.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), 0, 0));
 				}
 			}	
 			return result;
@@ -133,7 +133,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(x1, y1), boardState.countAdjacentConfirmedFlags(x1, y1));
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeSafety(), boardState.countAdjacentUnrevealed(x1, y1), boardState.countAdjacentConfirmedFlags(x1, y1));
 					if (boardState.isUnrevealed(loc) && !web.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						result.add(loc);
@@ -150,7 +150,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 			int adjUnrevealed = boardState.countAdjacentUnrevealed(tile);
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !web.isOnWeb(tile) && !result.contains(tile)) {
-				result.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(tile), boardState.countAdjacentConfirmedFlags(tile)));
+				result.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), boardState.countAdjacentUnrevealed(tile), boardState.countAdjacentConfirmedFlags(tile)));
 			}
 		}		
 		
@@ -255,7 +255,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 		
 		
 		if (dominated) {
-			BigDecimal probThisTile = pe.getProbability(tile);  // this is both the safety, secondary safety and progress probability.
+			BigDecimal probThisTile = pe.getSafety(tile);  // this is both the safety, secondary safety and progress probability.
 			
 			BigDecimal bonus = BigDecimal.ONE.add(probThisTile.multiply(this.progressContribution));
 			BigDecimal weight = probThisTile.multiply(bonus);
@@ -294,7 +294,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 		int tilesOnEdge;
 		BigDecimal safetyThisTile;
 		if (tileBox == null) {
-			safetyThisTile = pe.getOffEdgeProb();
+			safetyThisTile = pe.getOffEdgeSafety();
 			tilesOnEdge = 1;
 			safetyTally = pe.getSolutionCount().subtract(pe.getOffEdgeTally());  //number of solutions this tile is safe
 			
@@ -466,7 +466,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 		
         if (sameSingleSafestTile) {
         	solver.logger.log(Level.INFO, "Tile %s is always the safest living tile after this guess", singleSafestTile);
-        	if (pe.getProbability(singleSafestTile).compareTo(safetyThisTile) > 0) {
+        	if (pe.getSafety(singleSafestTile).compareTo(safetyThisTile) > 0) {
         		solver.logger.log(Level.INFO, "Tile %s is also safer, so dominates %s", singleSafestTile, tile);
         		result.setDominatingLocation(singleSafestTile);
         	}
@@ -507,7 +507,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 			
 			BigDecimal safetyThisTile;
 			if (tileBox == null) {
-				safetyThisTile = currPe.getOffEdgeProb();
+				safetyThisTile = currPe.getOffEdgeSafety();
 				safetyTally = currPe.getSolutionCount().subtract(pe.getOffEdgeTally());  //number of solutions this tile is safe
 				
 			} else {
@@ -837,7 +837,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 
 		*/
 		
-		Action action = new Action(best, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "", pe.getProbability(best));
+		Action action = new Action(best, Action.CLEAR, MoveMethod.PROBABILITY_ENGINE, "", pe.getSafety(best));
 
 		// let the boardState decide what to do with this action
 		boardState.setAction(action);

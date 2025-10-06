@@ -8,6 +8,7 @@ import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.RolloutGenerator;
 import minesweeper.solver.Solver;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.utility.BinomialCache;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
 
@@ -39,7 +40,11 @@ public class BulkRunner implements Runnable {
 	private boolean showGames;
 	private boolean winsOnly;
 	
-	public BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, boolean safeStart, SolverSettings preferences, long seed) {
+	//
+	//  Obsolete - replaced by the solvers built in bulk runner
+ 	//
+	
+	private BulkRunner(RolloutController controller, int iterations, RolloutGenerator rollout, Location startLocation, boolean safeStart, SolverSettings preferences, long seed) {
 		
 		this.controller = controller;
 		this.maxSteps = iterations;
@@ -68,11 +73,14 @@ public class BulkRunner implements Runnable {
 		
 		Random seeder = new Random(seed);
 		
+		BinomialCache bc = new BinomialCache(5000, Solver.BINOMIAL_CACHE_LIMIT, Solver.binomialEngine);
+		
 		while (!stop && steps < maxSteps) {
 
 			GameStateModel gs = rollout.generateGame(seeder.nextLong(), safeTile);
 
 			Solver solver = new Solver(gs, preferences, false);
+			//solver.setBinomialCache(bc);
 			
 			gs.doAction(new Action(startLocation, Action.CLEAR));
 			int state = gs.getGameState();

@@ -6,6 +6,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.Solver;
 import minesweeper.solver.bulk.BulkRequest.BulkAction;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.utility.BinomialCache;
 import minesweeper.structure.Action;
 
 public class BulkWorker implements Runnable {
@@ -13,7 +14,8 @@ public class BulkWorker implements Runnable {
 	private boolean stop = false;
 	private final BulkController controller;
 	private final SolverSettings[] solverSettings;
-
+	private final BinomialCache bc = new BinomialCache(5000, Solver.BINOMIAL_CACHE_LIMIT, Solver.binomialEngine);
+	
 	protected BulkWorker(BulkController controller, SolverSettings solverSettings[]) {
 		this.controller = controller;
 		this.solverSettings = solverSettings;
@@ -25,6 +27,7 @@ public class BulkWorker implements Runnable {
 		//System.out.println(Thread.currentThread().getName() + " is starting");
 		
 		BulkRequest request = controller.getNextRequest(null);
+
 
 		while (!stop) {
 
@@ -54,6 +57,7 @@ public class BulkWorker implements Runnable {
 
 		}
 		
+		bc.showStats();
 		//System.out.println(Thread.currentThread().getName() + " is stopping");
 
 	}
@@ -69,6 +73,7 @@ public class BulkWorker implements Runnable {
 		
 		Solver solver = new Solver(request.gs, request.solverSettings, false);
 		solver.setPlayStyle(controller.getPlayStyle());
+		solver.setBinomialCache(bc);
 
 		
 		int loopCounter = 0;

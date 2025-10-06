@@ -63,7 +63,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
 			for (Location tile: allUnrevealedSquares) {
 				if (!wholeEdge.isOnWeb(tile)) {
-					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+					tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), 0, 0));
 				}
 			}	
 			//evaluateLocations(tileOfInterest);
@@ -88,7 +88,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), 0, 0);
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeSafety(), 0, 0);
 					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						tileOfInterest.add(loc);
@@ -108,7 +108,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterest.contains(tile)) {
 
-				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+				tileOfInterest.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), 0, 0));
 				
 			}
 
@@ -340,7 +340,7 @@ public class ProgressEvaluator implements LocationEvaluator {
 		int minMines = minesGot;
 		int maxMines = minesGot + superset.size();
 
-		BigDecimal probThisTile = pe.getProbability(tile);
+		BigDecimal probThisTile = pe.getSafety(tile);
 
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		//BigDecimal expectedClears = BigDecimal.valueOf(1 + linkedTiles).multiply(probThisTile); 

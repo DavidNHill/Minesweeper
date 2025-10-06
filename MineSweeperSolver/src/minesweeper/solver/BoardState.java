@@ -474,6 +474,29 @@ public class BoardState {
 		return work;
 	}
 	
+	Set<Location> get3BVRiskyTiles(List<? extends Location> witnesses) {
+
+		Set<Location> work = new HashSet<>(witnesses.size() * 3);       
+
+		for (Location loc: witnesses) {
+			
+			boolean adjacentToZero = false;
+			for (Location adj: this.getAdjacentSquaresIterable(loc)) {
+
+				if (isRevealed(adj) && getWitnessValue(adj) == 0 ) {
+					adjacentToZero = true;
+					break;
+				}            		
+			}
+			
+			if (!adjacentToZero) {
+				work.add(loc);
+			}            
+		}
+
+		return work;
+	}
+	
 	/**
 	 * Return all the unrevealed Locations on the board
 	 */

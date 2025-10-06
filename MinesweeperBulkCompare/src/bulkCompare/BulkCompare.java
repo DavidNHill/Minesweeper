@@ -43,14 +43,14 @@ public class BulkCompare {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 1373631748;
+		//seed = 420012260;
 		//seed = 462440595;
 		//seed = -60442780;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
-		GameSettings gameSettings = GameSettings.EXPERT;
+		GameSettings gameSettings = GameSettings.ADVANCED;
 		//GameSettings gameSettings = GameSettings.create(15, 15, 80);
 		
 		SolverSettings settings0 = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);

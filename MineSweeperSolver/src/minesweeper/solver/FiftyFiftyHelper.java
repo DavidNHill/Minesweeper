@@ -1,18 +1,14 @@
 package minesweeper.solver;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
-import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import minesweeper.solver.bulk.StaticCounter;
 import minesweeper.solver.bulk.StaticCounter.SCType;
-import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.utility.Logger;
@@ -22,6 +18,7 @@ import minesweeper.structure.Location;
 
 public class FiftyFiftyHelper {
 	
+	/*
 	private boolean[][] PATTERNS = new boolean[][] {{true, true, true, true},   // four mines
 		{true, true, true, false}, {true, false, true, true}, {false, true, true, true}, {true, true, false, true},   // 3 mines
 		{true, false, true, false}, {false, true, false, true}, {true, true, false, false}, {false, false, true, true},   // 2 mines
@@ -29,6 +26,7 @@ public class FiftyFiftyHelper {
 	};
 	
 	private final static BigDecimal HALF = new BigDecimal("0.5");
+	*/
 	
 	private class Link {
 		
@@ -50,11 +48,11 @@ public class FiftyFiftyHelper {
 	private WitnessWeb wholeEdge;
 	private Area deadLocations;
 	
-	private BigDecimal bestNonPseudo2Tile5050Probability = BigDecimal.ZERO;
-	private Location bestNonPseudo2Tile5050Tile1;    // this represents the best tile which isn't a 2-tile pseudo 50/50 because it does support 2 mines
-	private Location bestNonPseudo2Tile5050Tile2;
-	private BigDecimal bestNonPseudo2Tilelts = BigDecimal.ZERO;
-	private int bestNonPseudo2TileAdjacent = 0;
+	//private BigDecimal bestNonPseudo2Tile5050Probability = BigDecimal.ZERO;
+	//private Location bestNonPseudo2Tile5050Tile1;    // this represents the best tile which isn't a 2-tile pseudo 50/50 because it does support 2 mines
+	//private Location bestNonPseudo2Tile5050Tile2;
+	//private BigDecimal bestNonPseudo2Tilelts = BigDecimal.ZERO;
+	//private int bestNonPseudo2TileAdjacent = 0;
 	
 	public FiftyFiftyHelper(BoardState board, WitnessWeb wholeEdge, Area deadLocations)  {
 		
@@ -117,9 +115,9 @@ public class FiftyFiftyHelper {
 					}
 				}
 				if (unavoidable) {
-					Location guess =  board.getSolver().getLowest(witness.getSquares(), deadLocations);
-					logger.log(Level.INFO, "Tile %s is an unavoidable guess", guess);
-					return Arrays.asList(guess);
+					//Location guess =  board.getSolver().getLowest(witness.getSquares(), deadLocations);
+					logger.log(Level.INFO, "Tile %s and %s form an unavoidable guess", link.tile1, link.tile2);
+					return preferLiving(Arrays.asList(link.tile1, link.tile2));
 				}
 				
 				links.add(link);
@@ -171,7 +169,7 @@ public class FiftyFiftyHelper {
 											StaticCounter.count(SCType.LONG_5050);
 										}
 									
-										return area5050;
+										return preferLiving(area5050);
 										//return board.getSolver().getLowest(area5050, deadLocations);		
 
 									} else {
@@ -202,7 +200,7 @@ public class FiftyFiftyHelper {
 											StaticCounter.count(SCType.LONG_5050);
 										}
 										
-										return area5050;
+										return preferLiving(area5050);
 										//return board.getSolver().getLowest(area5050, deadLocations);		
 
 									} else {
@@ -348,6 +346,7 @@ public class FiftyFiftyHelper {
 	/**
 	 * Finds the tiles in the 50/50 which are adjacent to odd number of neighbours more often
 	 */
+	/*
 	private <T extends Location> T getBest5050Tile(List<T> targets, Area deadLocations) {
 
 		int even1 = 0;
@@ -440,18 +439,20 @@ public class FiftyFiftyHelper {
 		} else {
 			return targets.get(1);
 		}
-		*/
 
 	}
+	*/
 	
-	
+	/*
 	public boolean isDeferGuessing(Location l) {
 		return deferGuessing.contains(l);
 	}
+	*/
 	
 	/**
 	 * Looks for pseudo-50/50s (which may be real 50/50s since we don't check any further)
 	 */
+	/*
 	public Location process(ProbabilityEngineModel pe) {
 		
 		board.getLogger().log(Level.INFO, "Starting search for 50/50s");
@@ -703,6 +704,7 @@ public class FiftyFiftyHelper {
 		}                        
 		*/
 		
+		/*
 		// can't create a 2x2 50/50 if only 1 tile left
 		if (minesLeft < 2) {
 			return null;
@@ -766,7 +768,9 @@ public class FiftyFiftyHelper {
 		return null;
 
 	}
+	*/
 	
+	/*
 	public BigDecimal getBestNonPseudo2Tile5050Probability() {
 		return this.bestNonPseudo2Tile5050Probability;
 	}
@@ -778,6 +782,8 @@ public class FiftyFiftyHelper {
 	public BigDecimal getLongTermSafety() {
 		return bestNonPseudo2Tilelts;
 	}
+	*/
+	
     // returns whether the tile is still valid even if it has no witnesses
 	/*
     private boolean isExempt(Location l) {
@@ -812,5 +818,26 @@ public class FiftyFiftyHelper {
     	
     }
 	
+	private List<Location> preferLiving(List<Location> tiles) {
+		
+		List<Location> result = new ArrayList<>();
+		
+		for (Location tile: tiles) {
+			if (!isDead(tile)) {
+				result.add(tile);
+			}
+		}
+		
+		if (result.isEmpty()) {
+			return tiles;
+		} else {
+			return result;
+		}
+		
+	}
+	
+	private boolean isDead(Location tile) {
+		return this.deadLocations.contains(tile);
+	}
 	
 }

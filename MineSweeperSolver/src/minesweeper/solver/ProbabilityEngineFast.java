@@ -19,6 +19,7 @@ import minesweeper.solver.constructs.LinkedLocation;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.settings.SolverSettings;
+import minesweeper.solver.utility.BinomialCache;
 import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Area;
@@ -163,7 +164,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private List<ProbabilityLine> workingProbs = new ArrayList<>(); // as we work through an independent set of witnesses probabilities are held here
  	private List<ProbabilityLine> heldProbs = new ArrayList<>();  
 	
-	//private BigDecimal[] boxProb;
+	private BinomialCache biCache;
 	private BigInteger[] hashTally;
 	private boolean offEdgeBest = true;
 	private BigDecimal offEdgeSafety;
@@ -196,7 +197,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	final private List<Witness> witnesses;
 	final private List<Box> boxes;
 	final private int minesLeft;                 // number of mines undiscovered in the game
-	final private int squaresLeft;               // number of squares undiscovered in the game and off the web
+	final private int tilesOffEdge;               // number of squares undiscovered in the game and off the web
 	private Area deadLocations;
 	private boolean allDead = true;
 	
@@ -228,10 +229,10 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		this.web = web;
 		this.minesLeft = minesLeft;
-		this.squaresLeft = squaresLeft - web.getSquares().size();
+		this.tilesOffEdge = squaresLeft - web.getSquares().size();
 		this.deadLocations = Area.EMPTY_AREA;
 		
-		this.minTotalMines = Math.max(0, minesLeft - this.squaresLeft);  //we can't use so few mines that we can't fit the remainder elsewhere on the board
+		this.minTotalMines = Math.max(0, minesLeft - this.tilesOffEdge);  //we can't use so few mines that we can't fit the remainder elsewhere on the board
 		this.maxTotalMines = minesLeft;    // we can't use more mines than are left in the game
 		
 		//solver.display("Total mines " + minTotalMines + " to " + maxTotalMines);
@@ -256,6 +257,14 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	}
 
+	/**
+	 * Set the binomial cache
+	 */
+	@Override
+	public void setBinomialCache(BinomialCache cache) {
+		this.biCache = cache;
+	}
+	
 	// run the probability engine
 	public void process() {
 		
@@ -524,6 +533,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		BigInteger outsideTally = BigInteger.ZERO;
 		
 		// calculate how many mines 
+		BigInteger mult = null;
+		int prevMinesToPlace = 0;
 		for (ProbabilityLine pl: heldProbs) {
 			
 			if (pl.mineCount >= minTotalMines) {    // if the mine count for this solution is less than the minimum it can't be valid
@@ -532,7 +543,24 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					logger.log(Level.ERROR, "Duplicate mines in probability Engine (merging probability lines not working?)");
 				}
 				
-				BigInteger mult = Solver.combination(minesLeft - pl.mineCount, squaresLeft);  //# of ways the rest of the board can be formed
+				int currentMinesToPlace = minesLeft - pl.mineCount; // mines left - mines on the edge
+				
+				if (biCache != null) {
+					mult = biCache.getBinomial(currentMinesToPlace, tilesOffEdge);
+				
+				} else if (mult == null || tilesOffEdge <= Solver.BINOMIAL_CACHE_LIMIT) {
+					mult = Solver.combination(currentMinesToPlace, tilesOffEdge);  //# of ways the rest of the board can be formed
+					
+				} else if (currentMinesToPlace == prevMinesToPlace - 1) {
+					mult = mult.multiply(BigInteger.valueOf(prevMinesToPlace)).divide(BigInteger.valueOf(tilesOffEdge - prevMinesToPlace + 1));
+
+				} else {
+					mult = Solver.combination(currentMinesToPlace, tilesOffEdge);  //# of ways the rest of the board can be formed
+				}
+
+				//mult = Solver.combination(currentMinesToPlace, tilesOffEdge);  //# of ways the rest of the board can be formed
+				
+				prevMinesToPlace = currentMinesToPlace;
 				
 				outsideTally = outsideTally.add(mult.multiply(BigInteger.valueOf(minesLeft - pl.mineCount)).multiply(pl.solutionCount));
 				
@@ -580,9 +608,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		}
 	
 		// avoid divide by zero
-		if (squaresLeft != 0 && totalTally.signum() != 0) {
-			offEdgeTally = outsideTally.divide(BigInteger.valueOf(squaresLeft));
-			offEdgeSafety = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(squaresLeft), Solver.DP, RoundingMode.HALF_UP));
+		if (tilesOffEdge != 0 && totalTally.signum() != 0) {
+			offEdgeTally = outsideTally.divide(BigInteger.valueOf(tilesOffEdge));
+			offEdgeSafety = BigDecimal.ONE.subtract(new BigDecimal(outsideTally).divide(new BigDecimal(totalTally), Solver.DP, RoundingMode.HALF_UP).divide(new BigDecimal(tilesOffEdge), Solver.DP, RoundingMode.HALF_UP));
 		} else {
 			offEdgeSafety = BigDecimal.ZERO;
 			offEdgeTally = BigInteger.ZERO;
@@ -590,7 +618,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 		finalSolutionsCount = totalTally;
 
-		// determine how many clear squares there are
+		// determine how many safe tiles there are
 		if (totalTally.signum() > 0) {
 			
 			for (Box b: this.boxes) {
@@ -610,41 +638,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			}				
 			
 		}
-		
-		
-		/*
-		// see if we can find a guess which is better than outside the boxes
-		BigDecimal hwm = offEdgeSafety;
-		
-		offEdgeBest = true;
-		
-		for (Box b: boxes) {
-			boolean living = false;
-			for (Square squ: b.getSquares()) {
-				if (!deadLocations.contains(squ)) {
-					living = true;
-					break;
-				}
-			}
-			//BigDecimal prob = boxProb[b.getUID()];
-			BigDecimal prob = b.getSafety();
-			
-			if (living && prob.signum() != 0) {  // if living and not a mine
-	 			allDead = false;
-			}
-			
-			if (living || prob.compareTo(BigDecimal.ONE) == 0) {   // if living or 100% safe then consider this probability
-				
-				if (hwm.compareTo(prob) <= 0) {
-					offEdgeBest = false;
-					hwm = prob;
-				}				
-			}
-		}
-
-		bestProbability = hwm;
-		*/
-		
+	
 		// see if we can do better than off edge
 		BigDecimal safest1 = this.offEdgeSafety;  // best living
 		BigDecimal safest2 = this.offEdgeSafety;  // second best living
@@ -1051,7 +1045,10 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 	}
 	
-	public BigDecimal getProbability(Location l) {
+	/**
+	 * How safe this location is
+	 */
+	public BigDecimal getSafety(Location l) {
 		
 		for (Box b: boxes) {
 			if (b.contains(l)) {
@@ -1064,9 +1061,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	}
 	
 	/**
-	 * The probability of a mine being in a square not considered by this process
+	 * The probability of a tile not considered by this process being safe
 	 */
-	protected BigDecimal getOffEdgeProb() {
+	protected BigDecimal getOffEdgeSafety() {
 		return offEdgeSafety;
 	}
 	
@@ -1289,7 +1286,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	private void checkCandidateDeadLocations(boolean checkPossible) {
 		
 		boolean completeScan;
-		if (squaresLeft == 0) {
+		if (tilesOffEdge == 0) {
 			completeScan = true;   // this indicates that every box has been considered in one sweep (only 1 independent edge)
 			for (int i=0; i < mask.length; i++) {
 				if (!mask[i]) {
@@ -1624,7 +1621,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	 * The number of locations which are definitely clears
 	 * @return
 	 */
-	protected int getClearCount() {
+	protected int getSafeTileCount() {
 		return clearCount;
 	}
 	
@@ -1635,6 +1632,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	@Override
 	protected int getLivingClearCount() {
 		return livingClearCount;
+	}
+	
+	@Override
+	protected int getTilesOffEdgeCount() {
+		return this.tilesOffEdge;
 	}
 	
 	/**

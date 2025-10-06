@@ -143,7 +143,7 @@ public class LongTermRiskHelperOld {
 			if (risk != null) {
 				risk5050s.add(risk);  // store the positions of interest
 				
-				BigDecimal safety = BigDecimal.ONE.subtract(BigDecimal.ONE.subtract(currentPe.getProbability(info)).multiply(HALF));
+				BigDecimal safety = BigDecimal.ONE.subtract(BigDecimal.ONE.subtract(currentPe.getSafety(info)).multiply(HALF));
 				board.getLogger().log(Level.INFO, "Seed %d - %s %s has 1 remaining source of information - tile %s  %f", board.getSolver().getGame().getSeed(), tile1, tile2, info, safety);
 				longTermSafety = longTermSafety.multiply(safety);
 			}
@@ -204,7 +204,7 @@ public class LongTermRiskHelperOld {
 			// if there is a possible box 50/50 then see if we are breaking it, otherwise use that as the start safety
 			if (worstBox5050 != null) {
 				
-				if (worstBox5050.poi.equals(candidate) || pe.getProbability(worstBox5050.poi).compareTo(BigDecimal.ONE) == 0) {
+				if (worstBox5050.poi.equals(candidate) || pe.getSafety(worstBox5050.poi).compareTo(BigDecimal.ONE) == 0) {
 					//board.getLogger().log(Level.INFO, "%s has broken 50/50", candidate);
 					longTermSafety =  BigDecimal.ONE;					
 				} else {
@@ -242,7 +242,7 @@ public class LongTermRiskHelperOld {
 					if (risk.poi.equals(candidate)) {  
 						safety = BigDecimal.ONE;
 					} else {
-						safety = BigDecimal.ONE.subtract(BigDecimal.ONE.subtract(pe.getProbability(risk.poi)).multiply(HALF));
+						safety = BigDecimal.ONE.subtract(BigDecimal.ONE.subtract(pe.getSafety(risk.poi)).multiply(HALF));
 					}				
 				}
 				

@@ -392,7 +392,8 @@ public class MainScreenController {
 		int depth = 4;
 		SolverSettings settings;
 		if (this.useBruteForce.isSelected()) {
-			settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+			//settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+			settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else {
 			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);;			
 		}

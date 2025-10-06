@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Set;
 
 import minesweeper.gamestate.MoveMethod;
+import minesweeper.solver.LongTermRiskHelper.Possible5050;
+import minesweeper.solver.LongTermRiskHelper.RiskHotspot;
 import minesweeper.solver.Solver.RunPeResult;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
@@ -29,7 +31,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private final static BigDecimal ESS_CONTRIBUTION = new BigDecimal("0.00");
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 		
-	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");   // was 0.9
+	private final static BigDecimal FIFTYFIFTY_INFLUENCE_SCALE = new BigDecimal("0.9");   // was 0.9
 	
 	private final static BigDecimal HALF = new BigDecimal("0.5");
 	
@@ -61,6 +63,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private EvaluatedLocation best;
 	private boolean certainProgress = false;
 	
+	private List<RiskHotspot> riskHotspots;
+	
 	public SecondarySafetyEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe, BruteForceAnalysisModel incompleteBFA, LongTermRiskHelper ltr) {
 
 		this.boardState = boardState;
@@ -79,6 +83,12 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		// find major 50/50 influence on the board
 		this.ltrHelper = ltr;
 		
+		if (ltr != null) {
+			riskHotspots = ltr.getRiskHotspots();
+		} else {
+			riskHotspots = Collections.emptyList();
+		}
+		
 		this.spaceCounter = new SpaceCounter(boardState, 8);
 		
 	}
@@ -96,7 +106,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		if (allUnrevealedSquares.size() - wholeEdge.getSquares().size() < 30) {
 			for (Location tile: allUnrevealedSquares) {
 				if (!wholeEdge.isOnWeb(tile)) {
-					tileOfInterestOff.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), 0, 0));
+					tileOfInterestOff.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), 0, 0));
 				}
 			}	
 			//evaluateLocations(tileOfInterest);
@@ -121,7 +131,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				int y1 = tile.y + offset[1];
 				if ( x1 >= 0 && x1 < boardState.getGameWidth() && y1 >= 0 && y1 < boardState.getGameHeight()) {
 
-					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(x1, y1), boardState.countAdjacentConfirmedFlags(x1, y1));
+					CandidateLocation loc = new CandidateLocation(x1, y1, pe.getOffEdgeSafety(), boardState.countAdjacentUnrevealed(x1, y1), boardState.countAdjacentConfirmedFlags(x1, y1));
 					if (boardState.isUnrevealed(loc) && !wholeEdge.isOnWeb(loc)) {   // if the location is un-revealed and not on the edge
 						//boardState.display(loc.display() + " is of interest");
 						tileOfInterestOff.add(loc);
@@ -141,7 +151,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 
 			if ( adjUnrevealed > 1 && adjUnrevealed < 4 && !wholeEdge.isOnWeb(tile) && !tileOfInterestOff.contains(tile)) {
 
-				tileOfInterestOff.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeProb(), boardState.countAdjacentUnrevealed(tile), boardState.countAdjacentConfirmedFlags(tile)));
+				tileOfInterestOff.add(new CandidateLocation(tile.x, tile.y, pe.getOffEdgeSafety(), boardState.countAdjacentUnrevealed(tile), boardState.countAdjacentConfirmedFlags(tile)));
 				
 			}
 
@@ -212,6 +222,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	 * Evaluate a set of tiles to see the expected number of clears it will provide
 	 */
 	public void evaluateLocations(List<Location> locations) {
+		
+		locations.sort(null);
 		for (Location tile: locations) {
 			evaluateLocation(tile);
 		}						
@@ -225,7 +237,13 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		EvaluatedLocation evalTile = doFullEvaluateTile(tile);
 
 		if (evalTile != null) {
-			if (best == null || evalTile.getWeighting().compareTo(best.getWeighting()) > 0) {
+			if (best == null) {
+				best = evalTile;
+			} else if (best.isDeferGuessing() && !evalTile.isDeferGuessing()) {
+				best = evalTile;
+			} else if (!best.isDeferGuessing() && evalTile.isDeferGuessing()) {
+				
+			} else if (evalTile.getWeighting().compareTo(best.getWeighting()) > 0) {
 				best = evalTile;
 			}
 			evaluated.add(evalTile);
@@ -261,7 +279,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		
 		if (dominated) {
-			BigDecimal probThisTile = pe.getProbability(tile);  // this is both the safety, secondary safety and progress probability.
+			BigDecimal probThisTile = pe.getSafety(tile);  // this is both the safety, secondary safety and progress probability.
 			
 			BigDecimal bonus = BigDecimal.ONE.add(probThisTile.multiply(this.progressContribution));
 			BigDecimal weight = probThisTile.multiply(bonus);
@@ -301,7 +319,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		int tilesOnEdge;
 		BigDecimal safetyThisTile;
 		if (tileBox == null) {
-			safetyThisTile = pe.getOffEdgeProb();
+			safetyThisTile = pe.getOffEdgeSafety();
 			tilesOnEdge = 1;
 			safetyTally = pe.getSolutionCount().subtract(pe.getOffEdgeTally());  //number of solutions this tile is safe
 			
@@ -311,43 +329,29 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			safetyTally = pe.getSolutionCount().subtract(tileBox.getTally());  //number of solutions this tile is safe
 		}
 		
+		//boolean exempt = isTileExempt(tile) && solver.preferences.isTestMode();
+		
 		BigDecimal fiftyFiftyInfluence;
-		BigDecimal fiftyFiftyContribution;
+		//BigDecimal longTermSafety;
 		if (this.solver.preferences.considerLongTermSafety() && this.ltrHelper != null) {
-			BigInteger tally = ltrHelper.findInfluence(tile);
-			BigDecimal bdTally = new BigDecimal(tally);
-			
-			BigDecimal modifiedTally = bdTally.multiply(FIFTYFIFTY_SCALE);
-			fiftyFiftyInfluence = new BigDecimal(safetyTally).add(modifiedTally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
-			fiftyFiftyContribution = new BigDecimal(tally).divide(new BigDecimal(pe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-			
-			/*
-			try {
-				fiftyFiftyInfluence = new BigDecimal(safetyTally).subtract(bdTally).divide(new BigDecimal(pe.getSolutionCount()).subtract(bdTally).subtract(bdTally), Solver.DP, RoundingMode.HALF_UP);
-				fiftyFiftyInfluence = fiftyFiftyInfluence.divide(safetyThisTile, Solver.DP, RoundingMode.HALF_UP);
-			} catch (Exception e) {
-				fiftyFiftyInfluence = BigDecimal.valueOf(10);
+			if (this.solver.preferences.isTestMode()) {
+				fiftyFiftyInfluence = this.calculateLongTermSafety(tile);
+				//fiftyFiftyInfluence = BigDecimal.ONE;
+				
+			} else {
+				//longTermSafety = BigDecimal.ONE;
+				
+				BigInteger tally = ltrHelper.findInfluence(tile);
+				BigDecimal bdTally = new BigDecimal(tally);
+				
+				BigDecimal modifiedTally = bdTally.multiply(FIFTYFIFTY_INFLUENCE_SCALE);
+				fiftyFiftyInfluence = new BigDecimal(safetyTally).add(modifiedTally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
 			}
-			*/
+
 			
 		} else {
 			fiftyFiftyInfluence = BigDecimal.ONE;
-			fiftyFiftyContribution = BigDecimal.ZERO;
 		}
-		
-		//int minDistFromEdgeX = Math.min(tile.x, this.boardState.getGameWidth() - tile.x - 1);
-		//int minDistFromEdgeY = Math.min(tile.y, this.boardState.getGameHeight() - tile.y - 1);		
-		//int minDistFromEdge = Math.min(minDistFromEdgeX, minDistFromEdgeY);
-
-		/*
-		if (minDistFromEdge == 0) {
-			fiftyFiftyInfluence = fiftyFiftyInfluence.multiply(BigDecimal.valueOf(1.05));
-		} else if (minDistFromEdge == 1) {
-			fiftyFiftyInfluence = fiftyFiftyInfluence.multiply(BigDecimal.valueOf(1.03));
-		} else if (minDistFromEdge == 2) {
-			fiftyFiftyInfluence = fiftyFiftyInfluence.multiply(BigDecimal.valueOf(1.01));
-		}
-		*/
 		
 		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
 		BigDecimal expectedClears = BigDecimal.ZERO;
@@ -377,9 +381,11 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			
 			// if the remaining safe component for the tile can now never reach the best if 100% safe for all future values then abandon analysis
 			if (best != null && weight.compareTo(best.getWeighting()) < 0) {
-				result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueSafety);
-				result.setPruned();
-				return result;
+				if (!best.isDeferGuessing()) {
+					result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueSafety);
+					result.setPruned();
+					return result;
+				}
 			}
 			
 			RunPeResult peResult = solver.runProbabilityEngine(wholeEdge, tile, i);
@@ -393,6 +399,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			if (sol.signum() != 0) {
 				
 				validValues++;
+				
+				BigDecimal hotspotSafety = this.calculateHotspotSafety(tile, counter);
 				
 				if (commonClears == null) {
 					commonClears = counter.getEmptyBoxes();
@@ -417,7 +425,8 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				
 				BigDecimal nextMoveSafety = counter.getBlendedSafety();
 				
-				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f, secondary safety %f, 50/50 influence %f and %d tiles on edge", tile, i, clears, prob, nextMoveSafety, fiftyFiftyInfluence, tilesOnEdge);
+				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f, secondary safety %f, 50/50 influence %f, hotspot safety %f and %d tiles on edge", 
+						tile, i, clears, prob, nextMoveSafety, fiftyFiftyInfluence, hotspotSafety, tilesOnEdge);
 				
 				secondarySafety = secondarySafety.add(prob.multiply(nextMoveSafety).multiply(fiftyFiftyInfluence));
 				
@@ -449,18 +458,6 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			certainProgress = true;
 		}
 		
-		// no measurable benefit in trying to prevent 50/50s being created
-		/*
-		BigDecimal create5050ChanceIfSurvive = create5050Chance.divide(safetyThisTile, Solver.DP, RoundingMode.HALF_UP);
-		
-		solver.logger.log(Level.INFO, "%s has a %f chance of creating a 50/50", tile, create5050ChanceIfSurvive);
-		BigDecimal create5050Modifier;
-		if (solver.preferences.isTestMode() && create5050ChanceIfSurvive.compareTo(BigDecimal.ONE) == 0) {
-			create5050Modifier = BigDecimal.ONE.subtract(HALF.multiply(create5050ChanceIfSurvive));   // 1 - 0.5 * 5050 chance
-		} else {
-			create5050Modifier = BigDecimal.ONE;
-		}
-		*/
 		
 		// expected solution space reduction
 		BigDecimal essr = BigDecimal.ONE.subtract(ess);
@@ -469,13 +466,9 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		// calculate the bonus for the progress
 		BigDecimal progressBonus = BigDecimal.ONE.add(progressProb.multiply(this.progressContribution));
 		
-		//bonus = bonus.add(essr.multiply(this.essrContribution));
-		
 		BigDecimal weight = secondarySafety.multiply(progressBonus).multiply(essrBonus);
-		//BigDecimal weight = minValueSafety.multiply(bonus);
 		
 		result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueSafety);
-		//result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, BigDecimal.valueOf(minDistFromEdge).negate(), 0, commonClears, maxValueSafety);
 		
 		// if the tile is dead then relegate it to a deferred guess
 		if (validValues == 1) {
@@ -485,7 +478,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
         if (sameSingleSafestTile) {
         	solver.logger.log(Level.INFO, "Tile %s is always the safest living tile after this guess", singleSafestTile);
-        	if (pe.getProbability(singleSafestTile).compareTo(safetyThisTile) > 0) {
+        	if (pe.getSafety(singleSafestTile).compareTo(safetyThisTile) > 0) {
         		solver.logger.log(Level.INFO, "Tile %s is also safer, so dominates %s", singleSafestTile, tile);
         		result.setDominatingLocation(singleSafestTile);
         	}
@@ -505,81 +498,51 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	}
 
 	
-	/**
-	 * recursively calculate a tile's safety to the required depth
-	 */
-	private BigDecimal calculateSafety(Location tile, WitnessWeb currWeb, ProbabilityEngineModel currPe, int depth) {
-
-
-		int minMines = boardState.countAdjacentConfirmedFlags(tile);
-		int maxMines = minMines + boardState.countAdjacentUnrevealed(tile);
-
-		// work out the expected number of clears if we clear here to start with (i.e. ourself + any linked clears)
-		BigDecimal secondarySafety = BigDecimal.ZERO;
-
-		for (int value = minMines; value <= maxMines; value++) {
-
-
-			// make the move
-			boardState.setWitnessValue(tile, value);
-
-			// create a new list of witnesses
-			List<Location> witnesses = new ArrayList<>(currWeb.getPrunedWitnesses().size() + 1);
-			witnesses.addAll(currWeb.getPrunedWitnesses());
-			witnesses.add(tile);
-
-			Area witnessed = boardState.getUnrevealedArea(witnesses);
-
-			WitnessWeb newWeb = new WitnessWeb(boardState, witnesses, witnessed.getLocations(), Logger.NO_LOGGING);
-
-			int unrevealed = boardState.getTotalUnrevealedCount() - 1;  // this is one less, because we have added a witness
-
-			int minesLeft = boardState.getMines() - boardState.getConfirmedMineCount();
-
-			ProbabilityEngineModel counter = new ProbabilityEngineFast(boardState, newWeb, unrevealed, minesLeft);
-
-			counter.process();
-
-			BigInteger sol = counter.getSolutionCount();
-			int clears = counter.getLivingClearCount();
-
-			// keep track of the maximum probability across all valid values
-			if (sol.signum() != 0) {
-
-				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(currPe.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
-
-				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ONE, true);
-
-				BigDecimal safety;
-				if (bestCandidates.size() == 0 ) { 
-					safety = counter.getOffEdgeProb();
-				} else {
-					
-					if (depth == 1) {
-						safety = bestCandidates.get(0).getProbability();
-					} else {
-						safety = calculateSafety(bestCandidates.get(0), newWeb, counter, depth - 1);					
-					}
-				}
-
-				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f and secondary safety %f", tile, value, clears, prob, safety);
-
-				secondarySafety = secondarySafety.add(prob.multiply(safety));
-
-			} else {
-				solver.logger.log(Level.DEBUG, "%s with value %d is not valid", tile, value);
+	private BigDecimal calculateHotspotSafety(Location loc, ProbabilityEngineModel pe) {
+		
+		BigDecimal result = BigDecimal.ONE;
+		
+		for (RiskHotspot rhs: this.riskHotspots) {
+			
+			if (!rhs.isExempt(loc)) {
+				
+				// 1 - (1 - safety of hot spot) / 2  == (1 + safety) * 0.5
+				BigDecimal blastChance = BigDecimal.ONE.add(pe.getSafety(rhs.getHotpsot())).multiply(HALF);
+				result = result.multiply(blastChance);
+				
 			}
+		}
 
-
-			// undo the move
-			boardState.clearWitness(tile);
-
-		}		
-
-		return secondarySafety;
-
+		return result;
+		
 	}
  	
+	private BigDecimal calculateLongTermSafety(Location loc) {
+		
+		BigDecimal result = BigDecimal.ONE;
+		
+		for (Possible5050 rhs: this.ltrHelper.getPossible5050s()) {
+			
+			if (!rhs.isExempt(loc)) {
+				result = result.multiply(BigDecimal.ONE.subtract(rhs.get5050Probability()));
+			}
+		}
+
+		return result;
+		
+	}
+	
+	private boolean isTileExempt(Location loc) {
+		
+		for (RiskHotspot rhs: this.riskHotspots) {
+			if (rhs.isExempt(loc)) {
+				return true;
+			}
+		}
+
+		return false;
+		
+	}
 	
 	
 	public void showResults() {

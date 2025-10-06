@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import minesweeper.solver.constructs.Box;
@@ -14,10 +15,15 @@ import minesweeper.structure.Location;
 
 public class LongTermRiskHelper {
 
+	private final static BigDecimal HALF = new BigDecimal("0.5");
+	
 	//private final static BigDecimal APPROX_THRESHOLD = new BigDecimal("0.01");
 	private final static BigDecimal APPROX_THRESHOLD = new BigDecimal("0.00");
 	private final static BigDecimal CORRECT_THRESHOLD = new BigDecimal("0.000");
-	private final static BigDecimal FINAL_THRESHOLD = new BigDecimal("0.025");
+	private final static BigDecimal FINAL_THRESHOLD = new BigDecimal("0.025"); //TODO was 0.025
+	
+	// a hotspot is considered risky if it's safety is less than this value
+	private final static BigDecimal HOTSPOT_ENABLER_SAFETY = new BigDecimal("0.9");
 	
 	private class Result {
 		private final BigInteger influence;
@@ -39,6 +45,74 @@ public class LongTermRiskHelper {
 		}
 	}
 	
+	// a class to identify risk hot spots
+	public class RiskHotspot {
+		
+		private final Location hotspot;
+		private final BigDecimal ltrSafety;
+		private final List<Location> exemptions;
+		
+		private RiskHotspot(Location hotspot, BigDecimal ltrSafety, Location... exemptions) {
+			this.hotspot = hotspot;
+			this.exemptions = Arrays.asList(exemptions);
+			this.ltrSafety = ltrSafety;
+		}
+		
+		public Location getHotpsot() {
+			return this.hotspot;
+		}
+		
+		public BigDecimal getLtrSafety() {
+			return this.ltrSafety;
+		}
+		
+		// exempt if you are the hotspot or part of the possible 50/50
+		public boolean isExempt(Location loc) {
+			
+			if (loc.equals(this.hotspot)) {
+				return true;
+			}
+			
+			for (Location l: this.exemptions) {
+				if (l.equals(loc)) {
+					return true;
+				}
+			}
+			return false;
+		}
+		
+	}
+	
+	// a class to identify risk hot spots
+	public class Possible5050 {
+		
+		private final BigDecimal probability;  // chance a 50/50 forms here
+		private final List<Location> exemptions = new ArrayList<>();
+		
+		private Possible5050(BigDecimal probability, List<Location> enablers, Location[] area) {
+			this.exemptions.addAll(enablers);
+			this.exemptions.addAll(Arrays.asList(area));
+			
+			this.probability = probability;
+		}
+		
+		public BigDecimal get5050Probability() {
+			return this.probability;
+		}
+		
+		// exempt if you are an enabler or part of the possible 50/50
+		public boolean isExempt(Location loc) {
+			
+			for (Location l: this.exemptions) {
+				if (l.equals(loc)) {
+					return true;
+				}
+			}
+			return false;
+		}
+		
+	}
+	
 	private final BoardState board;
 	private final WitnessWeb wholeEdge;
 	private final ProbabilityEngineModel currentPe;
@@ -50,8 +124,17 @@ public class LongTermRiskHelper {
 	//private Location pseudo;
 	private List<Location> pseudos = new ArrayList<>();
 	
-	final List<Location> mines = new ArrayList<>();
-	final List<Location> notMines = new ArrayList<>();
+	private final List<Location> mines = new ArrayList<>();
+	private final List<Location> notMines = new ArrayList<>();
+	
+	// found hotspots
+	private final List<RiskHotspot> hotspots = new ArrayList<>();
+	private boolean storeHotspots = true;
+	private BigDecimal minHotspotSafety = BigDecimal.ZERO;
+	
+	// possible 50/50s 
+	private final List<Possible5050> possible5050s = new ArrayList<>();
+	
 	
 	public LongTermRiskHelper(BoardState board, WitnessWeb wholeEdge, ProbabilityEngineModel pe)  {
 		
@@ -75,16 +158,18 @@ public class LongTermRiskHelper {
 		}
 		
 		checkFor2Tile5050();
-		
-		if (!pseudos.isEmpty()) {
-			//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", pseudo);
-			return pseudos;
+
+		/// if we've found a pseudo no need to check these
+		if (pseudos.isEmpty()) {
+			checkForBox5050();
 		}
 		
-		checkForBox5050();
+		// after the full sweep don't record them during the individual tile 
+		storeHotspots = false;
 		
-		if (!pseudos.isEmpty()) {
-			//board.getLogger().log(Level.INFO, "Tile %s is a 50/50, or safe", pseudo);
+		// if none of the hot spots are very dangerous then ignore them
+		if (this.minHotspotSafety.compareTo(BigDecimal.valueOf(0.6)) > 0) {
+			hotspots.clear();
 		}
 		
 		return pseudos;
@@ -157,8 +242,18 @@ public class LongTermRiskHelper {
 	
 	private void checkFor2Tile5050() {
 		
+		/*
+		int maxMines;
+		if (this.board.getSolver().preferences.isTestMode()) {
+			maxMines = 3;
+		} else {
+			maxMines = 2;
+		}
+		*/
+		
 		final int minMissingMines = 2;
-		final int maxMissingMines = 2;
+		final int maxMissingMines = 2; //TODO was 2
+		
 		
 		board.getLogger().log(Level.INFO, "Checking for 2-tile 50/50 influence");
     	
@@ -252,9 +347,29 @@ public class LongTermRiskHelper {
 			return null;
 		}
 		
+		
 		Location tile1 = subject;
 		Location tile2 = board.getLocation(i + 1, j);
 
+		// 1 missing enabler and a 50% chance to be a mine
+		if (md.missing.size() == 1  && this.storeHotspots) {
+			Box box = this.currentPe.getBox(subject);
+			if (box != null) {
+				if (box.getTally().multiply(BigInteger.valueOf(2)).compareTo(this.currentPe.getSolutionCount()) == 0) {
+					
+					Location enabler = md.missing.get(0);
+					BigDecimal safety = this.currentPe.getSafety(enabler);
+					BigDecimal ltrSafety = HALF.add(safety.multiply(HALF));
+					this.minHotspotSafety = this.minHotspotSafety.min(safety);
+					
+					if (safety.compareTo(HOTSPOT_ENABLER_SAFETY) < 0) {
+						//savePosition("Hotspot");
+						hotspots.add(new RiskHotspot(enabler, ltrSafety, tile1, tile2));
+					}
+				}
+			}
+		}
+		
 		BigDecimal approxChance = calculateApproxChanceOf5050(md.missing, tile1);
 		
 		board.getLogger().log(Level.INFO, "Evaluating candidate 50/50 - %s %s - approx chance %f", tile1, tile2, approxChance);
@@ -303,8 +418,28 @@ public class LongTermRiskHelper {
 			return null;
 		}
 
-		Location tile1 = board.getLocation(i, j);
+		Location tile1 = subject;
 		Location tile2 = board.getLocation(i, j + 1);
+		
+		// 1 missing enabler and a 50% chance to be a mine
+		if (md.missing.size() == 1 && this.storeHotspots) {
+			Box box = this.currentPe.getBox(subject);
+			if (box != null) {
+				
+				if (box.getTally().multiply(BigInteger.valueOf(2)).compareTo(this.currentPe.getSolutionCount()) == 0) {
+					
+					Location enabler = md.missing.get(0);					
+					BigDecimal safety = this.currentPe.getSafety(enabler);
+					BigDecimal ltrSafety = HALF.add(safety.multiply(HALF));
+					this.minHotspotSafety = this.minHotspotSafety.min(safety);
+					
+					if (safety.compareTo(HOTSPOT_ENABLER_SAFETY) < 0) {
+						//savePosition("Hotspot");
+						hotspots.add(new RiskHotspot(enabler, ltrSafety, tile1, tile2));
+					}
+				}
+			}
+		}
 		
 		BigDecimal approxChance = calculateApproxChanceOf5050(md.missing, tile1);
 		
@@ -331,7 +466,7 @@ public class LongTermRiskHelper {
 	private void checkForBox5050() {
 		
 		final int minMissingMines = 2;
-		final int maxMissingMines = 3;
+		final int maxMissingMines = 3;  //TODO was 3
 		
 	   	int minesLeft = board.getMines() - board.getConfirmedMineCount();
 		
@@ -447,11 +582,11 @@ public class LongTermRiskHelper {
 		BigDecimal result = BigDecimal.ONE;
 		
 		for (Location tile: missingMines) {
-			result = result.multiply(BigDecimal.ONE.subtract(this.currentPe.getProbability(tile)));
+			result = result.multiply(BigDecimal.ONE.subtract(this.currentPe.getSafety(tile)));
 		}
 		
 		for (Location tile: other) {
-			result = result.multiply(BigDecimal.ONE.subtract(this.currentPe.getProbability(tile)));
+			result = result.multiply(BigDecimal.ONE.subtract(this.currentPe.getSafety(tile)));
 		}
 		
 		return result;
@@ -483,8 +618,9 @@ public class LongTermRiskHelper {
 		
 
 		// the tiles which enable a 50/50 but aren't in it also get an influence
-
 		if (result.enablers != null && influenceRatio.compareTo(FINAL_THRESHOLD) > 0) {
+			
+			possible5050s.add(new Possible5050(influenceRatio, result.enablers, tiles));
 			
 			for (Location loc: result.enablers) {
 				
@@ -583,27 +719,6 @@ public class LongTermRiskHelper {
 	}
 	*/
 	
-	
-	/**
-	 * Get how many solutions have common 50/50s at this location
-	 */
-	/*
-	public BigInteger get5050Influence(Location loc) {
-		
-		BigInteger result = BigInteger.ZERO;
-
-		if (influence5050s[loc.x][loc.y] != null) {
-			result = result.add(influence5050s[loc.x][loc.y]);
-		}
-		
-		if (influenceEnablers[loc.x][loc.y] != null) {
-			result = result.add(influenceEnablers[loc.x][loc.y]);
-		}
-		
-		return result;
-	}
-	*/
-	
 	/**
 	 * Return all the locations with 50/50 influence
 	 */
@@ -657,8 +772,19 @@ public class LongTermRiskHelper {
 		return result;
 	}
 	
+	// get the enabler locations which are likely to turn into 50/50s
+	public List<RiskHotspot> getRiskHotspots() {
+		return this.hotspots;
+	}
+	
+	// get possible 50/50s
+	public List<Possible5050> getPossible5050s() {
+		return this.possible5050s;
+	}
+	
 	// should we add or use max?  Make a single place to change.
 	private BigInteger function(BigInteger a, BigInteger b) {
+		
 		return a.add(b);
 	}
 	
@@ -737,5 +863,20 @@ public class LongTermRiskHelper {
 			}
 		}
 		return false;
+	}
+	
+	private void savePosition(String text) {
+		
+		File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + board.getSolver().getGame().getSeed() + ".mine");
+		if (saveFile.exists()) {
+			return;
+		}
+		try {
+			System.out.println("Saving position in file " + saveFile.getAbsolutePath());
+			board.getSolver().getGame().savePosition(saveFile, text);
+		} catch (Exception e) {
+			System.out.println("Save position failed: " + e.getMessage());
+		}
+		
 	}
 }

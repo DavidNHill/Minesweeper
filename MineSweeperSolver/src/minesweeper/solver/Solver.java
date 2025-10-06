@@ -4,6 +4,7 @@
  */
 package minesweeper.solver;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -30,6 +31,7 @@ import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SolverSettings;
 import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Binomial;
+import minesweeper.solver.utility.BinomialCache;
 import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.solver.utility.ProgressMonitor;
@@ -120,8 +122,9 @@ public class Solver implements Asynchronous<Action[]> {
 	final static int CORES = Runtime.getRuntime().availableProcessors();
 
 
-	// a binomial coefficient generator which allows up to (choose n from 1000000) and builds a cache of everything up to (choose n from 100) 
-	static Binomial binomialEngine = new Binomial(1000000, 500); 
+	// a binomial coefficient generator which allows up to (choose n from 1000000) and builds a cache of everything up to (choose n from 500) 
+	public final static int BINOMIAL_CACHE_LIMIT = 500;
+	public final static Binomial binomialEngine = new Binomial(1000000, BINOMIAL_CACHE_LIMIT); 
 
 
 	protected final SolverSettings preferences;
@@ -141,7 +144,7 @@ public class Solver implements Asynchronous<Action[]> {
 	private BruteForceAnalysisModel bruteForceAnalysis;
 	private LocationEvaluator evaluateLocations;
 
-	private BigDecimal offEdgeProb;
+	private BigDecimal offEdgeSafety;
 
 	private List<Location> bfdaStartLocations = null;
 
@@ -177,6 +180,9 @@ public class Solver implements Asynchronous<Action[]> {
 	// won't play the book opening on start if false
 	private boolean playOpening = true;
 
+	// A cache to hold recent large Binomial coefficients
+	BinomialCache biCache;
+	
 	// If we are only interested in the win rate we can cheat when we encounter isolated edges
 	// if there is x chance of surviving the edge then 
 	//private boolean winRateOnly = false;
@@ -309,7 +315,11 @@ public class Solver implements Asynchronous<Action[]> {
 		this.playOpening = playOpening;
 	}
 
-
+	public void setBinomialCache(BinomialCache cache) {
+		this.biCache = cache;
+	}
+	
+	
 	/**
 	 * Sets the solver play style
 	 */
@@ -404,9 +414,9 @@ public class Solver implements Asynchronous<Action[]> {
 		if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
 
 			if (myGame.safeOpening()) {
-				offEdgeProb = BigDecimal.ONE;   
+				offEdgeSafety = BigDecimal.ONE;   
 			} else {
-				offEdgeProb = BigDecimal.ONE.subtract(BigDecimal.valueOf(myGame.getMinesLeft()).divide(BigDecimal.valueOf(myGame.getHidden()), Solver.DP, RoundingMode.HALF_UP));
+				offEdgeSafety = BigDecimal.ONE.subtract(BigDecimal.valueOf(myGame.getMinesLeft()).divide(BigDecimal.valueOf(myGame.getHidden()), Solver.DP, RoundingMode.HALF_UP));
 			}
 
 			fm = guess(null);
@@ -512,8 +522,9 @@ public class Solver implements Asynchronous<Action[]> {
 		// look for unavoidable 50/50 here if we are doing early checks
 		// -7317529077410525620
 		if (this.preferences.isEarly5050Check()) {
-	        FiftyFiftyHelper fiftyFiftyHelper = null;
-             if (preferences.isDo5050Check()) {
+	        
+			FiftyFiftyHelper fiftyFiftyHelper = null;
+            if (preferences.isDo5050Check()) {
             	fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, Area.EMPTY_AREA);
             	List<Location> fiftyFifty = fiftyFiftyHelper.findUnavoidable5050(Collections.emptyList());
 
@@ -522,6 +533,7 @@ public class Solver implements Asynchronous<Action[]> {
     				Action a = new Action(bestTile, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  BigDecimal.valueOf(0.5));  
     				fm = new FinalMoves(a);
 
+    				//savePosition("Early 50/50");
             		newLine("--------- Unavoidable Guess ---------");
             		newLine("An unavoidable guess has been found - playing now to save time");
             		this.logger.log(Level.DEBUG, "Fifty/Fifty found in game %s : %s", myGame.showGameKey(), fm.result[0] );
@@ -571,18 +583,35 @@ public class Solver implements Asynchronous<Action[]> {
 		this.logger.log(Level.INFO, "----- Starting probability engine -----");
 
 		pe = new ProbabilityEngineFast(boardState, wholeEdge, unrevealed, minesLeft);
+		pe.setBinomialCache(biCache);
 		pe.process();
 
 		// get the new deadLocations with any found by the probability engine 
 		deadLocations = pe.getDeadLocations();
 
-		offEdgeProb = pe.getOffEdgeProb();
+		offEdgeSafety = pe.getOffEdgeSafety();
 
-		if (offEdgeProb.compareTo(BigDecimal.ONE) > 0) {
-			this.logger.log(Level.ERROR, "Game %s has probability off edge of %f", myGame.showGameKey(), offEdgeProb);
+		if (offEdgeSafety.compareTo(BigDecimal.ONE) > 0) {
+			this.logger.log(Level.ERROR, "Game %s has Safety off edge of %f", myGame.showGameKey(), offEdgeSafety);
 		} else {
-			this.logger.log(Level.INFO, "Probability off edge is %f", offEdgeProb);
+			this.logger.log(Level.INFO, "Safety off edge is %f", offEdgeSafety);
 		}
+		
+		// if we are playing NF Efficiency then look for the best option
+		if (this.playStyle == PlayStyle.NO_FLAG_EFFICIENCY) {
+			EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions(), pe);
+			fm = new FinalMoves(eff.processImprovedNF().toArray(new Action[0]));
+			if (fm.moveFound) {
+				return fm;
+			}
+		}
+		
+		// mine count detector
+		//if (offEdgeSafety.compareTo(BigDecimal.ONE) == 0 && pe.getSafeTileCount() == 0) {
+		//	if (pe.getTilesOffEdgeCount() > 15 && wholeEdge.getSquares().size() > 20) {
+		//		savePosition("Large mine count");
+		//	}
+		//}
 
 		this.logger.log(Level.INFO, "All Dead %b and dead locations %d", pe.allDead(), deadLocations.size() );
 		// if all the locations are dead then just use any one (unless there is only one solution)
@@ -601,14 +630,14 @@ public class Solver implements Asynchronous<Action[]> {
 			// pick any tile since they're all dead
 			Location picked = null;
 			for (Location tile: allWitnessedSquares.getLocations()) {  // get any tile
-				if (pe.getProbability(tile).signum() != 0) {
+				if (pe.getSafety(tile).signum() != 0) {
 					picked = tile;
 					break;
 				}
 			}
 
 
-			CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
+			CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getSafety(picked), 0, 0); 
 			Action a = cl.buildAction(MoveMethod.GUESS);
 			// let the boardState decide what to do with this action
 			boardState.setAction(a);
@@ -637,7 +666,7 @@ public class Solver implements Asynchronous<Action[]> {
 		this.logger.log(Level.INFO, "Off edge threshold is %f", offEdgeCutoff);
 
 		// are clears off the edge within the permitted cut-off?
-		boolean addOffEdgeOptions = (offEdgeProb.compareTo(offEdgeCutoff) > 0);
+		boolean addOffEdgeOptions = (offEdgeSafety.compareTo(offEdgeCutoff) > 0);
 
 		this.logger.log(Level.INFO, "Probability Engine processing took %d milliseconds", pe.getDuration());
 		this.logger.log(Level.INFO, "----- Probability engine finished -----");
@@ -700,7 +729,7 @@ public class Solver implements Asynchronous<Action[]> {
 								Location picked = getLowest(bruteForceAnalysis.getDeadLocations().getLocations(), Area.EMPTY_AREA);
 								
 								if (picked != null) {
-									fm = new FinalMoves(new Action(picked, Action.CLEAR, MoveMethod.GUESS, "", pe.getProbability(picked)));
+									fm = new FinalMoves(new Action(picked, Action.CLEAR, MoveMethod.GUESS, "", pe.getSafety(picked)));
 									return fm;
 								}
 
@@ -720,7 +749,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 		if (bestCandidates.isEmpty()) {
 			newLine("The probability engine found no candidate moves on the edge");
-			newLine("Probability off the edge is " + Action.FORMAT_2DP.format(offEdgeProb.multiply(ONE_HUNDRED)) + "%");
+			newLine("Probability off the edge is " + Action.FORMAT_2DP.format(offEdgeSafety.multiply(ONE_HUNDRED)) + "%");
 		} else {
 			newLine("The probability engine found " + bestCandidates.size() + " candidate moves on the edge");
 		}
@@ -772,13 +801,13 @@ public class Solver implements Asynchronous<Action[]> {
 						// otherwise pick one of the ones on the edge
 						Location picked = null;
 						for (Location l: allWitnessedSquares.getLocations()) {
-							if (pe.getProbability(l).signum() != 0) { // pick a tile which isn't a mine
+							if (pe.getSafety(l).signum() != 0) { // pick a tile which isn't a mine
 								picked = l;
 								break;
 							}
 						}
 						if (picked != null) {
-							CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getProbability(picked), 0, 0); 
+							CandidateLocation cl = new CandidateLocation(picked.x, picked.y, pe.getSafety(picked), 0, 0); 
 							Action a = cl.buildAction(MoveMethod.GUESS);
 							// let the boardState decide what to do with this action
 							boardState.setAction(a);
@@ -833,12 +862,15 @@ public class Solver implements Asynchronous<Action[]> {
 		}
 
 		// look for unavoidable 50/50
-		FiftyFiftyHelper fiftyFiftyHelper = null;
+		//FiftyFiftyHelper fiftyFiftyHelper = null;
+		/*
 		if (!certainClearFound && !fm.moveFound) {
 			if (preferences.isDo5050Check()) {
-				fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
-				List<Location> fiftyFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
-
+				
+				List<Location> fiftyFifty;
+				FiftyFiftyHelper fiftyFiftyHelper = new FiftyFiftyHelper(boardState, wholeEdge, deadLocations);
+				fiftyFifty = fiftyFiftyHelper.findUnavoidable5050(pe.getMines());
+				
 				if (fiftyFifty != null) {
 
 					this.logger.log(Level.INFO, "Selecting best tile in 50/50");
@@ -849,17 +881,6 @@ public class Solver implements Asynchronous<Action[]> {
 					Action a[] = evaluator.bestMove();
 					fm = new FinalMoves(a[0]);
 
-					/*
-					if (this.preferences.isTestMode()) {
-
-						
-					} else {
-						Location lowestTile = getLowest(fiftyFifty, deadLocations); 
-						Action a = new Action(lowestTile, Action.CLEAR, MoveMethod.UNAVOIDABLE_GUESS, "Fifty-Fifty",  pe.getProbability(lowestTile));  
-						fm = new FinalMoves(a);
-					}
-					*/
-
 					newLine("--------- Unavoidable Guess ---------");
 					newLine("An unavoidable guess has been found - playing now to save time");
 					this.logger.log(Level.DEBUG, "Fifty/Fifty found in game %s : %s", myGame.showGameKey(), fm.result[0] );
@@ -867,8 +888,9 @@ public class Solver implements Asynchronous<Action[]> {
 				}
 			}
 		}
-
-		// look for pseudo 50-50 guess 
+		*/
+		
+		// look for unavoidable 50/50s and pseudo 50/50s 
 		LongTermRiskHelper ltr = null;
 		if (!certainClearFound && !fm.moveFound) {
 			ltr = new LongTermRiskHelper(boardState, wholeEdge, pe);
@@ -876,7 +898,13 @@ public class Solver implements Asynchronous<Action[]> {
 
 				List<Location> pseudos = ltr.findInfluence();
 				
-				if (!pseudos.isEmpty()) {
+				// have a closer look for extended pseudo-50/50s
+				if (pseudos.isEmpty()) {
+					PseudoHelper pseudoHelper = new PseudoHelper(boardState, pe, wholeEdge, deadLocations, pe.getMines(), logger);
+					pseudos = pseudoHelper.findPseudo5050();
+				}
+				
+				if (pseudos != null && !pseudos.isEmpty()) {
 					
 					this.logger.log(Level.INFO, "Selecting best pseudo");
 					SecondarySafetyEvaluator evaluator = new SecondarySafetyEvaluator(this, boardState, wholeEdge, pe, incompleteBFA, ltr);
@@ -990,7 +1018,7 @@ public class Solver implements Asynchronous<Action[]> {
 				}
 
 				// if all the off edge tiles are safe add them into the board state
-				if (pe.getOffEdgeProb().compareTo(BigDecimal.ONE) == 0) {
+				if (pe.getOffEdgeSafety().compareTo(BigDecimal.ONE) == 0) {
 					int mineCountClears = 0;
 					for (Location loc: boardState.getAllUnrevealedSquares()) {
 						if (!allWitnessedSquares.contains(loc)) {
@@ -1016,7 +1044,8 @@ public class Solver implements Asynchronous<Action[]> {
 				if (this.playStyle.efficiency) {
 					EfficiencyHelper eff = new EfficiencyHelper(boardState, wholeEdge, boardState.getActions(), pe);
 					if (this.playStyle.flagless) {
-						fm = new FinalMoves(eff.processNF().toArray(new Action[0]));
+						fm = new FinalMoves(boardState.getActions().toArray(new Action[0]));
+						//fm = new FinalMoves(eff.processNF().toArray(new Action[0]));
 					} else {
 						fm = new FinalMoves(eff.process().toArray(new Action[0]));
 					}
@@ -1225,7 +1254,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 						InformationLocation il = new InformationLocation(i,j);
 
-						il.setSafety(pe.getProbability(il));
+						il.setSafety(pe.getSafety(il));
 
 						doFullEvaluateTile(wholeEdge, pe, il, ltr);
 
@@ -1277,7 +1306,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 				BigDecimal safety;
 				if (bestCandidates.size() == 0 ) { 
-					safety = counter.getOffEdgeProb();
+					safety = counter.getOffEdgeSafety();
 				} else {
 					safety = bestCandidates.get(0).getProbability();
 				}
@@ -1599,7 +1628,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 		RunPeResult result = new RunPeResult();
 		result.pe = new ProbabilityEngineFast(boardState, edge, unrevealed, minesLeft);
-
+		result.pe.setBinomialCache(biCache);
 		result.pe.process();
 
 		// looking for created 50/50s doesn't seem to help the win rate
@@ -1990,9 +2019,9 @@ public class Solver implements Asynchronous<Action[]> {
 		// get the starting move if we are at the start of the game
 		if (myGame.getGameState() == GameStateModel.NOT_STARTED && playOpening) {
 			if (overriddenStartLocation != null) {
-				action = new Action(overriddenStartLocation, Action.CLEAR, MoveMethod.BOOK, "", offEdgeProb);
+				action = new Action(overriddenStartLocation, Action.CLEAR, MoveMethod.BOOK, "", offEdgeSafety);
 			} else { 
-				action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offEdgeProb);
+				action = new Action(myGame.getStartLocation(), Action.CLEAR, MoveMethod.BOOK, "", offEdgeSafety);
 			}
 		}
 
@@ -2010,7 +2039,7 @@ public class Solver implements Asynchronous<Action[]> {
 						Location l = this.boardState.getLocation(i, j);
 						// if we aren't on the edge and there are some adjacent squares 
 						if ((wholeEdge == null || !wholeEdge.isOnWeb(l))) {
-							list.add(new CandidateLocation(l.x, l.y, offEdgeProb, boardState.countAdjacentUnrevealed(l), boardState.countAdjacentConfirmedFlags(l)));
+							list.add(new CandidateLocation(l.x, l.y, offEdgeSafety, boardState.countAdjacentUnrevealed(l), boardState.countAdjacentConfirmedFlags(l)));
 						}
 
 					} 
@@ -2044,7 +2073,7 @@ public class Solver implements Asynchronous<Action[]> {
 		} else if (bf != null && bf.hasRun()) {
 			return bf.getProbability(x, y);
 		} else if (pe != null) {
-			return pe.getProbability(this.boardState.getLocation(x,y));
+			return pe.getSafety(this.boardState.getLocation(x,y));
 		} else {
 			return boardState.getProbability(x, y);
 		}
@@ -2107,4 +2136,19 @@ public class Solver implements Asynchronous<Action[]> {
 		return myGame;
 	}
 
+	void savePosition(String text) {
+		
+		File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + this.myGame.getSeed() + ".mine");
+		if (saveFile.exists()) {
+			return;
+		}
+		try {
+			System.out.println("Saving position in file " + saveFile.getAbsolutePath());
+			this.myGame.savePosition(saveFile, text);
+		} catch (Exception e) {
+			System.out.println("Save position failed: " + e.getMessage());
+		}
+		
+	}
+	
 }

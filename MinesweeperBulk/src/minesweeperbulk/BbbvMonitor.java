@@ -16,8 +16,8 @@ public class BbbvMonitor extends GamePostListener {
 		private int sum3BV = 0;
 	}
 	
-	private GuessData data1 = new GuessData();
-	private GuessData data2 = new GuessData();
+	private GuessData noGuess = new GuessData();
+	private GuessData guess = new GuessData();
 	
 	private int played = 0;
 	private int total3BV = 0;
@@ -33,9 +33,9 @@ public class BbbvMonitor extends GamePostListener {
 		
 		GuessData target;
 		if (req.getGuesses() == 0) {
-			target = data1;
+			target = noGuess;
 		} else {
-			target = data2;
+			target = guess;
 		}
 		
 		target.total++;
@@ -47,14 +47,14 @@ public class BbbvMonitor extends GamePostListener {
 	@Override
 	public void postResults() {
 		
-		if (data1.total != 0) {
-			double avg3BV1 = (double) data1.sum3BV / (double) data1.total;
-	 		System.out.println("No Guess boards " + data1.total + " total 3BV " + data1.sum3BV + " average 3BV " + MASK.format(avg3BV1));
+		if (noGuess.total != 0) {
+			double avg3BV1 = (double) noGuess.sum3BV / (double) noGuess.total;
+	 		System.out.println("No Guess boards " + noGuess.total + " total 3BV " + noGuess.sum3BV + " average 3BV " + MASK.format(avg3BV1));
 		}
 		
-		if (data2.total != 0) {
-			double avg3BV2 = (double) data2.sum3BV / (double) data2.total;
-	 		System.out.println("Guessing boards " + data2.total + " total 3BV " + data2.sum3BV + " average 3BV " + MASK.format(avg3BV2));
+		if (guess.total != 0) {
+			double avg3BV2 = (double) guess.sum3BV / (double) guess.total;
+	 		System.out.println("Guessing boards " + guess.total + " total 3BV " + guess.sum3BV + " average 3BV " + MASK.format(avg3BV2));
 		}
 		
 		double avg3BV = (double) total3BV / (double) played;

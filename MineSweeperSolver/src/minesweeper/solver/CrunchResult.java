@@ -139,7 +139,7 @@ public class CrunchResult {
             return result;
 
         }
-        
+         
         /*
         protected void calculateMinMax() {
             

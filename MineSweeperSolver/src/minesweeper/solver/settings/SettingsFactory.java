@@ -101,8 +101,8 @@ public class SettingsFactory {
 
     	SolverSettings settings = new SolverSettings();
     	
-    	settings.bruteForceMaxSolutions = 40000;
-    	settings.bruteForceVariableSolutions = 20000;
+    	settings.bruteForceMaxSolutions = 20000;
+    	settings.bruteForceVariableSolutions = 10000;
 		settings.bruteForceMaxNodes = 200000000;     // 200 million
 		settings.bruteForceTreeDepth = 3;
 		settings.bruteForceMaxIterations = new BigInteger("50000000");  // 50 million

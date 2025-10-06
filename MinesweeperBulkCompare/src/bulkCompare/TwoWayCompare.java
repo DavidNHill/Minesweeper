@@ -1,5 +1,7 @@
 package bulkCompare;
 
+import java.io.File;
+
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.bulk.BulkRequest;
 import minesweeper.solver.bulk.BulkRequestGame;
@@ -34,6 +36,8 @@ public class TwoWayCompare extends GamePostListener {
 				bothWon++;
 			} else {
 				oneWonTwoLost++;
+				
+				//savePosition(game2, "Advanced pseudo lost");
 			}
 		} else {
 			if (game2.getGameState() == GameStateModel.WON) {
@@ -60,6 +64,21 @@ public class TwoWayCompare extends GamePostListener {
 		System.out.println("Final Result:-");
 		String sb = "Played " + played + ", One wins " + oneWon + ", One wins & Two loses " + oneWonTwoLost + ", One loses & Two wins " + oneLostTwoWon + ", Difference " + (oneLostTwoWon - oneWonTwoLost);
 		System.out.println(sb);
+		
+	}
+	
+	void savePosition(GameStateModel game, String text) {
+		
+		File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + game.getSeed() + "_lost.mine");
+		if (saveFile.exists()) {
+			return;
+		}
+		try {
+			System.out.println("Saving position in file " + saveFile.getAbsolutePath());
+			game.savePosition(saveFile, text);
+		} catch (Exception e) {
+			System.out.println("Save position failed: " + e.getMessage());
+		}
 		
 	}
 	

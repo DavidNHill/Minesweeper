@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ public class EfficiencyHelper {
 	private WitnessWeb wholeEdge;
 	private List<Action> actions;
 	private ProbabilityEngineModel pe;
+	//private Set<Location> risky3BVRevealed;
 	
 	public EfficiencyHelper(BoardState board, WitnessWeb wholeEdge, List<Action> actions, ProbabilityEngineModel pe)  {
 		
@@ -47,6 +49,7 @@ public class EfficiencyHelper {
 		this.wholeEdge = wholeEdge;
 		this.pe = pe;
 		
+		//this.risky3BVRevealed = new HashSet<>();
 	}
 
 	
@@ -239,7 +242,7 @@ public class EfficiencyHelper {
 		//for (Action act: actions) {
 		for (Location loc: candidates) {
 			
-			BigDecimal testP = this.pe.getProbability(loc);
+			BigDecimal testP = this.pe.getSafety(loc);
 			if (testP.compareTo(SAFE_3BV_CLICK_THRESHOLD) < 0) {
 				continue;
 			}
@@ -550,7 +553,7 @@ public class EfficiencyHelper {
 					BigDecimal zeroProb = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(currSolnCount.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 					zeroProbs.put(tile, zeroProb);
 					
-					BigDecimal safety = this.pe.getProbability(tile);
+					BigDecimal safety = this.pe.getSafety(tile);
 					BigDecimal score = zeroProb.subtract(BigDecimal.ONE.subtract(safety).multiply(NFE_BLAST_PENALTY));
 					
 					if (zeroTile == null || zeroTileScore.compareTo(score) < 0) {
@@ -590,7 +593,7 @@ public class EfficiencyHelper {
 					BigDecimal zeroProb = new BigDecimal(counter.getSolutionCount()).divide(new BigDecimal(currSolnCount.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 					zeroProbs.put(tile, zeroProb);
 					
-					BigDecimal safety = this.pe.getProbability(tile);
+					BigDecimal safety = this.pe.getSafety(tile);
 					BigDecimal score = zeroProb.subtract(BigDecimal.ONE.subtract(safety).multiply(NFE_BLAST_PENALTY));
 					
 					if (zeroTile == null || zeroTileScore.compareTo(score) < 0) {
@@ -613,7 +616,7 @@ public class EfficiencyHelper {
 			return result;
 		}
 		
-		BigDecimal offEdgeSafety = this.pe.getOffEdgeProb();
+		BigDecimal offEdgeSafety = this.pe.getOffEdgeSafety();
 		
 		// see if tiles adjacent to the boundary can be zero
 		for (Location tile: adjacentEdgeSet) {
@@ -685,7 +688,7 @@ public class EfficiencyHelper {
 		
        if (zeroTile != null) {
 
-    	   BigDecimal prob = this.pe.getProbability(zeroTile);
+    	   BigDecimal prob = this.pe.getSafety(zeroTile);
             if (bestAllNotZeroAction != null) {
                 if (maxAllNotZeroProbability.compareTo(zeroTileScore ) > 0 && zeroTileScore.compareTo(BigDecimal.ZERO) < 0) {
                     result.add(bestAllNotZeroAction);
@@ -709,5 +712,333 @@ public class EfficiencyHelper {
     	return result;
     }
     
+    private class NfData {
+    	
+    	private BigDecimal safety = BigDecimal.ZERO;
+    	private BigDecimal zeroProbability = BigDecimal.ZERO;
+    	private boolean zeroPoison = false;
+    	
+    }
+    
+    
+    //
+    // Improved NF efficiency logic
+    //
+    public List<Action> processImprovedNF() {
+
+		long startTime = System.currentTimeMillis();
+
+        BigInteger tsc;
+        if (this.pe == null) {
+            tsc = BigInteger.ONE;
+        } else {
+            tsc = this.pe.getSolutionCount();
+        }
+        
+        //final BigInteger solutionsCount = tsc;
+        final BigDecimal solutionsCount = new BigDecimal(tsc);
+
+        final int value = 0;
+
+        // check that at least 1 tile can be a zero
+        boolean openingNotPossible = true;
+
+        // an array of probabilities for simple cases where the tile is surrounded by n-floating tiles and nothing else.
+        BigDecimal[] simple = new BigDecimal[9];
+        //Arrays.fill(simple, -1);
+        
+        NfData[][] data = new NfData[board.getGameWidth()][board.getGameHeight()];
+        
+        Set<Location> risky3BVRevealed = board.get3BVRiskyTiles(wholeEdge.getOriginalWitnesses());
+        
+    	// locations next to a mine can't be zero
+		for (int i=0; i < board.getGameWidth(); i++) {
+			for (int j=0; j < board.getGameHeight(); j++) {
+				
+            	Location tile = this.board.getLocation(i, j);
+            	
+				NfData tileData = new NfData();
+				data[i][j] = tileData;
+				
+	            // no need to analyse a revealed tile
+	            if (board.isRevealed(tile)) {
+	                continue;
+	            }
+
+	            // store this tiles safety
+	            tileData.safety = this.pe.getSafety(tile);
+	            
+				// no need to analyse a bomb
+				if (board.isConfirmedMine(tile) || tileData.safety.signum() == 0) {
+					continue;
+				}
+				
+	            // if the number of mines adjacent is > 0 then this can't be a zero
+	            int adjMines = this.board.countAdjacentConfirmedFlags(tile);
+	            if (adjMines > 0) {
+	                continue;
+	            }
+	            
+	            final int floating = this.evaluateTileForValue(tile);
+	            if (floating != -1 && simple[floating] != null) {
+	                tileData.zeroProbability = simple[floating];
+
+	            } else {
+	            	
+	    			SolutionCounter work = board.getSolver().validateLocationUsingSolutionCounter(wholeEdge, tile, 0, Area.EMPTY_AREA);
+	    			
+	                // if this is a valid board state
+	                if (work.getSolutionCount().signum() > 0) {
+	                    BigDecimal valueProbability = new BigDecimal(work.getSolutionCount()).divide(solutionsCount, 10, RoundingMode.HALF_UP);
+	                    
+	                    tileData.zeroProbability = valueProbability;
+
+	                    if (floating != -1) {
+	                        simple[floating] = valueProbability;
+	                    }
+
+	                } else {
+
+	                    //console.log(tile.asText() + " can't be a '" + value + "'");
+	                }
+	            }
+	            
+	            // a zero is possible
+	            if (tileData.zeroProbability.signum() > 0) {
+	                openingNotPossible = false;
+	            }
+
+
+	            // if the tile is adjacent to a risky revealed tile then this tile is zero% poison.
+	            // i.e. it opens a zero next to a 3BV risky tile, or creates another 3BV risky tile.
+	            if (tileData.zeroProbability.signum() != 0 && tileData.zeroProbability.compareTo(BigDecimal.ONE) != 0) {
+	                for (Location adjTile: this.board.getAdjacentSquaresIterable(tile)) {
+	                    if (risky3BVRevealed.contains(adjTile)) {
+	                    	board.getLogger().log(Level.INFO, "Tile %s is 3BV poison", tile);
+	                        tileData.zeroPoison = true;
+	                        break;
+	                    }	                	
+	                }
+	            }
+
+
+			}
+		}                        
+		
+		board.getLogger().log(Level.INFO, "Evaluating Zero probabilities took " + (System.currentTimeMillis() - startTime) + " milliseconds");
+
+        if (openingNotPossible) {
+        	board.getLogger().log(Level.INFO, "No opening is possible, so reverting to best play");
+            //return this.removeFlagging(this.actions);
+            return Collections.emptyList();
+        }
+
+        
+        // how much the zero % is inflated to make a zero more attractive
+        final BigDecimal ZERO_WEIGHT = new BigDecimal("0.6");
+
+        // the amount a poison zero is allowed to contibute to the 3bv safety contribution
+        final BigDecimal POISON_RATIO = new BigDecimal("0.75");
+
+        // find the tile with highest 3BV safety
+        List<Location> safe3BV = new ArrayList<>();
+        BigDecimal best3BVSafety = BigDecimal.ZERO;
+        //BigDecimal bestZeroProbability = BigDecimal.ZERO;
+        Location bestTile = null;
+        NfData bestTileData = null;
+
+        BigDecimal bestScore = BigDecimal.ZERO;
+
+    	// locations next to a mine can't be zero
+		for (int i=0; i < board.getGameWidth(); i++) {
+			for (int j=0; j < board.getGameHeight(); j++) {
+				
+            	Location tile = this.board.getLocation(i, j);
+            	
+				// no need to analyse a bomb
+				if (board.isConfirmedMine(tile)) {
+					continue;
+				}
+				
+	            // no need to analyse a revealed tile
+	            if (board.isRevealed(tile)) {
+	                continue;
+	            }
+
+				NfData tileData = data[i][j];
+				
+	            // don't consider dead tiles unless 100% safe
+	            if (tileData.safety.compareTo(BigDecimal.ONE) != 0 && this.pe.getDeadLocations().contains(tile)) {
+	                continue;
+	            }
+				
+	            // 3BV safety can never be larger than normal safety + the zero bonus
+	            if (tileData.safety.add(tileData.zeroProbability.multiply(ZERO_WEIGHT)).compareTo(best3BVSafety) < 0) {
+	                continue;
+	            }
+	            
+	            //const adjTiles = this.board.getAdjacent(tile);
+	            BigDecimal safety3BV = tileData.safety;
+	            
+	            if (tileData.zeroProbability.signum() > 0) {
+		            for (Location adjTile1: this.board.getAdjacentSquaresIterable(tile)) {
+		            	
+		            	NfData adjTile1Data = data[adjTile1.x][adjTile1.y];
+		            	
+		                // is covered and not 100% safe. Can't be a mine or we would have Zero % > 0
+	                    if (!this.board.isRevealed(adjTile1) && adjTile1Data.safety.compareTo(BigDecimal.ONE) != 0) {
+	                    	
+	                        for (Location adjTile2: this.board.getAdjacentSquaresIterable(tile)) {
+	                            if (!adjTile2.equals(adjTile1) && !adjTile2.isAdjacent(adjTile1)) {
+	                                BigDecimal zeroProb;
+	                                NfData adjTile2Data = data[adjTile2.x][adjTile2.y];
+	                                if (adjTile2Data == null) {
+	                                	board.getLogger().log(Level.ERROR, "%s has no 3BV Zero data", tile);
+	                                	zeroProb = BigDecimal.ZERO;
+	                                } else if (adjTile2Data.zeroPoison) {
+	                                    zeroProb = adjTile2Data.zeroProbability.multiply(POISON_RATIO);
+	                                } else {
+	                                    zeroProb = adjTile2Data.zeroProbability;
+	                                }
+	                                safety3BV = safety3BV.subtract(zeroProb.multiply(BigDecimal.ONE.subtract(adjTile1Data.safety)));  // safety3bv - (zeroProb* (1- adjTile1.safety))
+	                            } else {
+	                                //console.log("Ignore " + adjTile1.asText() + " and " + adjTile2.asText());
+	                            }
+	                        }
+	                    }
+		            	
+		            }
+	            
+	            } else {  // can't be a zero, how 3bv safe is it?
+	                for (Location adjTile1: this.board.getAdjacentSquaresIterable(tile)) {
+
+		            	NfData adjTile1Data = data[adjTile1.x][adjTile1.y];
+		            	
+	                    // is covered and not a mine
+	                    if (!this.board.isRevealed(adjTile1) && adjTile1Data.safety.signum() != 0) {
+	                        BigDecimal zeroProb;
+	                        if (adjTile1Data.zeroPoison) {
+	                            zeroProb = adjTile1Data.zeroProbability.multiply(POISON_RATIO);
+	                        } else {
+	                            zeroProb = adjTile1Data.zeroProbability;
+	                        }
+
+	                        safety3BV = safety3BV.subtract(zeroProb);
+	                    }
+	                }
+	            }
+
+	            // store all the 100% safe 3BV
+	            //if (safety3BV == 1 && !tile.zeroPoison) {
+	            if (safety3BV.compareTo(BigDecimal.ONE) == 0) {
+	                safe3BV.add(tile);
+	            }
+	            	
+	            
+	            BigDecimal score = safety3BV.add(tileData.zeroProbability.multiply(ZERO_WEIGHT));
+	            boolean better = false;
+	            if (bestTile == null || bestTileData.zeroPoison && !tileData.zeroPoison) {
+	                better = true;
+
+	            } else if (!bestTileData.zeroPoison && tileData.zeroPoison) {
+	                better = false;
+
+	            } else if (score.compareTo(bestScore) > 0 || (score.compareTo(bestScore) == 0 && tileData.zeroProbability.compareTo(bestTileData.zeroProbability) > 0)) {
+	                better = true;
+
+	            } else {
+	                better = false;
+	            }
+
+	            if (better) {
+	                //this.writeToConsole(tile.asText() + " has estimated 3BV safety of " + safety3BV + " and Zero probability " + tile.zeroProbability + ", score=" + score);
+	                board.getLogger().log(Level.INFO, "%s has estimated 3BV safety of %f and Zero probability %f, score=" + score, tile, safety3BV, tileData.zeroProbability, score);
+	                bestTile = tile;
+	                best3BVSafety = safety3BV;
+	                bestTileData = tileData;
+	                //bestZeroProbability = tile.zeroProbability;
+	                bestScore = score;
+	                board.getLogger().log(Level.INFO, "%s is now the recommended tile", tile);
+	            }
+
+			}
+		}                        
+        
+        if (safe3BV.size() > 0) {
+            List<Action> result = new ArrayList<>();
+            board.getLogger().log(Level.INFO, "Found " + safe3BV.size() + " 3BV safe tiles");
+            for (Location tile: safe3BV) {
+                result.add(new Action(tile, Action.CLEAR, MoveMethod.TRIVIAL, "3BV Safe", BigDecimal.ONE));
+            }
+
+            return result;
+
+        } else if (bestTile != null) {
+            List<Action> result = new ArrayList<>();
+            result.add(new Action(bestTile, Action.CLEAR, MoveMethod.TRIVIAL, "Best NF Guess", bestTileData.safety));  // send the best tile
+            return result;
+            
+        } else {
+            //return this.removeFlagging(this.actions);  // return the actions
+            return Collections.emptyList();
+        }
+
+    }
+
+    // Count how many adjacent tiles are 'floating tiles'. 
+    // If any adjacent tiles are not floating and not mines or safe then return -1
+    private int evaluateTileForValue(Location tile) {
+
+    	//Location tile = this.board.getLocation(x, y);
+    	
+        if (this.wholeEdge.isOnWeb(tile)) {
+            //console.log(tile.asText() + " on edge=" + tile.isOnEdge() + " = " + tile.onEdge);
+            return -1;
+        }
+
+        int floating = 0;
+
+        for (Location adjTile: this.board.getAdjacentSquaresIterable(tile)) {
+
+			// no need to analyse a bomb
+			if (board.isConfirmedMine(adjTile)) {
+				continue;
+			}
+			
+            // if 100% safe
+            if (this.pe.getSafety(adjTile).compareTo(BigDecimal.ONE) == 0) {
+                continue;
+            }
+
+            if (this.wholeEdge.isOnWeb(adjTile)) {
+                //console.log(tile.asText() + " on edge=" + tile.isOnEdge() + " = " + tile.onEdge);
+                floating++;
+                continue;
+            }
+            
+            //console.log(tile.asText() + " not mine, not safe, not floating");
+            return -1;
+
+        }
+
+        //console.log(tile.asText() + " floating=" + floating);
+        return floating;
+    }
+    
+    
+    // Only allow clears to be passed back
+    private List<Action> removeFlagging(List<Action> actions) {
+
+    	List<Action> result = new ArrayList<Action>();
+    	
+        for (Action action: actions) {
+            if (action.getAction() == Action.CLEAR) {
+                result.add(action);
+            }
+        }
+
+        return result;
+
+    }
     
 }

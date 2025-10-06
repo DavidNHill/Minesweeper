@@ -45,22 +45,22 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = -60442780;
-		//seed = 2076863060;
+		seed = 450637648;
+		//seed = 845005459;
 		//seed = -60442780;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(24, 24, 180);
+		//GameSettings gameSettings = GameSettings.create(30, 30, 225);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		settings.setSingleThread(true);
 		//settings.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
 		//settings.setRecursiveSafetyDepth(2);
 		//settings.setHardCutOff(new BigDecimal("0.80"));  // default 0.9
-		//settings.setStartLocation(new Location(3,3));
+		//settings.setStartLocation(new Location(2,2));
 		//settings.set5050Check(false);
 		//settings.setEarly5050Check(true);
 		//settings.setTieBreak(false);
@@ -70,7 +70,7 @@ public class MinesweeperBulk {
 		//settings.setSafetyWeights(1, 0);
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, settings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, settings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
@@ -80,9 +80,9 @@ public class MinesweeperBulk {
 		//RandomGuesser random = new RandomGuesser(gameSettings);
 		//controller.registerPreGameListener(random);
 		
-		//EfficiencyMonitor monitor = new EfficiencyMonitor(145.5, 147.5);
-		//GamePostListener monitor = new GuessMonitor();
-		GamePostListener monitor = new BbbvMonitor();
+		//EfficiencyMonitor monitor = new EfficiencyMonitor(100.0, 147.5);
+		GamePostListener monitor = new GuessMonitor();
+		//GamePostListener monitor = new BbbvMonitor();
 		controller.registerPostGameListener(monitor);
 		
 		controller.registerEventListener(new BulkListener() {
