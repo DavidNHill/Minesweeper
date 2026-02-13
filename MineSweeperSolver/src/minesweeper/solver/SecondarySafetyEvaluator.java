@@ -20,15 +20,13 @@ import minesweeper.solver.Solver.RunPeResult;
 import minesweeper.solver.constructs.Box;
 import minesweeper.solver.constructs.CandidateLocation;
 import minesweeper.solver.constructs.EvaluatedLocation;
-import minesweeper.solver.utility.Logger;
 import minesweeper.solver.utility.Logger.Level;
 import minesweeper.structure.Action;
-import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
 public class SecondarySafetyEvaluator implements LocationEvaluator {
 
-	private final static BigDecimal ESS_CONTRIBUTION = new BigDecimal("0.00");
+	//private final static BigDecimal ESS_CONTRIBUTION = new BigDecimal("0.00");
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 		
 	private final static BigDecimal FIFTYFIFTY_INFLUENCE_SCALE = new BigDecimal("0.9");   // was 0.9
@@ -64,6 +62,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	private boolean certainProgress = false;
 	
 	private List<RiskHotspot> riskHotspots;
+	private BigDecimal baseHotspotSafety;
 	
 	public SecondarySafetyEvaluator(Solver solver, BoardState boardState, WitnessWeb wholeEdge, ProbabilityEngineModel pe, BruteForceAnalysisModel incompleteBFA, LongTermRiskHelper ltr) {
 
@@ -88,6 +87,9 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		} else {
 			riskHotspots = Collections.emptyList();
 		}
+		
+		this.baseHotspotSafety = this.calculateHotspotSafety(null, this.pe);
+		solver.logger.log(Level.INFO, "Baseline long term safety is %f", this.baseHotspotSafety);
 		
 		this.spaceCounter = new SpaceCounter(boardState, 8);
 		
@@ -265,7 +267,11 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				
 			} else {
 				if (box.getSquares().size() > 1) {
-					dominated = true;
+					for (Location boxTile: box.getSquares()) {
+						if (this.pe.getSafety(boxTile).compareTo(BigDecimal.ONE) == 0) {
+							dominated = true;
+						}
+					}
 					//linkedTilesCount = linkedTilesCount + box.getSquares().size();
 				} else {
 					//linkedTilesCount++;
@@ -329,25 +335,18 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 			safetyTally = pe.getSolutionCount().subtract(tileBox.getTally());  //number of solutions this tile is safe
 		}
 		
-		//boolean exempt = isTileExempt(tile) && solver.preferences.isTestMode();
+		// a hot spot tile is one which is either in or enabling a high risk 50/50 
+		boolean hotSpotTile = isTileExempt(tile);
 		
 		BigDecimal fiftyFiftyInfluence;
 		//BigDecimal longTermSafety;
 		if (this.solver.preferences.considerLongTermSafety() && this.ltrHelper != null) {
-			if (this.solver.preferences.isTestMode()) {
-				fiftyFiftyInfluence = this.calculateLongTermSafety(tile);
-				//fiftyFiftyInfluence = BigDecimal.ONE;
-				
-			} else {
-				//longTermSafety = BigDecimal.ONE;
-				
-				BigInteger tally = ltrHelper.findInfluence(tile);
-				BigDecimal bdTally = new BigDecimal(tally);
-				
-				BigDecimal modifiedTally = bdTally.multiply(FIFTYFIFTY_INFLUENCE_SCALE);
-				fiftyFiftyInfluence = new BigDecimal(safetyTally).add(modifiedTally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
-			}
-
+			BigInteger tally = ltrHelper.findInfluence(tile);
+			solver.logger.log(Level.INFO, "%s has 50/50 influence of %d out of %d", tile, tally, safetyTally);
+			BigDecimal bdTally = new BigDecimal(tally);
+			
+			BigDecimal modifiedTally = bdTally.multiply(FIFTYFIFTY_INFLUENCE_SCALE);
+			fiftyFiftyInfluence = new BigDecimal(safetyTally).add(modifiedTally).divide(new BigDecimal(safetyTally), Solver.DP, RoundingMode.HALF_UP);
 			
 		} else {
 			fiftyFiftyInfluence = BigDecimal.ONE;
@@ -369,15 +368,28 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		BigDecimal create5050Chance = BigDecimal.ZERO;
 		
+		// this is the maximum amount of 50/50 influence that can be obtained. Used in the pruning.
+		BigDecimal pruneFiftyFiftyInfluence;
+		if (hotSpotTile) {
+			pruneFiftyFiftyInfluence = BigDecimal.ONE;
+		} else {
+			pruneFiftyFiftyInfluence = fiftyFiftyInfluence;
+		}
+		pruneFiftyFiftyInfluence = pruneFiftyFiftyInfluence.divide(this.baseHotspotSafety, Solver.DP, RoundingMode.HALF_UP);
+		
 		int validValues = 0;
 		List<Box> commonClears = null;
 		for (int i = minMines; i <= maxMines; i++) {
 
 			// calculate the weight
 			BigDecimal progressBonus = BigDecimal.ONE.add(progressProb.add(safetyThisTileLeft).multiply(this.progressContribution));
-			BigDecimal essrBonus = BigDecimal.ONE.add(ESS_CONTRIBUTION);
-			//BigDecimal weight = secondarySafety.add(safetyThisTileLeft).multiply(bonus).multiply(fiftyFiftyInfluence);
-			BigDecimal weight = secondarySafety.add(safetyThisTileLeft.multiply(fiftyFiftyInfluence)).multiply(progressBonus).multiply(essrBonus);
+			
+			BigDecimal weight;
+			//if (solver.preferences.isTestMode()) {
+				 weight = secondarySafety.add(safetyThisTileLeft.multiply(pruneFiftyFiftyInfluence)).multiply(progressBonus);
+			//} else {
+			//	weight = secondarySafety.add(safetyThisTileLeft.multiply(fiftyFiftyInfluence)).multiply(progressBonus);
+			//}
 			
 			// if the remaining safe component for the tile can now never reach the best if 100% safe for all future values then abandon analysis
 			if (best != null && weight.compareTo(best.getWeighting()) < 0) {
@@ -385,7 +397,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 					result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueSafety);
 					result.setPruned();
 					return result;
-				}
+			 	}
 			}
 			
 			RunPeResult peResult = solver.runProbabilityEngine(wholeEdge, tile, i);
@@ -401,6 +413,7 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				validValues++;
 				
 				BigDecimal hotspotSafety = this.calculateHotspotSafety(tile, counter);
+				solver.logger.log(Level.INFO, "%s with value %d baseline long term safety is %f, new long term safety is %f, hotpsot tile=%b", tile, i, this.baseHotspotSafety, hotspotSafety, hotSpotTile);
 				
 				if (commonClears == null) {
 					commonClears = counter.getEmptyBoxes();
@@ -428,7 +441,19 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 				solver.logger.log(Level.INFO, "%s with value %d has %d living clears with probability %f, secondary safety %f, 50/50 influence %f, hotspot safety %f and %d tiles on edge", 
 						tile, i, clears, prob, nextMoveSafety, fiftyFiftyInfluence, hotspotSafety, tilesOnEdge);
 				
-				secondarySafety = secondarySafety.add(prob.multiply(nextMoveSafety).multiply(fiftyFiftyInfluence));
+				BigDecimal newFiftyFiftyInfluence;
+				//if (solver.preferences.isTestMode()) {
+					if (hotSpotTile) {
+						newFiftyFiftyInfluence = BigDecimal.ONE;
+					} else {
+						newFiftyFiftyInfluence = fiftyFiftyInfluence;
+					}
+					newFiftyFiftyInfluence = newFiftyFiftyInfluence.multiply(hotspotSafety).divide(this.baseHotspotSafety, Solver.DP, RoundingMode.HALF_UP);
+				//} else {
+				//	newFiftyFiftyInfluence = fiftyFiftyInfluence;
+				//}
+				
+				secondarySafety = secondarySafety.add(prob.multiply(nextMoveSafety).multiply(newFiftyFiftyInfluence));
 				
 				if (clears > linkedTilesCount) {
 					progressProb = progressProb.add(prob);
@@ -460,13 +485,13 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 		
 		
 		// expected solution space reduction
-		BigDecimal essr = BigDecimal.ONE.subtract(ess);
-		BigDecimal essrBonus = BigDecimal.ONE.add(essr.multiply(ESS_CONTRIBUTION));
+		//BigDecimal essr = BigDecimal.ONE.subtract(ess);
+		//BigDecimal essrBonus = BigDecimal.ONE.add(essr.multiply(ESS_CONTRIBUTION));
 		
 		// calculate the bonus for the progress
 		BigDecimal progressBonus = BigDecimal.ONE.add(progressProb.multiply(this.progressContribution));
 		
-		BigDecimal weight = secondarySafety.multiply(progressBonus).multiply(essrBonus);
+		BigDecimal weight = secondarySafety.multiply(progressBonus);
 		
 		result = new EvaluatedLocation(tile.x, tile.y, safetyThisTile, weight, expectedClears, 0, commonClears, maxValueSafety);
 		
@@ -500,20 +525,20 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	
 	private BigDecimal calculateHotspotSafety(Location loc, ProbabilityEngineModel pe) {
 		
-		BigDecimal result = BigDecimal.ONE;
+		BigDecimal allHotspotSafety = BigDecimal.ONE;
 		
 		for (RiskHotspot rhs: this.riskHotspots) {
 			
-			if (!rhs.isExempt(loc)) {
+			if (loc == null || !rhs.isExempt(loc)) {
 				
 				// 1 - (1 - safety of hot spot) / 2  == (1 + safety) * 0.5
-				BigDecimal blastChance = BigDecimal.ONE.add(pe.getSafety(rhs.getHotpsot())).multiply(HALF);
-				result = result.multiply(blastChance);
+				BigDecimal safetyChance = BigDecimal.ONE.add(pe.getSafety(rhs.getHotpsot())).multiply(HALF);
+				allHotspotSafety = allHotspotSafety.multiply(safetyChance);
 				
 			}
 		}
 
-		return result;
+		return allHotspotSafety;
 		
 	}
  	

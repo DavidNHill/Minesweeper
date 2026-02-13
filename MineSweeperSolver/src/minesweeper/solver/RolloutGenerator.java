@@ -14,6 +14,7 @@ import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.GameStateModelViewer;
 import minesweeper.gamestate.GameStateReader;
 import minesweeper.solver.constructs.Box;
+import minesweeper.solver.constructs.SimpleBoard;
 import minesweeper.solver.constructs.Square;
 import minesweeper.solver.constructs.Witness;
 import minesweeper.solver.settings.SettingsFactory;
@@ -455,6 +456,40 @@ public class RolloutGenerator {
 	public int getHeight() {
 		return boardState.getGameHeight();
 	}
+
+	/**
+	 * Create a Brute force analysis using a random sample of solutions
+	 */
+	public BruteForceAnalysis getBruteForceWithRandomSolutions(int count) {
+		
+		List<Location> tiles = boardState.getAllUnrevealedSquares();
+		
+		BruteForceAnalysis bfa = new BruteForceAnalysis(this.boardState.getSolver(), tiles, count, "Random", null);
+		
+		Random seeder = new Random();
+		
+		int steps = 0;
+		while (steps < count) {
+			
+			List<Location> mines = generateMines(seeder.nextLong(), null);
+
+			SimpleBoard board = new SimpleBoard(this.boardState.getGameWidth(), this.boardState.getGameHeight());
+			board.addMines(mines);
+			
+			byte[] sol = board.getSolution(tiles);
+			
+			
+			
+			bfa.addSolution(sol);
+
+			steps++;
+
+		}
+		
+		return bfa;
+		
+	}
+	
 	
 	public synchronized GameStateModelViewer generateGame(long seed) {
 		return generateGame(seed, null);
@@ -559,6 +594,90 @@ public class RolloutGenerator {
 		
 		return result;
 		
+	}
+	
+	public synchronized List<Location> generateMines(long seed, Location safeTile) {
+		
+		GameStateModelViewer result;
+		
+		int width = boardState.getGameWidth();
+		int height = boardState.getGameHeight();
+		int mineCount = this.minesLeft;
+		
+		Random rng = new Random(seed);
+		
+		int edge = (int) (rng.nextDouble()*totalWeight);
+		//boardState.display("Random number is " + edge);
+		
+		int soFar = 0;
+		ProbabilityLine line = null;
+		for (ProbabilityLine pl: workingProbs) {
+			soFar = soFar + pl.weight;
+			if (soFar > edge) {
+				line = pl;
+				break;
+			}
+		}
+
+		mineCount = mineCount - line.mineCount;
+		
+		List<Location> mines = new ArrayList<>(placedMines);  // start with the mines we have already placed
+		
+		for (int i=0; i < line.allocatedMines.length; i++) {
+			
+			if (line.allocatedMines[i] == 0) { // if no mines here nothing to do
+			
+			} else if (line.allocatedMines[i] == boxes.get(i).getSquares().size()) {  // if the box is full of mines then all tile in the box are mines
+				for (Square tile: boxes.get(i).getSquares()) {
+					mines.add(tile);
+				}
+			
+			} else {  // shuffle the tiles in the box and take the first ones as the mines
+				
+				// in order to make this repeatable with the same seed, we can't shuffle the underlying data. So create a copy.
+				List<Location> boxTiles = new ArrayList<>(boxes.get(i).getSquares());
+				
+				Collections.shuffle(boxTiles, rng);
+				
+				int toGet = line.allocatedMines[i];
+				for (int j=0; j < toGet; j++) {    
+					if (safeTile == null || !boxTiles.get(j).equals(safeTile)) {  // don't place a mine in the safe tile
+						mines.add(boxTiles.get(j));
+					} else {
+						toGet++;  // if this mine is no good then we need to look for an extra one
+					}
+				}
+			}
+			
+		}
+		
+		
+		// in order to make this repeatable with the same seed, we can't shuffle the underlying data. So create a copy.
+		List<Location> owt = new ArrayList<>(offWebTiles);
+		
+		Collections.shuffle(owt, rng);
+		
+		int toGet = mineCount;
+		for (int j=0; j < toGet; j++) {
+			if (safeTile == null || !owt.get(j).equals(safeTile)) {  // don't place a mine in the safe tile
+				mines.add(owt.get(j));
+			} else {
+				toGet++;   // if this mine is no good then we need to look for an extra one
+			}
+		}
+		
+		if (mines.size() != this.boardState.getMines()) {
+			System.out.println("Logic error: Mines generated " + mines.size() + " does not equal mines in the game " + this.boardState.getMines());
+		}
+		
+		return mines;
+		
+	}
+	/**
+	 * Get the witness web for this position
+	 */
+	public WitnessWeb getWeb() {
+		return this.web;
 	}
 	
 	public class Adversarial<T> implements Comparable<Adversarial<T>> {

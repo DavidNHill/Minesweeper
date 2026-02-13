@@ -41,7 +41,7 @@ abstract public class Iterator {
     
     // if this is true then the checkSample logic can ignore this witness
     // This is used by the WitnessWebIterator since the IndependentWitnesses
-    // must always be satisified.
+    // must always be satisfied.
     public boolean witnessAlwaysSatisfied(Location l) {
         return false;
     }

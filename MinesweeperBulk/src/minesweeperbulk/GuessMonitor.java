@@ -21,9 +21,12 @@ public class GuessMonitor extends GamePostListener {
 		private int[] values = new int[9];
 	}
 	
+	private int[] solved3BVPercentage = new int[100];
+	
 	private final Map<Integer, GuessData> winTable = new HashMap<>();
 	private final Map<Integer, GuessData> loseTable = new HashMap<>();
 	private int wins = 0;
+	private int loses = 0;
 	private int played = 0;
 	private int eights = 0;
 	private int ng8 = 0;
@@ -43,6 +46,11 @@ public class GuessMonitor extends GamePostListener {
 			wins++;
 		} else {
 			table = loseTable;
+			loses++;
+			
+			int percentile = (game.getCleared3BV() * 100) / game.getTotal3BV();
+			solved3BVPercentage[percentile]++;
+			
 		}
 		
 		// save every 1000th game
@@ -94,7 +102,7 @@ public class GuessMonitor extends GamePostListener {
 		
 		int winWeight = 0;
 		
-		System.out.println("Histogram of guesses to win");
+		System.out.println("Histogram of guesses for " + wins + " winning games");
 		for (int key: winResults) {
 			GuessData gd = winTable.get(key);
 			double avg3BV = (double) gd.sum3BV / (double) gd.total;
@@ -114,7 +122,7 @@ public class GuessMonitor extends GamePostListener {
 		
 		int loseWeight = 0;
 		
-		System.out.println("Histogram of guesses to lose");
+		System.out.println("Histogram of guesses for " + loses + " losing games");
 		for (int key: loseResults) {
 			GuessData gd = loseTable.get(key);
 			double avg3BV = (double) gd.sum3BV / (double) gd.total;
@@ -128,6 +136,10 @@ public class GuessMonitor extends GamePostListener {
 			System.out.println("Average guesses to lose " + MASK.format(avgGuessesToLose));
 		}
 		
+		System.out.println("3BV solved for " + loses + " losing games");		
+		for (int i=0; i < this.solved3BVPercentage.length; i++) {
+			System.out.println(i + "%\t\t\t" + this.solved3BVPercentage[i]);
+		}
 		
 	}
 	

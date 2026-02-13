@@ -99,7 +99,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 
 	final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.95");  // was 0.98 --- consider off edge tiles which if they are above the threshold of the best on edge tile
-	final static boolean PRUNE_BF_ANALYSIS = true;
+	final static boolean PRUNE_BF_ANALYSIS = false;
 	final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = false;
 
 	//public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety 
@@ -935,6 +935,7 @@ public class Solver implements Asynchronous<Action[]> {
 			evaluateLocations = new ProgressEvaluator(this, boardState, wholeEdge, pe);
 		}
 
+		/*
 		// if we have few enough solutions do an adversarial rollout
 		if (!fm.moveFound && !certainClearFound && !pe.isBestGuessOffEdge() && pe.getSolutionCount().compareTo(BigInteger.valueOf(preferences.getRolloutSolutions())) < 0) {
 
@@ -947,15 +948,50 @@ public class Solver implements Asynchronous<Action[]> {
 			rolloutGenerator.process();
 
 			List<Adversarial<CandidateLocation>> rolloutResult = rolloutGenerator.adversarial(bestCandidates);
-
 			fm = new FinalMoves(rolloutResult.get(0).original.buildAction(MoveMethod.ROLLOUT));
-
+			
 			long nanoEnd = System.nanoTime();
 
 			this.logger.log(Level.INFO, "Adversarial rollout took %f milli seconds", + (nanoEnd - nanoStart) / 1000000 );
 
 		}
+		*/
+		
+		// if we have few enough solutions do a brute force on a random selection of possitions
+		/*
+		if (!fm.moveFound && !certainClearFound && preferences.isTestMode()) {
 
+			this.logger.log(Level.INFO, "Doing random brute force");
+
+			long nanoStart = System.nanoTime();
+			WitnessWeb arWholeEdge = new WitnessWeb(boardState, allWitnesses, allWitnessedSquares.getLocations());
+
+			RolloutGenerator rolloutGenerator = new RolloutGenerator(boardState, arWholeEdge, unrevealed, minesLeft);
+			rolloutGenerator.process();
+
+			BruteForceAnalysis bfa = rolloutGenerator.getBruteForceWithRandomSolutions(10000);
+			bfa.process();
+			
+			//newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
+			
+			Action move = bfa.getNextMove(boardState);
+			if (move != null) {
+				this.logger.log(Level.DEBUG, "Brute Force Analysis move: %s", move);
+				fm = new FinalMoves(move);
+			} else {
+				this.logger.log(Level.WARN, "Game %s Brute Force Analysis: no move found!", myGame.showGameKey());
+			}
+			
+			//List<Adversarial<CandidateLocation>> rolloutResult = rolloutGenerator.adversarial(bestCandidates);
+			//fm = new FinalMoves(rolloutResult.get(0).original.buildAction(MoveMethod.ROLLOUT));
+			
+			long nanoEnd = System.nanoTime();
+
+			this.logger.log(Level.INFO, "Random brute force took %d milli seconds", + (nanoEnd - nanoStart) / 1000000 );
+
+		}
+		*/
+		
 		// if we haven't got a move from the BFDA
 		if (!fm.moveFound) {
 

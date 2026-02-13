@@ -29,7 +29,7 @@ public class SolverSettings {
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected int bruteForceMaxNodes = 50000;
-	protected int bruteForceTreeDepth = 50;
+	protected int bruteForceTreeDepth = 4;
     protected BigInteger bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
 
     protected int recursiveSafetyDepth = 2;

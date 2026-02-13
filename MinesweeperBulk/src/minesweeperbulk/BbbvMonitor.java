@@ -1,6 +1,10 @@
 package minesweeperbulk;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.solver.bulk.BulkRequest;
@@ -15,6 +19,13 @@ public class BbbvMonitor extends GamePostListener {
 		private int total = 0;
 		private int sum3BV = 0;
 	}
+	
+	private class WinData {
+		private int played;
+		private int won;
+	}
+	
+	private final Map<Integer, WinData> table = new HashMap<>();
 	
 	private GuessData noGuess = new GuessData();
 	private GuessData guess = new GuessData();
@@ -41,7 +52,20 @@ public class BbbvMonitor extends GamePostListener {
 		target.total++;
 		target.sum3BV = target.sum3BV + game.getTotal3BV();
 		
-	
+		// 3bv distribution of played games
+		WinData wd;
+		if (table.containsKey(game.getTotal3BV())) {
+			wd = table.get(game.getTotal3BV());
+		} else {
+			wd = new WinData();
+			table.put(game.getTotal3BV(), wd);
+		}				
+
+		wd.played++;
+		if (game.getGameState() == GameStateModel.WON) {
+			wd.won++;
+		}
+		
 	} 
 
 	@Override
@@ -59,6 +83,16 @@ public class BbbvMonitor extends GamePostListener {
 		
 		double avg3BV = (double) total3BV / (double) played;
  		System.out.println("All boards " + played + " total 3BV " + total3BV + " average 3BV " + MASK.format(avg3BV));
+ 		
+		List<Integer> results = new ArrayList<>(table.keySet());
+		results.sort(null);
+		
+		for (int key: results) {
+			WinData wd = table.get(key); 
+			//System.out.println("3BV " + key + " wins " + wd.won + " from " + wd.played);
+			System.out.println(key + "\t" + wd.played + "\t" + wd.won);
+		}
+		
 	}
 	
 }

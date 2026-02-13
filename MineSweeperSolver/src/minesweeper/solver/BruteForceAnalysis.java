@@ -7,8 +7,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
@@ -254,7 +256,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	 */
 	private class Node implements Comparable<Node> {
 
-		private Position position ;        // representation of the position we are analysing / have reached
+		private final Position position ;        // representation of the position we are analysing / have reached
 		
 		private int winningLines = 0;      // this is the number of winning lines below this position in the tree
 		private int work = 0;              // this is a measure of how much work was needed to calculate WinningLines value
@@ -305,7 +307,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				return (this.getSolutionSize() - move.mineCount);
 			}
 			
-			int winningLines = getWinningLines(1, move, this.winningLines);
+			int winningLines;
+			if (Solver.PRUNE_BF_ANALYSIS) {
+				winningLines = getWinningLines(1, move, this.winningLines);
+				
+			} else {
+				winningLines = getWinningLines(1, move, 0);
+			}
+			
 			
 			if (winningLines > this.winningLines) {
 				this.winningLines = winningLines;
@@ -326,7 +335,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			int notMines = this.getSolutionSize() - move.mineCount;
 			
 			// if the max possible winning lines is less than the current cutoff then no point doing the analysis
-			if (Solver.PRUNE_BF_ANALYSIS && notMines <= cutoff) {
+			if (notMines <= cutoff) {
 				move.pruned = true;
 				return notMines;
 			}
@@ -382,11 +391,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 						}
 
 						// no need to hold onto the living location once we have determined the best of them
-						child.livingLocations = null;
+						//child.livingLocations = null;
 
-						//if (depth > solver.preferences.BRUTE_FORCE_ANALYSIS_TREE_DEPTH) {  // stop holding the tree beyond this depth
-						//	child.bestLiving = null;
-						//}
+						if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
+							child.bestLiving = null;
+						}
 						
 						// add the child to the cache if it didn't come from there and it is carrying sufficient winning lines
 						if (child.work > 30) {
@@ -403,9 +412,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					
 				}
 			
-				if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
-					child.bestLiving = null;
-				}
+				// no need to hold onto the living location once we have determined the best of them
+				child.livingLocations = null;
+				
+				//if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
+			    //		child.bestLiving = null;
+			    //}
 				
 				// store the aggregate winning lines 
 				result = result + child.winningLines;	
@@ -413,7 +425,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				notMines = notMines - child.getSolutionSize();  // reduce the number of not mines
 				
 				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
-				if (Solver.PRUNE_BF_ANALYSIS && result + notMines <= cutoff) {
+				if (result + notMines <= cutoff) {
 					move.pruned = true;
 					return (result + notMines);
 				}
