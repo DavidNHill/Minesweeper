@@ -95,13 +95,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		private int[] allocatedMines  = new int[boxCount];   // this is the number of mines originally allocate to a box
 		
-		private BigInteger[] hashCount  = new BigInteger[boxCount];
-		private BigInteger hash = new BigInteger(30, new Random());
+		//private BigInteger[] hashCount  = new BigInteger[boxCount];
+		//private BigInteger hash = new BigInteger(30, new Random());
 		
 		{
 			for (int i=0; i < mineBoxCount.length; i++) {
 				mineBoxCount[i] = BigInteger.ZERO;
-				hashCount[i] = BigInteger.ZERO;
+				//hashCount[i] = BigInteger.ZERO;
 			}
 		}
 		
@@ -179,8 +179,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	//when set to true indicates that the box has been part of this analysis
 	private boolean[] mask;           
 	
-	private List<LinkedLocation> linkedLocations = new ArrayList<>();
-	private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
+	//private List<LinkedLocation> linkedLocations = new ArrayList<>();
+	//private List<LinkedLocation> contraLinkedLocations = new ArrayList<>();
 	//private List<Location> dominatedTiles = new ArrayList<>();
 	private List<Location> mines = new ArrayList<>();  // certain mines we have found 
 	
@@ -328,7 +328,6 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		ProbabilityLine current = null;
 		
-		
 		for (ProbabilityLine pl: target) {
 
 			/*
@@ -372,13 +371,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		npl.solutionCount = npl.solutionCount.add(solutions);
 		*/
 		npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
-		npl.hash = npl.hash.add(pl.hash);
+		//npl.hash = npl.hash.add(pl.hash);
 		
 		for (int i = 0; i < pl.mineBoxCount.length; i++) {
 			if (mask[i]) {  // if this box has been involved in this solution - if we don't do this the hash gets corrupted by boxes = 0 mines because they weren't part of this edge
 	 			//npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i].multiply(solutions));
 	 			npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
-	 			npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
+	 			//npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
 	 			
 				//if (pl.mineBoxCount[i].signum() == 0) {
 				//	npl.hashCount[i] = npl.hashCount[i].subtract(pl.hash);   // treat no mines as -1 rather than zero
@@ -444,7 +443,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 					
 					ProbabilityLine npl = new ProbabilityLine(pl.solutionCount.multiply(epl.solutionCount));
 					npl.mineCount = pl.mineCount + epl.mineCount;
-					npl.hash = epl.hash.add(pl.hash);
+					//npl.hash = epl.hash.add(pl.hash);
 					
 					//npl.solutionCount = pl.solutionCount.multiply(epl.solutionCount);
 					
@@ -454,7 +453,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 						BigInteger w2 = epl.mineBoxCount[i].multiply(pl.solutionCount);
 						npl.mineBoxCount[i] = w1.add(w2);
 						
-						npl.hashCount[i] = epl.hashCount[i].add(pl.hashCount[i]);
+						//npl.hashCount[i] = epl.hashCount[i].add(pl.hashCount[i]);
 
 					}
 					result.add(npl);
@@ -488,12 +487,12 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 				npl.mineCount = mc;
 			}
 			npl.solutionCount = npl.solutionCount.add(pl.solutionCount);
-			npl.hash = npl.hash.add(pl.hash);
+			//npl.hash = npl.hash.add(pl.hash);
 			
 			for (int i = 0; i < pl.mineBoxCount.length; i++) {
 				npl.mineBoxCount[i] = npl.mineBoxCount[i].add(pl.mineBoxCount[i]);
 				
-				npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
+				//npl.hashCount[i] = npl.hashCount[i].add(pl.hashCount[i]);
 			}
 		}
 
@@ -575,9 +574,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 
 				}
 				
-				for (int i=0; i < hashTally.length; i++) {
-					hashTally[i] = hashTally[i].add(pl.hashCount[i]);
-				}				
+				//if (pl.solutionCount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+			 	//	System.out.println("Solution count > max value " + pl.solutionCount);
+				//}
+				
+				//for (int i=0; i < hashTally.length; i++) {
+				//	hashTally[i] = hashTally[i].add(pl.hashCount[i]);
+				//}				
 			}
 
 		}		
@@ -801,29 +804,24 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			logger.log(Level.WARN, "Probability Engine recursion exceeding %d iterations", recursions);
 		}
 		
-		List<ProbabilityLine> result = new ArrayList<>();
+
 		
 		// if there is only one box left to put the missing mines we have reach this end of this branch of recursion
 		if (nw.newBoxes.size() - index == 1) {
 			// if there are too many for this box then the probability can't be valid
 			if (nw.newBoxes.get(index).getMaxMines() < missingMines) {
-				return result;
+				return Collections.emptyList();
 			}
 			// if there are too few for this box then the probability can't be valid
 			if (nw.newBoxes.get(index).getMinMines() > missingMines) {
-				return result;
+				return Collections.emptyList();
 			}
 			// if there are too many for this game then the probability can't be valid
 			if (pl.mineCount + missingMines > maxTotalMines) {
-				return result;
+				return Collections.emptyList();
 			}			
 			
-			// otherwise place the mines in the probability line
-			
-			//pl.mineBoxCount[nw.newBoxes.get(index).getUID()] = BigInteger.valueOf(missingMines).multiply(pl.solutionCount);
-			//pl.mineCount = pl.mineCount + missingMines;
-			//result.add(pl);
-			
+			List<ProbabilityLine> result = new ArrayList<>();
 			result.add(extendProbabilityLine(pl, nw.newBoxes.get(index), missingMines, true));
 			return result;
 		}
@@ -832,6 +830,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		// this is the recursion
 		int maxToPlace = Math.min(nw.newBoxes.get(index).getMaxMines(), missingMines);
 		
+		List<ProbabilityLine> result = new ArrayList<>();
 		for (int i=nw.newBoxes.get(index).getMinMines(); i <= maxToPlace; i++) {
 			ProbabilityLine npl = extendProbabilityLine(pl, nw.newBoxes.get(index), i, false);
 			
@@ -857,10 +856,10 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			result = new ProbabilityLine(newSolutionCount);
 			
 			result.mineCount = pl.mineCount + mines;
-			result.hash = pl.hash;
+			//result.hash = pl.hash;
 			
 			// copy the hash values
-			System.arraycopy(pl.hashCount, 0, result.hashCount, 0, pl.mineBoxCount.length);
+			//System.arraycopy(pl.hashCount, 0, result.hashCount, 0, pl.mineBoxCount.length);
 			
 			// copy the probability array
 			if (combination == 1) {
@@ -879,11 +878,13 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		result.mineBoxCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(result.solutionCount);
 		result.allocatedMines[newBox.getUID()] = mines;
 		
+		/*
 		if (mines == 0) {
 			result.hashCount[newBox.getUID()] = result.hash.negate();   // treat no mines as -1 rather than zero
 		} else {
 			result.hashCount[newBox.getUID()] = BigInteger.valueOf(mines).multiply(result.hash);
 		}				
+		*/
 		
 		return result;
 	}
@@ -1489,8 +1490,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
         
         // build a web of the isolated edge and use it to build a brute force
         WitnessWeb isolatedEdge = new WitnessWeb(boardState, witnesses, tiles);
-        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.getBruteForceMaxIterations(), 
-        		boardState.getSolver().preferences.getBruteForceMaxSolutions(), "Isolated Edge");
+        BruteForce bruteForce = new BruteForce(boardState.getSolver(), boardState, isolatedEdge, mines, boardState.getSolver().preferences.getBruteForceMaxIterations(), Solver.BF_MIN_PARALLEL_SOLUTIONS, "Isolated Edge");
         
         isolatedEdges.add(bruteForce);
         
@@ -1664,9 +1664,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		return this.independentGroups;
 	}
 	
+	/*
 	protected List<LinkedLocation> getLinkedLocations() {
-		return this.linkedLocations;
+		return null;
 	}
+	*/
 	
 	// get the dead locations provided to the probability engine with any new ones dicovered
 	protected Area getDeadLocations() {
@@ -1705,6 +1707,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	 * @param tile
 	 * @return
 	 */
+	/*
 	protected LinkedLocation getLinkedLocation(Location tile) {
 		for (LinkedLocation ll: linkedLocations) {
 			if (ll.equals(tile)) {
@@ -1715,7 +1718,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		return null;
 		
 	}
-	
+	*/
 	/**
 	 * Returns a list of the locations of certain mines
 	 */
@@ -1723,9 +1726,11 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		return this.mines;
 	}
 	
+	/*
 	protected List<LinkedLocation> getContraLinkedLocations() {
 		return this.contraLinkedLocations;
 	}
+	*/
 	
 	protected Map<Integer, BigInteger> getValidMineCounts() {
 		return mineCounts;

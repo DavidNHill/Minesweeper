@@ -14,6 +14,7 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import minesweeper.solver.ThreadManager;
 
 public class Explorer extends Application {
 	
@@ -93,7 +94,7 @@ public class Explorer extends Application {
             @Override
             public void handle(WindowEvent event) {
                 System.out.println("Minesweeper explorer has received a close request");
-                 //mainScreenController.kill();
+                ThreadManager.shutdown();
                 Platform.exit();
             }
         });                        

@@ -31,8 +31,8 @@ abstract public class ProbabilityEngineModel {
 	abstract boolean  allDead();
 	abstract protected int getDeadValueDelta(Location l);
 	abstract protected List<Location> getMines();
-	abstract protected List<LinkedLocation> getLinkedLocations();
-	abstract protected LinkedLocation getLinkedLocation(Location tile);
+	//abstract protected List<LinkedLocation> getLinkedLocations();
+	//abstract protected LinkedLocation getLinkedLocation(Location tile);
 	abstract protected List<BruteForce> getIsolatedEdges();
 	abstract protected boolean isBestGuessOffEdge();
 	abstract protected int getLivingClearCount();

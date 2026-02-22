@@ -79,7 +79,7 @@ public class BulkCompare {
 		SolverSettings[] solverSettings = new SolverSettings[] {settings0, settings1};
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver

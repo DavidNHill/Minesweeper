@@ -28,7 +28,7 @@ public class SolverSettings {
 	protected BigDecimal hardCutOff = SELECTION_HARD_CUTOFF;
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
-	protected int bruteForceMaxNodes = 50000;
+	protected long bruteForceMaxNodes = 50000;
 	protected int bruteForceTreeDepth = 4;
     protected BigInteger bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
 
@@ -50,6 +50,9 @@ public class SolverSettings {
 	
     
     protected boolean singleThread = false;
+    protected int bruteForceThreads = (Runtime.getRuntime().availableProcessors() + 1) / 2;
+    protected int bruteForceMaxCache = 10000000;
+    protected int bruteForceInitCache = 10000;
     
     private boolean locked;
     
@@ -190,6 +193,33 @@ public class SolverSettings {
     	return this;
 	}
 	
+	public SolverSettings setBruteForceThreads(int threads) {
+		
+    	if (!locked) {
+    		this.bruteForceThreads = threads;
+    	}
+    	return this;
+	}
+	
+	/**
+	 * Set the initial and maximum cache size used in the brute force logic
+	 */
+	public SolverSettings setBruteForceCache(int size) {
+		return setBruteForceCache(size, size);
+	}
+	
+	/**
+	 * Set the initial and maximum cache size used in the brute force logic
+	 */
+	public SolverSettings setBruteForceCache(int max, int initial) {
+		
+    	if (!locked) {
+    		this.bruteForceMaxCache = max;
+    		this.bruteForceInitCache = Math.min(max, initial);
+    	}
+    	return this;
+	}
+	
 	public int getBruteForceMaxSolutions() {
 		return bruteForceMaxSolutions;
 	}
@@ -198,7 +228,7 @@ public class SolverSettings {
 		return bruteForceVariableSolutions;
 	}
 	
-	public int getBruteForceMaxNodes() {
+	public long getBruteForceMaxNodes() {
 		return bruteForceMaxNodes;
 	}
 
@@ -277,5 +307,14 @@ public class SolverSettings {
 	}
 	public int getWeight2() {
 		return this.weight2;
+	}
+	public int getBruteForceThreads() {
+		return this.bruteForceThreads;
+	}
+	public int getBruteForceMaxCache() {
+		return this.bruteForceMaxCache;
+	}
+	public int getBruteForceInitalCache() {
+		return this.bruteForceInitCache;
 	}
 }

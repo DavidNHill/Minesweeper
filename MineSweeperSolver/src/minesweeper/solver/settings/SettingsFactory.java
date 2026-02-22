@@ -69,8 +69,8 @@ public class SettingsFactory {
 
     	SolverSettings settings = new SolverSettings();
     	
-    	settings.bruteForceMaxSolutions = 400;
-    	settings.bruteForceVariableSolutions = 250;
+    	settings.bruteForceMaxSolutions = 400;  // 400
+    	settings.bruteForceVariableSolutions = 250;  // 250
     	settings.bruteForceMaxNodes = 300000;
     	settings.bruteForceTreeDepth = 10;
     	settings.bruteForceMaxIterations = new BigInteger("10000000"); // 10 million
@@ -91,7 +91,7 @@ public class SettingsFactory {
     	settings.bruteForceMaxSolutions = 4000;
     	settings.bruteForceVariableSolutions = 2000;
 		settings.bruteForceMaxNodes = 20000000;     // 20 million
-		settings.bruteForceTreeDepth = 10;
+		settings.bruteForceTreeDepth = 5;
 		settings.bruteForceMaxIterations = new BigInteger("10000000");  // 10 million
 
     	return settings;
@@ -104,7 +104,7 @@ public class SettingsFactory {
     	settings.bruteForceMaxSolutions = 20000;
     	settings.bruteForceVariableSolutions = 10000;
 		settings.bruteForceMaxNodes = 200000000;     // 200 million
-		settings.bruteForceTreeDepth = 3;
+		settings.bruteForceTreeDepth = 2;
 		settings.bruteForceMaxIterations = new BigInteger("50000000");  // 50 million
 
     	return settings;
@@ -114,10 +114,10 @@ public class SettingsFactory {
 
     	SolverSettings settings = new SolverSettings();
     	
-    	settings.bruteForceMaxSolutions = 200000;
-    	settings.bruteForceVariableSolutions = 100000;
+    	settings.bruteForceMaxSolutions = 400000;
+    	settings.bruteForceVariableSolutions = 150000;
 		settings.bruteForceMaxNodes = 2000000000;     // 2000 million
-		settings.bruteForceTreeDepth = 3;
+		settings.bruteForceTreeDepth = 1;
 		settings.bruteForceMaxIterations = new BigInteger("500000000");  // 500 million
 
     	return settings;

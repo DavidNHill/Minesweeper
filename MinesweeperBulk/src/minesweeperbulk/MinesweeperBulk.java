@@ -13,6 +13,7 @@ import java.util.Random;
 
 import minesweeper.settings.GameSettings;
 import minesweeper.settings.GameType;
+import minesweeper.solver.ThreadManager;
 import minesweeper.solver.bulk.BulkEventGame;
 import minesweeper.solver.bulk.BulkEventMain;
 import minesweeper.solver.bulk.BulkListener;
@@ -45,7 +46,7 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = -60442780;
+		//seed = -211796338;
 		//seed = 845005459;
 		//seed = -60442780;   // expert 10,000,000 run
 		
@@ -53,9 +54,11 @@ public class MinesweeperBulk {
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(22, 22, 169);
+		//GameSettings gameSettings = GameSettings.create(50, 50, 600);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		//settings.setBruteForceThreads(10);
+		//settings.setBruteForceCache(10000);
 		settings.setSingleThread(true);
 		//settings.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
 		//settings.setRecursiveSafetyDepth(2);
@@ -81,8 +84,8 @@ public class MinesweeperBulk {
 		//controller.registerPreGameListener(random);
 		
 		//EfficiencyMonitor monitor = new EfficiencyMonitor(100.0, 147.5);
-		//GamePostListener monitor = new GuessMonitor();
-		GamePostListener monitor = new BbbvMonitor();
+		GamePostListener monitor = new GuessMonitor();
+		//GamePostListener monitor = new BbbvMonitor();
 		controller.registerPostGameListener(monitor);
 		
 		controller.registerEventListener(new BulkListener() {
@@ -103,6 +106,7 @@ public class MinesweeperBulk {
 		});
 	
 		controller.run();
+		ThreadManager.shutdown();
 		// 4394503940621334  3495601381446703  2878438628482118
 		
 		// 3bv 5 ==> 3507948847220847 2378685257559362 732083917567661 3393825076821824 1423288336267551

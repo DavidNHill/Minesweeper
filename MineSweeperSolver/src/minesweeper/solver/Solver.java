@@ -18,7 +18,6 @@ import java.util.Map;
 import Asynchronous.Asynchronous;
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
-import minesweeper.solver.RolloutGenerator.Adversarial;
 import minesweeper.solver.coach.CoachModel;
 import minesweeper.solver.coach.CoachSilent;
 import minesweeper.solver.constructs.CandidateLocation;
@@ -63,6 +62,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 	}
 
+	/*
 	private class LoopCheck implements Runnable {
 
 		private boolean finished = false;
@@ -91,7 +91,7 @@ public class Solver implements Asynchronous<Action[]> {
 		}
 
 	}
-
+	*/
 
 	public final static int DP = 20;
 
@@ -99,7 +99,8 @@ public class Solver implements Asynchronous<Action[]> {
 
 
 	final static BigDecimal OFF_EDGE_TOLERENCE = new BigDecimal("0.95");  // was 0.98 --- consider off edge tiles which if they are above the threshold of the best on edge tile
-	final static boolean PRUNE_BF_ANALYSIS = false;
+	final static boolean PRUNE_BF_ANALYSIS = true;
+	final static int BF_MIN_PARALLEL_SOLUTIONS = 150;    // the minimum number of solutions before parallelism is considered
 	final static boolean CONSIDER_HIGH_DENSITY_STRATEGY = false;
 
 	//public final static BigDecimal PROGRESS_VALUE = new BigDecimal("0.20");  // how much 100% Progress is worth as a proportion of Safety 
@@ -225,6 +226,12 @@ public class Solver implements Asynchronous<Action[]> {
 
 		this.coachDisplay = coachDisplay;
 
+		// create a thread pool (will only create it once)
+		if (preferences.getBruteForceThreads() > 1 && !preferences.isSingleThread()) {
+			ThreadManager.create(preferences.getBruteForceThreads());
+		}
+
+		
 		List<Location> witnesses = new ArrayList<>(500);
 		for (int x=0; x < myGame.getWidth(); x++) {
 			for (int y=0; y < myGame.getHeight(); y++) {
@@ -243,10 +250,9 @@ public class Solver implements Asynchronous<Action[]> {
 	@Override
 	public void start() {
 
-		LoopCheck check = new LoopCheck();
-
-		Thread checkThread  = new Thread(check);
-		checkThread.start();
+		//LoopCheck check = new LoopCheck();
+		//Thread checkThread  = new Thread(check);
+		//checkThread.start();
 
 		int loopSafe = 0;
 
@@ -260,7 +266,7 @@ public class Solver implements Asynchronous<Action[]> {
 			answer = newProcess();
 		}
 
-		check.finishedOkay();
+		//check.finishedOkay();
 
 	}
 

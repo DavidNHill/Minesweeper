@@ -6,19 +6,26 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 import minesweeper.gamestate.GameStateModel;
 import minesweeper.gamestate.MoveMethod;
 import minesweeper.solver.utility.Logger.Level;
+import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
 import minesweeper.structure.Area;
 import minesweeper.structure.Location;
 
-public class BruteForceAnalysis extends BruteForceAnalysisModel{
+public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 	
 	// used to hold all the solutions left in the game
 	private class SolutionTable {
@@ -35,10 +42,8 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 		private void addSolution(byte[] solution) {
-			if (size < solutions.length) {
-				solutions[size] = solution;
-				hash[size] = rng.nextInt();
-			}
+			solutions[size] = solution;
+			hash[size] = rng.nextInt();
 			size++;
 		};
 		
@@ -50,8 +55,20 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			return solutions[index];
 		}
 		
-		public long getHash(int index) {
+		private long getHash(int index) {
 			return hash[index];
+		}
+		
+		private SolutionTable copySolutionTable() {
+			
+			SolutionTable result = new SolutionTable(hash.length);
+			
+			for (byte[] row: solutions) {
+				result.addSolution(row);
+			}
+			
+			return result;
+			
 		}
 		
 		private void sortSolutions(int start, int end, int index) {
@@ -85,22 +102,39 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	 */
 	private class Position {
 		
+		private final static byte INCREMENT2 = 1;
+		
 		private final byte[] position;
 		private int hash;
+		private short depth;
 		
 		private Position() {
-			position = new byte[locations.size()];
+			
+			int size = (locations.size() + 1) / 2;
+			
+			position = new byte[size];
 			for (int i=0; i < position.length; i++) {
-				position[i] = 15;
+				position[i] = 99;
 			}
+			
+			this.depth = 0;
 		}
 		
-		private Position(Position p, int index, int value) {
+		private Position(Position p, int index, byte value) {
 			// copy and update to reflect the new position
-			position = Arrays.copyOf(p.position, p.position.length);
-			position[index] = (byte) (value + 50);			
+			this.position = Arrays.copyOf(p.position, p.position.length);
+
+			int offset = index / 2;
+			if (index % 2 == 0) {
+				this.position[offset] -= (byte) (value + INCREMENT2);
+			} else {
+				this.position[offset] -= (byte) ((value + INCREMENT2) * 10);
+			}
+			
+			this.depth = (short) (p.depth + 1);
+			
 		}
-		
+
 		@Override
 		// copied from String hash
 		public int hashCode() {
@@ -137,8 +171,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	private class LivingLocation implements Comparable<LivingLocation>{
 		
 		//private int winningLines = 0;
-		private boolean pruned = false;
-		private final short index;
+		private boolean pruned = false;  // stopped because this move can't beat the best
+		
+		//private int winningLines = 0;
+		
+		private final short locationIndex;
 		private int mineCount = 0;  // number of remaining solutions which have a mine in this position
 		//private int maxSolutions = 0;    // the maximum number of solutions that can be remaining after clicking here
 		//private int zeroSolutions = 0;    // the number of solutions that have a '0' value here
@@ -151,91 +188,47 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		private boolean linked = false;
 		private long linkedHash;
 		
-		private Node[] children;
+		private Node[] children = new Node[9];
 		//private List<Node> childrenList;
 
 		private LivingLocation(short index) {
-			this.index = index;
+			this.locationIndex = index;
 		}
 
 		/**
 		 * Determine the Nodes which are created if we play this move. Up to 9 positions where this locations reveals a value [0-8].
 		 */
-		private List<Node> buildChildNodes(Node parent) {
+		private List<Node> buildChildNodes(SolutionTable solutions, Node parent) {
 			
 			// sort the solutions by possible values
-			allSolutions.sortSolutions(parent.startSolution, parent.endSolution, this.index);
-			int index = parent.startSolution;
+			solutions.sortSolutions(parent.startSolution, parent.endSolution, this.locationIndex);
+			int solutionIndex = parent.startSolution;
 			
 			// skip over the mines
-			while (index < parent.endSolution && allSolutions.get(index)[this.index] == GameStateModel.MINE) {
-				index++;
+			while (solutionIndex < parent.endSolution && solutions.get(solutionIndex)[this.locationIndex] == GameStateModel.MINE) {
+				solutionIndex++;
 			}
-			
-	
-			Node[] work = new Node[9];
+
 			List<Node> result = new ArrayList<>(9);
-			for (int i=this.minValue; i < this.maxValue + 1; i++) {
-				
-				// if the node is in the cache then use it
-				Position pos = new Position(parent.position, this.index, i);
-				
-				Node temp1 = cache.get(pos);
-				if (temp1 == null) {
+			for (byte i=this.minValue; i < this.maxValue + 1; i++) {
+			//for (byte i=0; i < 9; i++) {	
+				int start = solutionIndex;
+				// find all solutions for this values at this location
+				while (solutionIndex < parent.endSolution && solutions.get(solutionIndex)[this.locationIndex] == i) {
+					solutionIndex++;
+				}					
+								
+				if (start != solutionIndex) {
+					Node temp = new Node(new Position(parent.position, this.locationIndex, i), start, solutionIndex);
 
-					Node temp = new Node(pos);
-					
-					temp.startSolution = index;
-					// find all solutions for this values at this location
-					while (index < parent.endSolution && allSolutions.get(index)[this.index] == i) {
-						index++;
-					}					
-					temp.endSolution = index;
-					
-					work[i] = temp;
-
-					
-				} else {
-					//System.out.println("In cache " + temp.position.key + " " + temp1.position.key);
-					//if (!temp.equals(temp1)) {
-					//	System.out.println("Cache not equal!!");
-					//}
-					//temp1.fromCache = true;
-					work[i] = temp1;
-					cacheHit++;
-					cacheWinningLines = cacheWinningLines + temp1.winningLines;
-					// skip past these details in the array
-					while (index < parent.endSolution && allSolutions.get(index)[this.index] <= i) {
-						index++;
-					}					
+					this.children[i] = temp;
+					result.add(temp);
 				}
-				
-				if (work[i] != null) {
-					result.add(work[i]);
-				}
-
 			}
 
-			if (index != parent.endSolution) {
-				System.out.println("Didn't read all the elements in the array; index = " + index + " end = " + parent.endSolution);
+			if (solutionIndex != parent.endSolution) {
+				System.out.println("Didn't read all the elements in the array; index = " + solutionIndex + " end = " + parent.endSolution);
 			}
-			
-			//List<Node> workList = new ArrayList<>(9);
-			
-			for (int i=this.minValue; i <= this.maxValue; i++) {
-				if (work[i].getSolutionSize() > 0) {
-					//if (!work[i].fromCache) {
-					//	work[i].determineLivingLocations(this.livingLocations, living.index);
-					//}
-					//workList.add(work[i]);
-				} else {
-					work[i] = null;   // if no solutions then don't hold on to the details
-				}
-				
-			}
-
-			this.children = work;
-			
 
 			Collections.sort(result);
 			return result;
@@ -245,7 +238,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		@Override
 		public int compareTo(LivingLocation o) {
 
-			// return location most likely to be clear  - this has to be first, the logic depends upon it
+			// return location most likely to be safe  - this has to be first, the logic depends upon it
 			int test = this.mineCount - o.mineCount;
 			if (test != 0) {
 				return test;
@@ -272,31 +265,29 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 	}
-	
+
 	/**
 	 * A representation of a possible state of the game
 	 */
 	private class Node implements Comparable<Node> {
 
 		private final Position position ;        // representation of the position we are analysing / have reached
+		private final int startSolution;         // the first solution in the solution array that applies to this position
+		private final int endSolution;          // the last + 1 solution in the solution array that applies to this position
 		
-		private int winningLines = 0;      // this is the number of winning lines below this position in the tree
-		private int work = 0;              // this is a measure of how much work was needed to calculate WinningLines value
-		private boolean fromCache = false; // indicates whether this position came from the cache
-		
-		private int startSolution;              // the first solution in the solution array that applies to this position
-		private int endSolution;                // the last + 1 solution in the solution array that applies to this position
+		private int bestWinningLines = 0;      // this is the number of winning lines below this position in the tree
 		
 		private List<LivingLocation> livingLocations;   // these are the locations which need to be analysed
-		 
 		private LivingLocation bestLiving;              // after analysis this is the location that represents best play
 
-		private Node() {
-			position = new Position();
-		}
+		//private Node() {
+		//	position = new Position();
+		//}
 		
-		private Node(Position position) {
+		private Node(Position position, int startSolution, int endSolution) {
 			this.position = position;
+			this.startSolution = startSolution;
+			this.endSolution = endSolution;
 		}
 		
 		private List<LivingLocation> getLivingLocations() {
@@ -312,16 +303,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		 * @return
 		 */
 		private BigDecimal getProbability() {
-			
-			return BigDecimal.valueOf(winningLines).divide(BigDecimal.valueOf(getSolutionSize()), Solver.DP, RoundingMode.HALF_UP); 
-			
+			return BigDecimal.valueOf(bestWinningLines).divide(BigDecimal.valueOf(getSolutionSize()), Solver.DP, RoundingMode.HALF_UP); 
 		}
 		
 		/**
 		 * Calculate the number of winning lines if this move is played at this position
 		 * Used at top of the game tree
 		 */
-		private int getWinningLines(LivingLocation move) {
+		private int getWinningLines(ControlData control, LivingLocation move) {
 
 			//if we can never exceed the cutoff then no point continuing
 			//if (Solver.PRUNE_BF_ANALYSIS && this.getSolutionSize() - move.mineCount <= this.winningLines) {
@@ -330,19 +319,16 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			//}
 			
 			int winningLines;
-			if (allSolutions.size() - move.mineCount < this.winningLines) {
-				winningLines = allSolutions.size() - move.mineCount;
-				move.pruned = true;
-			
-			} else if (Solver.PRUNE_BF_ANALYSIS) {
-				winningLines = getWinningLines(1, move, this.winningLines);
+			if (Solver.PRUNE_BF_ANALYSIS) {
+				winningLines = getWinningLines(control, 1, move, this.bestWinningLines);
 				
 			} else {
-				winningLines = getWinningLines(1, move, 0);
+				winningLines = getWinningLines(control, 1, move, 0);
 			}
 			
-			if (winningLines > this.winningLines) {
-				this.winningLines = winningLines;
+			
+			if (winningLines > this.bestWinningLines) {
+				this.bestWinningLines = winningLines;
 			}
 			
 			return winningLines;
@@ -353,77 +339,93 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		 * Calculate the number of winning lines if this move is played at this position
 		 * Used when exploring the game tree
 		 */
-		private int getWinningLines(int depth, LivingLocation move, int cutoff) {
+		private int getWinningLines(ControlData control, final int depth, LivingLocation move, int cutoff) {
 
-			int result = 0;
+			// this is the sum of the best winning lines for each child node.
+			int totalWinningLines = 0;
 
 			int notMines = this.getSolutionSize() - move.mineCount;
 			
 			// if the max possible winning lines is less than the current cutoff then no point doing the analysis
-			//if (notMines <= cutoff) {
-			//	move.pruned = true;
-			//	return notMines;
-			//}
+			if (notMines <= cutoff) {
+				move.pruned = true;
+				//move.winningLines = notMines;
+				return notMines;
+			}
+			
+			// have we been interrupted?
+			if (Thread.interrupted())  {
+				aborted = true;
+			    maxProcessCount = 1000;
+			}
 			
 			// we're going to have to do some work
 			processCount++;
 			if (processCount > maxProcessCount) {
-				return 0;
+				return totalWinningLines;
 			}
-			
+		
+			//List<Node> nodes = move.buildChildNodes(control.solutionTable, this);   
+		
+			//for (Node child: move.children) {
+			for (Node childNode:  move.buildChildNodes(control.solutionTable, this)) {
 
-			for (Node child: move.buildChildNodes(this)) {
-
-				if (child == null) {
-					continue;  // continue the loop but ignore this entry
+				// see if this position is in the cache
+				Integer temp1 = null;
+				if (childNode.getSolutionSize() > cacheThreshold) {
+					temp1 = cache.get(childNode.position);
 				}
-				
-				if (child.fromCache) {  // nothing more to do, since we did it before
-					this.work++;
+		
+				if (temp1 != null) {
+					childNode.bestWinningLines = temp1;
+					
+					cacheHit++;
+					cacheWinningLines = cacheWinningLines + temp1;
+					
 				} else {
 					
-					child.determineLivingLocations(this.livingLocations, move.index);
-					this.work++;
+					childNode.determineLivingLocations(control, this.livingLocations, move.locationIndex);
 									
-					if (child.getLivingLocations().isEmpty()) {  // no further information ==> all solution indistinguishable ==> 1 winning line
+					if (childNode.getLivingLocations().isEmpty()) {  // no further information ==> all solution indistinguishable ==> 1 winning line
 
-						child.winningLines = 1;
+						childNode.bestWinningLines = 1;
 							
 					} else {  // not cached and not terminal node, so we need to do the recursion
 						
-						for (LivingLocation childMove: child.getLivingLocations()) {
+						for (LivingLocation childMove: childNode.getLivingLocations()) {
 							
 							if (childMove.linked) {
 								continue;  // only need to analyse the first tile of a linked set
 							}
 							
 							// if the number of safe solutions <= the best winning lines then we can't do any better, so skip the rest
-							if (child.getSolutionSize() - childMove.mineCount <= child.winningLines) {
+							if (childNode.getSolutionSize() - childMove.mineCount <= childNode.bestWinningLines) {
 								break;
 							}
 							
 							// now calculate the winning lines for each of these children
-							int winningLines;
-							if (child.getSolutionSize() - childMove.mineCount == childMove.distinctValues) {
-								winningLines = childMove.distinctValues;
+							int wl;
+							if (childNode.getSolutionSize() - childMove.mineCount == childMove.distinctValues) {
+								wl = childMove.distinctValues;
 							} else {
-								winningLines = child.getWinningLines(depth + 1, childMove, child.winningLines);
+								wl = childNode.getWinningLines(control, depth + 1, childMove, childNode.bestWinningLines);
 							}
-
-
+							
+							// now calculate the winning lines for each of these children
+							//int wl = childNode.getWinningLines(control, depth + 1, childMove, childNode.bestWinningLines);
 							if (!childMove.pruned) {
-								if (child.winningLines < winningLines || (child.bestLiving != null && child.winningLines == winningLines && child.bestLiving.mineCount < childMove.mineCount)) {
-									if (child.bestLiving != null) {
-										child.bestLiving.children = null;
-									}
+								if (childNode.bestWinningLines < wl || (childNode.bestLiving != null && childNode.bestWinningLines == wl && childNode.bestLiving.mineCount < childMove.mineCount)) {
+									childNode.bestWinningLines = wl;
 									
-									child.winningLines = winningLines;
-									child.bestLiving = childMove;
+									if (childNode.bestLiving != null) {
+										childNode.bestLiving.children = null;
+									}
+									childNode.bestLiving = childMove;
 								} else {
-									childMove.children = null;
+									childNode.bestLiving.children = null;
 								}
 							} else {
-								childMove.children = null;
+								childNode.bestLiving.children = null;
 							}
 							
 							// if there are no mines then this is a 100% safe move, so skip any further analysis since it can't be any better
@@ -437,44 +439,45 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 						//child.livingLocations = null;
 
 						if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
-							child.bestLiving = null;
+							childNode.bestLiving = null;
 						}
 						
 						// add the child to the cache if it didn't come from there and it is carrying sufficient winning lines
-						if (child.work > 30) {
-							child.work = 0;
-							child.fromCache = true;
+						if (childNode.getSolutionSize() > cacheThreshold && !cacheLocked) {
 							cacheSize++;
-							cache.put(child.position, child);
-						} else {
-							this.work = this.work + child.work;
+							cache.put(childNode.position, childNode.bestWinningLines);
+							cacheQuantity[depth]++;
 						}
-						
 					}
-					
 				}
 			
 				// no need to hold onto the living location once we have determined the best of them
-				child.livingLocations = null;
-				
-				//if (depth > solver.preferences.getBruteForceTreeDepth()) {  // stop holding the tree beyond this depth
-			    //		child.bestLiving = null;
-			    //}
+				childNode.livingLocations = null;
 				
 				// store the aggregate winning lines 
-				result = result + child.winningLines;	
+				//result = result + childNode.winningLines;	
 				
-				notMines = notMines - child.getSolutionSize();  // reduce the number of not mines
+				totalWinningLines += childNode.bestWinningLines;
+				
+				notMines = notMines - childNode.getSolutionSize();  // reduce the number of not mines
+				
+				// if we are pruning at depth 1 then update with the best line fully completed
+				if (Solver.PRUNE_BF_ANALYSIS && depth == 1) {
+					cutoff = getBestWinningLines();
+				}
 				
 				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
-				if (result + notMines <= cutoff) {
+				if (totalWinningLines + notMines <= cutoff) {
 					move.pruned = true;
-					return (result + notMines);
+					totalWinningLines += notMines;
+					
+					return totalWinningLines;
 				}
 				
 			}
 			
-			return result;
+			return totalWinningLines;
+			
 			
 		}
 		
@@ -482,14 +485,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		 * this generates a list of Location that are still alive, (i.e. have more than one possible value) from a list of previously living locations
 		 * Index is the move which has just been played (in terms of the off-set to the position[] array)
 		 */
-		private void determineLivingLocations(final List<LivingLocation> liveLocs, int index) {
+		private void determineLivingLocations(ControlData control, List<LivingLocation> liveLocs, final int index) {
 			
-			this.livingLocations = new ArrayList<>(liveLocs.size());
+			List<LivingLocation> living = new ArrayList<>(liveLocs.size());
 			
 			boolean stopDetail = false;
 			for (LivingLocation location: liveLocs) {
 				
-				if (location.index == index) {  // if this is the same move we just played then no need to analyse it - definitely now non-living.
+				if (location.locationIndex == index) {  // if this is the same move we just played then no need to analyse it - definitely now non-living.
 					continue;
 				}
 				
@@ -501,24 +504,24 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 				
 				if (stopDetail) {
 					
-					mineTally = Math.min(location.mineCount, this.getSolutionSize());
+					mineTally = location.mineCount;
 					distinctValues = 2;    // 2 is needed to keep the location living
 					minValue = location.minValue;
 					maxValue = location.maxValue;
 					hash = location.linkedHash;
 					
 				} else {
-				
-					int valueCount[] = resetValues(0);
+
+					int valueCount[] = control.resetValues();
 					
 					for (int j=this.startSolution; j < this.endSolution; j++) {
-						int value = allSolutions.get(j)[location.index];
+						int value = control.solutionTable.get(j)[location.locationIndex];
 						if (value != GameStateModel.MINE) {
 							valueCount[value]++;
-							hash += allSolutions.getHash(j);
+							hash += control.solutionTable.getHash(j);
 						} else {
 							mineTally++;
-							hash -= allSolutions.getHash(j);
+							hash -= control.solutionTable.getHash(j);
 						}
 					}
 					
@@ -536,11 +539,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 							//}
 						}
 					}
+					
 
 				}
 
 				if (distinctValues > 1) {
-					LivingLocation alive = new LivingLocation(location.index);
+					LivingLocation alive = new LivingLocation(location.locationIndex);
 					alive.mineCount = mineTally;
 					alive.distinctValues = distinctValues;
 					alive.minValue = minValue;
@@ -549,24 +553,26 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 					//alive.zeroSolutions = valueCount[0];
 					
 					alive.linkedHash = hash;
-					for (LivingLocation ll: this.livingLocations) {
+					for (LivingLocation ll: living) {
 						if (ll.linkedHash == alive.linkedHash) {
 							alive.linked = true;
 							break;
 						}
 					}
 					
-					this.livingLocations.add(alive);
+					living.add(alive);
 					
 					// if we have a safe file then we don't need to do any more processing because the safe tile is always picked
-					if (mineTally == 0 && this.getSolutionSize() > 20) {
+					if (mineTally == 0) {
 						stopDetail = true;
 					}
 				}
 				
 			}
 			
-			Collections.sort(this.livingLocations);
+			Collections.sort(living);
+			
+			this.livingLocations = living;
 			
 		}
 		
@@ -627,6 +633,65 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	}
 	
 	
+	// this is the class that processes a single top move, designed to be run in parallel 
+	private class ProcessMove implements Callable<ProcessResult> {
+
+		private final ControlData control;
+		private final Node topNode;
+		private final LivingLocation living;
+		
+		private ProcessMove(Node top, LivingLocation ll) {
+			this.topNode = top;
+			this.living = ll;
+			
+			this.control = new ControlData(allSolutions.copySolutionTable());
+			
+		}
+		
+		
+		@Override
+		public ProcessResult call() throws Exception {
+			
+			int winningLines = topNode.getWinningLines(control, living);
+			
+			return new ProcessResult(living, winningLines);
+		}
+		
+	}
+	
+	private class ControlData {
+		
+		private final SolutionTable solutionTable;
+		private final int[] valueCount = new int[9];
+		
+		private ControlData(SolutionTable solutions) {
+			this.solutionTable = solutions;
+		}
+		
+		private int[] resetValues() {
+			for (int i=0; i < valueCount.length; i++) {
+				valueCount[i] = 0;
+			}
+			return valueCount;
+		}
+		
+	}
+	
+	
+	private class ProcessResult {
+		private final LivingLocation living;
+		private final int winningLines;
+		
+		private boolean done = false;
+		
+		private ProcessResult(LivingLocation ll, int wl) {
+			this.living = ll;
+			this.winningLines = wl;
+		}
+		
+	}
+	
+	
 	private static final String INDENT = "................................................................................";
 	
 	private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
@@ -654,22 +719,31 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private Node currentNode;
 	private Location expectedMove;
+	private int bestWinningLines = 0;
 	
 	private final SortSolutions[] sorters;
 	
-	private int cacheHit = 0;
-	private int cacheSize = 0;
-	private int cacheWinningLines = 0;
+	private long cacheHit = 0;
+	private long cacheSize = 0;
+	private long cacheWinningLines = 0;
 	private boolean allDead = false;   // this is true if all the locations are dead
 	private Area deadLocations = Area.EMPTY_AREA;
 	
-	// some work areas to prevent having to instantiate many 1000's of copies of them 
-	//private final boolean[] values = new boolean[9];
-	private final int[][] valueCount = new int[2][9];
+	// 60 million
+	private final int maxCacheSize;
 	
-	private Map<Position, Node> cache = new HashMap<>(5000);
+	private boolean cacheLocked = false;
+	private Map<Position, Integer> cache;
+	private int[] cacheQuantity;
+	private static final int cacheThreshold = 20;
 	
-	public BruteForceAnalysis(Solver solver, List<? extends Location> locations, int size, String scope, List<Location> startLocations) {
+	//private int cacheCleanMod = 1;
+	//private short cacheMaxDepth;
+	
+	// this is set when a thread discovers it has been interrupted
+	private boolean aborted = false;
+	
+	public BruteForceAnalysisParallel(Solver solver, List<? extends Location> locations, int size, String scope, List<Location> startLocations) {
 		
 		this.solver = solver;
 		this.locations = locations;
@@ -683,6 +757,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		}
 		
 		this.startLocations = startLocations;
+		
+		this.maxCacheSize = solver.preferences.getBruteForceMaxCache();
+		
+		cache = new ConcurrentHashMap<>(solver.preferences.getBruteForceInitalCache());
+		
+		this.cacheQuantity = new int[locations.size()+ 1];
+		
+		//this.cacheMaxDepth = (short) (locations.size() - 1);
 
 	}
 	
@@ -717,28 +799,21 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	@Override
 	protected void process() {
 
-		if (allSolutions.size() > allSolutions.solutions.length) {
-			System.out.println("Brute force not run " + allSolutions.size() + " > " + allSolutions.solutions.length);
-			return;
-		}
-		
 		long start = System.currentTimeMillis();
-		
+		solver.logger.log(Level.INFO,"System processors: " + Runtime.getRuntime().availableProcessors() + ", Total memory " + Runtime.getRuntime().totalMemory() + ", Maximum cache size " + this.maxCacheSize);
 		solver.logger.log(Level.INFO, "----- Brute Force Deep Analysis starting ----");
 		solver.logger.log(Level.INFO, "%d solutions in BruteForceAnalysis", allSolutions.size());
 		
 		// create the top node 
 		Node top = buildTopNode(allSolutions);
 		
-		int best = 0;
-		
 		if (top.getLivingLocations().isEmpty()) {
 			allDead = true;
-			best = 1;  // only 1 winning line if everything is dead
+			bestWinningLines = 1;  // only 1 winning line if everything is dead
 		}
-		
+	
 		this.movesToProcess = top.getLivingLocations().size();
-		this.maxProcessCount = solver.preferences.getBruteForceMaxNodes();
+		this.maxProcessCount = solver.preferences.getBruteForceMaxNodes() * solver.preferences.getBruteForceThreads();
 		
 		if (startLocations == null || startLocations.size() == 0) {
 			this.processCountExtension = this.maxProcessCount / 2;
@@ -746,81 +821,170 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			this.processCountExtension = 0;
 		}
 		
+		// create a fixed thread pool
+		//ExecutorService pool = Executors.newFixedThreadPool(solver.preferences.getBruteForceThreads());
+		ThreadManager pool = ThreadManager.get();
+		
+		List<Future<ProcessResult>> futures = new ArrayList<>(); 
 		for (LivingLocation move: top.getLivingLocations()) {
 			
 			// check that the move is in the startLocation list
 			if (startLocations != null) {
 				boolean found = false;
 				for (Location l: startLocations) {
-					if (locations.get(move.index).equals(l)) {
+					if (locations.get(move.locationIndex).equals(l)) {
 						found = true;
 						break;
 					}
 				}
 				if (!found) {  // if not then skip this move
-					solver.logger.log(Level.INFO, "%d %s is not a starting location", move.index, locations.get(move.index));
+					solver.logger.log(Level.INFO, "%d %s is not a starting location", move.locationIndex, locations.get(move.locationIndex));
 					continue;
 				}				
 			}
-
-			int winningLines = 0;
-			ProcessedMove linkedPm = null;
 			
-			// if the tile is linked then find the link and set the winning lines
-			if (move.linked) {
-				for (ProcessedMove pm: processedMoves) {
-					if (pm.linkedHash == move.linkedHash) {
-						linkedPm = pm;
-						winningLines = pm.winningLines;
-						break;
-					}
-				}
-			} else {
-				
-				winningLines = top.getWinningLines(move);  // calculate the number of winning lines if this move is played
-			}
-			
-			if (!move.pruned) {
-				if (best < winningLines || (top.bestLiving != null && best == winningLines && top.bestLiving.mineCount < move.mineCount)) {
-					best = winningLines;
-					top.bestLiving = move;
-				}
-			}
-			
-			BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
-			
-			if (move.linked) {
-				if (linkedPm != null) {
-					solver.logger.log(Level.INFO, "Tile %s is living with %d values and probability %s, this location is linked with %s", locations.get(move.index), move.distinctValues, percentage(singleProb), linkedPm.location);
-				}
-
-			} else if (move.pruned) {
-				solver.logger.log(Level.INFO, "Tile %s is living with %d values and probability %s, this location was pruned (max winning lines %d)", locations.get(move.index), move.distinctValues, percentage(singleProb),  winningLines);
-			} else {
-				solver.logger.log(Level.INFO, "Tile %s is living with %d values and probability %s, winning lines %d", locations.get(move.index), move.distinctValues, percentage(singleProb),  winningLines);
-			}
-			
-			if (processCount < this.maxProcessCount) {
-				movesProcessed++;
-				
-				Location loc = this.locations.get(move.index);
-				processedMoves.add(new ProcessedMove(loc, winningLines, move.pruned, move.linkedHash));
-				
-				// if we've got to half way then allow extra cycles to finish up
-				if (this.processCountExtension !=0 && this.movesProcessed * 2 > this.movesToProcess) {
-					this.maxProcessCount = this.maxProcessCount + this.processCountExtension;
-					this.processCountExtension = 0;
-					solver.logger.log(Level.INFO, "Extending BFDA cycles to %d after %d of %d moves analysed", this.maxProcessCount, this.movesProcessed, this.movesToProcess);
-				}
+			// if the move isn't linked then process it
+			if (!move.linked) {
+				ProcessMove call = new ProcessMove(top, move);
+				Future<ProcessResult> result = pool.submit(call);
+				futures.add(result);
 			}
 			
 		}
 		
+		// wait for each future to complete and show the result
+		List<ProcessResult> results = new ArrayList<>();
+		
+		boolean allDone = futures.isEmpty();
+		
+		while (!allDone && !aborted) {
+			
+			// wait on the first incomplete future for a bit
+			for (Future<ProcessResult> future: futures) {
+				
+				if (!future.isDone()) {
+					try {
+						ProcessResult pr;
+						try {
+							pr = future.get(1000, TimeUnit.MILLISECONDS);
+						} catch (TimeoutException e) {
+							solver.logger.log(Level.INFO, "Process count is %d of %d.  Cache size is %d. Lines saved %d. Elapsed time %s"
+									, this.processCount, this.maxProcessCount, this.cache.size(), this.cacheWinningLines, Timer.humanReadable(System.currentTimeMillis() - start));
+							
+							if (this.cacheSize > this.maxCacheSize && !this.cacheLocked) {
+								reduceCache();
+							}
+						}
+						
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					} catch (ExecutionException e) {
+						e.printStackTrace();
+					}
+					
+					// see if anything else has completed
+					break;
+				}
+
+			}	
+			
+			// report on each completed process
+			allDone = true;
+			for (Future<ProcessResult> future: futures) {
+
+				if (future.isDone()) {
+					ProcessResult pr;
+					try {
+						pr = future.get();
+						if (pr.done) {  // already reported it
+							continue;
+							
+						} else {
+							
+							pr.done = true;
+							
+							LivingLocation move = pr.living;
+							
+							BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
+							
+							if (move.pruned) {
+								solver.logger.log(Level.INFO, "Tile %s is living with safety %s, this location was pruned (max winning lines %d)", locations.get(move.locationIndex), percentage(singleProb),  pr.winningLines);
+							} else {
+								solver.logger.log(Level.INFO, "Tile %s is living with safety %s, winning lines %d", locations.get(move.locationIndex), percentage(singleProb), pr.winningLines);
+							}
+							
+							if (!move.pruned) {
+								if (bestWinningLines < pr.winningLines || (top.bestLiving != null && bestWinningLines == pr.winningLines && top.bestLiving.mineCount < move.mineCount)) {
+									bestWinningLines = pr.winningLines;
+									top.bestLiving = move;
+								}
+							}
+							
+							results.add(pr);
+							
+							if (processCount < this.maxProcessCount) {
+								movesProcessed++;
+								
+								Location loc = this.locations.get(move.locationIndex);
+								processedMoves.add(new ProcessedMove(loc, pr.winningLines, move.pruned, move.linkedHash));
+								
+								// if we've got to half way then allow extra cycles to finish up
+								if (this.processCountExtension !=0 && this.movesProcessed * 2 > this.movesToProcess) {
+									this.maxProcessCount = this.maxProcessCount + this.processCountExtension;
+									this.processCountExtension = 0;
+									solver.logger.log(Level.INFO, "Extending BFDA cycles to %d after %d of %d moves analysed", this.maxProcessCount, this.movesProcessed, this.movesToProcess);
+								}
+							}
+							
+						}
+					} catch (InterruptedException | ExecutionException e) {
+						e.printStackTrace();
+					}
+
+				} else {
+					allDone = false;
+				}
+
+			}	
+		}
+
+		//pool.shutdown();
+		
 		// sort the processed moves into best move at the top
 		processedMoves.sort(null);  // use the comparable method to sort
 		
-		top.winningLines = best;
+		// repeat the result
+		for (ProcessedMove pm: processedMoves) {
+			
+			BigDecimal winRate = BigDecimal.valueOf(pm.winningLines).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
+			
+			if (pm.pruned) {
+				solver.logger.log(Level.INFO, "Tile %s has max winning lines %d (pruned) giving max win rate of %s", pm.location, pm.winningLines, percentage(winRate));
+			} else {
+				solver.logger.log(Level.INFO, "Tile %s has winning lines %d giving win rate of %s", pm.location, pm.winningLines, percentage(winRate));
+			}
+		}
 		
+		// Report on the linked tiles
+		for (LivingLocation move: top.getLivingLocations()) {
+
+			// if the tile is linked then find the link and set the winning lines
+			if (move.linked) {
+				for (ProcessedMove pm: processedMoves) {
+					if (pm.linkedHash == move.linkedHash) {
+						
+						BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
+						solver.logger.log(Level.INFO, "Tile %s is living with safety %s, this location is linked with %s", locations.get(move.locationIndex), percentage(singleProb), pm.location);
+
+						break;
+					}
+				}
+			} 
+	
+		}
+
+		// remember what the best move is
+		top.bestWinningLines = bestWinningLines;
 		currentNode = top;
 		
 		if (processCount < this.maxProcessCount) {
@@ -834,12 +998,75 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		long end = System.currentTimeMillis();
 		solver.logger.log(Level.INFO, "Total nodes in cache %d, total cache hits %d, total winning lines saved %d", cacheSize, cacheHit, this.cacheWinningLines);
-		solver.logger.log(Level.INFO, "process took %d milliseconds and explored %d nodes", (end - start), processCount);
+		solver.logger.log(Level.INFO, "process explored %d nodes in %s", processCount, Timer.humanReadable(end - start));
 		solver.logger.log(Level.INFO, "----- Brute Force Deep Analysis finished ----");
-		
+
 		// clear down the cache
-		//cache.clear();
+		cache.clear();
 		cache = null;
+
+	}
+	
+	private void reduceCache() {
+
+		long start = System.currentTimeMillis();
+		
+		this.cacheLocked = true;
+
+		try {
+			Thread.sleep(10);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		long total = 0;
+		long toDelete = this.cacheSize - (this.maxCacheSize / 2);
+		int cutoff = 0;
+		
+		for (int i = this.cacheQuantity.length - 1; i > 1; i--) {
+			total = total + this.cacheQuantity[i];
+			this.cacheQuantity[i] = 0;
+			
+			if (total > toDelete) {
+				cutoff = i;
+				break;
+			}
+		}
+
+		//System.out.println("Reducing cache below depth " + cutoff + " where depth mod is " + cacheCleanMod);
+		solver.logger.log(Level.INFO, "Reducing cache below depth %d", cutoff);
+
+		final int finalCutoff = cutoff;
+	
+		Predicate<Position> predicate = new Predicate<Position>() {
+			@Override
+			public boolean test(Position t) {
+				return (t.depth >= finalCutoff);
+			}
+		};
+		
+		cache.keySet().removeIf(predicate);
+		
+		this.cacheSize = cache.size();
+		
+		solver.logger.log(Level.INFO, "Reducing cache size to %d took %s", this.cacheSize, Timer.humanReadable(System.currentTimeMillis() - start));
+
+		/*
+		// alternate between the odd and the even depths
+		if (cacheCleanMod == 1) {
+			cacheCleanMod = 3;
+		} else {
+			cacheCleanMod = 1;
+		}
+		*/
+		
+		this.cacheLocked = false;
+	}
+	
+	
+	// return the best winning lines
+	private int getBestWinningLines() {
+		return this.bestWinningLines;
 	}
 	
 	/**
@@ -849,20 +1076,21 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		List<Location> deadLocations = new ArrayList<>();
 		
-		Node result = new Node();
+		Node result = new Node(new Position(), 0, solutionTable.size());
 		
-		result.startSolution = 0;
-		result.endSolution = solutionTable.size();
+		//result.startSolution = 0;
+		//result.endSolution = solutionTable.size();
 		
 		List<LivingLocation> living = new ArrayList<>();
 		
 		for (short i=0; i < locations.size(); i++) {
 			int value;
 			
-			int valueCount[] = resetValues(0);
+			int valueCount[] = new int[9];
+			
 			int mines = 0;
 			//int maxSolutions = 0;
-			byte count = 0;
+			byte distinctValues = 0;
 			byte minValue = 0;
 			byte maxValue = 0;
 			long hash = 0;
@@ -880,20 +1108,20 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			
 			for (byte j=0; j < valueCount.length; j++) {
 				if (valueCount[j] > 0) {
-					if (count == 0) {
+					if (distinctValues == 0) {
 						minValue = j;
 					}
 					maxValue = j;
-					count++;
+					distinctValues++;
 					//if (maxSolutions < valueCount[j]) {
 					//	maxSolutions = valueCount[j];
 					//}
 				}
 			}
-			if (count > 1) {
+			if (distinctValues > 1) {
 				LivingLocation alive = new LivingLocation(i);
 				alive.mineCount = mines;
-				alive.distinctValues = count;
+				//alive.distinctValues = distinctValues;
 				alive.minValue = minValue;
 				alive.maxValue = maxValue;
 				//alive.maxSolutions = maxSolutions;
@@ -929,12 +1157,14 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		return result;
 	}
 	
+	/*
 	private int[] resetValues(int thread) {
 		for (int i=0; i < valueCount[thread].length; i++) {
 			valueCount[thread][i] = 0;
 		}
 		return valueCount[thread];
 	}
+	*/
 	
 	@Override
 	protected int getSolutionCount() {
@@ -951,11 +1181,11 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 		
 		LivingLocation bestLiving = getBestLocation(currentNode);
 		
-		if (bestLiving == null || bestLiving.children == null) {
+		if (bestLiving == null) {
 			return null;
 		}
 		
-		Location loc = this.locations.get(bestLiving.index);
+		Location loc = this.locations.get(bestLiving.locationIndex);
 
 		//solver.display("first best move is " + loc.display());
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(bestLiving.mineCount).divide(BigDecimal.valueOf(currentNode.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
@@ -965,12 +1195,12 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			
 			currentNode = bestLiving.children[value];
 			bestLiving = getBestLocation(currentNode);
-			if (bestLiving == null || bestLiving.children == null) {
+			if (bestLiving == null) {
 				return null;
 			}
 			prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(bestLiving.mineCount).divide(BigDecimal.valueOf(currentNode.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 
-			loc = this.locations.get(bestLiving.index);
+			loc = this.locations.get(bestLiving.locationIndex);
 			
 		}
 		
@@ -1022,7 +1252,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 			return;
 		}
 		
-		Location loc = this.locations.get(node.bestLiving.index);
+		Location loc = this.locations.get(node.bestLiving.locationIndex);
 
 		BigDecimal prob = BigDecimal.ONE.subtract(BigDecimal.valueOf(node.bestLiving.mineCount).divide(BigDecimal.valueOf(node.getSolutionSize()), Solver.DP, RoundingMode.HALF_UP));
 		
@@ -1051,7 +1281,7 @@ public class BruteForceAnalysis extends BruteForceAnalysisModel{
 	
 	private String percentage(BigDecimal prob) {
 		
-		return Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED));
+		return Action.FORMAT_2DP.format(prob.multiply(ONE_HUNDRED)) + "%";
 	}
 
 	@Override

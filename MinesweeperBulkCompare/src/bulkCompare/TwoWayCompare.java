@@ -37,12 +37,13 @@ public class TwoWayCompare extends GamePostListener {
 			} else {
 				oneWonTwoLost++;
 				
-				//savePosition(game2, "Advanced pseudo lost");
+				//savePosition(game2, "", "lost");
 			}
 		} else {
 			if (game2.getGameState() == GameStateModel.WON) {
 				twoWon++;
 				oneLostTwoWon++;
+				//savePosition(game1, "", "won");
 			} else {
 				bothLost++;
 			}			
@@ -67,9 +68,9 @@ public class TwoWayCompare extends GamePostListener {
 		
 	}
 	
-	void savePosition(GameStateModel game, String text) {
+	void savePosition(GameStateModel game, String text, String suffix) {
 		
-		File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + game.getSeed() + "_lost.mine");
+		File saveFile = new File("C:\\Users\\david\\Documents\\Minesweeper\\Positions\\Saved", "Pos_" + game.getSeed() + "_" + suffix + ".mine");
 		if (saveFile.exists()) {
 			return;
 		}

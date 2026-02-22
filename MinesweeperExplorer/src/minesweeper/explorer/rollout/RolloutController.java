@@ -36,8 +36,8 @@ public class RolloutController {
 
 	private final static DecimalFormat PERCENT = new DecimalFormat("#0.000%");
 	private final static int DEFAULT_ROLLOUTS = 10000;
-	private final static String[] THREAD_DROPDOWN = {"on 1 Thread", "on 2 Threads", "on 3 Threads", "on 4 Threads", "on 6 Threads", "on 8 Threads"};
-	private final static int[] THREAD_NUMBER = {1, 2, 3, 4, 6, 8};
+	private final static String[] THREAD_DROPDOWN = {"on 1 Thread", "on 2 Threads", "on 3 Threads", "on 4 Threads", "on 6 Threads", "on 8 Threads", "on 12 Threads"};
+	private final static int[] THREAD_NUMBER = {1, 2, 3, 4, 6, 8, 12};
 	
 	
 	@FXML private AnchorPane window;

@@ -293,6 +293,7 @@ public class MainScreenController {
 		
 		settings.setLongTermSafety(useLongTermSafetyRollout.isSelected());
 		settings.setTestMode(useTestModeRollout.isSelected());
+		settings.setSingleThread(true);
 		
 		Solver solver = new Solver(gs, settings, true);
 		
@@ -391,6 +392,13 @@ public class MainScreenController {
 		
 		int depth = 4;
 		SolverSettings settings;
+		
+		int threads = 1;
+		if (Runtime.getRuntime().availableProcessors() > 2) {
+			threads = Runtime.getRuntime().availableProcessors() * 3 / 4 ;
+		}
+		
+
 		if (this.useBruteForce.isSelected()) {
 			//settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 			settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
@@ -401,6 +409,8 @@ public class MainScreenController {
 		settings.setLongTermSafety(this.useLongTermSafety.isSelected());
 		settings.setTestMode(this.useTestMode.isSelected());
 		settings.set5050Check(this.use5050Detection.isSelected());
+		settings.setBruteForceThreads(threads);
+		settings.setBruteForceCache(60000000, 60000000);
 		
 		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
 		Solver solver = new Solver(gs, settings, true);
@@ -435,7 +445,7 @@ public class MainScreenController {
 					        		
 					        		// don't show evaluated positions which are actually chosen to be played
 					        		boolean ignore = false;
-					        		for (Action action: actions) {
+					        		for (Location action: actions) {
 					        			if (el.equals(action)) {
 					        				ignore = true;
 					        			}
@@ -468,6 +478,9 @@ public class MainScreenController {
 							
 							currentBoard.getChildren().addAll(indicators);
 						}
+						
+						// try and recover some space after this solve
+						System.gc();
 					}
 				});
 				
