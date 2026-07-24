@@ -19,8 +19,8 @@ abstract public class ProbabilityEngineModel {
 	abstract protected long getIndependentGroups();
 	abstract Box getBox(Location l);
 	abstract public BigDecimal getSafety(Location l);
-	abstract protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold, boolean excludeDead);
-	abstract protected List<CandidateLocation> getProbableMines(BigDecimal freshhold);
+	abstract protected List<CandidateLocation> getBestCandidates(BigDecimal freshold1, BigDecimal freshold2, boolean excludeDead);
+	abstract protected List<CandidateLocation> getProbableMines(BigDecimal freshold);
 	abstract protected List<Location> getFiftyPercenters();
 	abstract protected BigInteger getSolutionCount();
 	//abstract protected BigDecimal getBestOnEdgeProb();

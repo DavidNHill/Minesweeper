@@ -10,12 +10,13 @@ public class SolverSettings {
 
 	//private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.052");
 	private final static BigDecimal PROGRESS_CONTRIBUTION = new BigDecimal("0.001");  // tiny amount to force a tie-break if everything else is the same
-	private final static BigDecimal SELECTION_HARD_CUTOFF = new BigDecimal("0.90"); // consider tiles on the edge with a threshold of this from the best value
+	private final static BigDecimal SELECTION_THRESHOLD1 = new BigDecimal("0.10"); // consider tiles on the edge with a threshold of this from the best value
+	private final static BigDecimal SELECTION_THRESHOLD2 = new BigDecimal("0.20"); // consider tiles on the edge with a threshold of this from the best value
 	
 	public enum GuessMethod {
 		SAFETY_PROGRESS("Safety with progress"),
-		SECONDARY_SAFETY_PROGRESS("Secondary safety with progress"),
-		RECURSIVE_SAFETY("Recursive safety");
+		SECONDARY_SAFETY_PROGRESS("Secondary safety blended"),
+		RECURSIVE_SAFETY("Recursive safety (wip)");
 		
 		public final String name;
 		
@@ -25,7 +26,10 @@ public class SolverSettings {
 	}
 	
 	protected BigDecimal progressContribution = PROGRESS_CONTRIBUTION;
-	protected BigDecimal hardCutOff = SELECTION_HARD_CUTOFF;
+	//protected BigDecimal hardCutOff = SELECTION_HARD_CUTOFF;
+	protected BigDecimal selectionThreshold1 = SELECTION_THRESHOLD1;
+	protected BigDecimal selectionThreshold2 = SELECTION_THRESHOLD2;
+	
 	protected int bruteForceVariableSolutions = 200;
 	protected int bruteForceMaxSolutions = 400;
 	protected long bruteForceMaxNodes = 50000;
@@ -172,15 +176,25 @@ public class SolverSettings {
 		return this;
 	}
 	
-	public SolverSettings setHardCutOff(BigDecimal cutoff) {
+	public SolverSettings setSelectionThreshold(BigDecimal value) {
+		return setSelectionThreshold(value, value);
+	}
+	
+	public SolverSettings setSelectionThreshold(BigDecimal value1, BigDecimal value2) {
 		if (!locked) {
-			if (cutoff == null) {
-				this.hardCutOff = SELECTION_HARD_CUTOFF;
+			if (value1 == null) {
+				this.selectionThreshold1 = SELECTION_THRESHOLD1;
 			} else {
-				this.hardCutOff = cutoff;
+				this.selectionThreshold1 = value1;
+			}
+			if (value2 == null) {
+				this.selectionThreshold2 = SELECTION_THRESHOLD2;
+			} else {
+				this.selectionThreshold2 = value2;
 			}
 		}
 
+		
 		return this;
 	}
 	
@@ -298,9 +312,17 @@ public class SolverSettings {
 		return this.progressContribution;
 	}
 	
-	public BigDecimal getHardCutOff() {
-		return this.hardCutOff;
+	public BigDecimal getSelectionThreshold1() {
+		return this.selectionThreshold1;
 	}
+	
+	public BigDecimal getSelectionThreshold2() {
+		return this.selectionThreshold2;
+	}
+	
+	//public BigDecimal getHardCutOff() {
+	//	return this.hardCutOff;
+	//}
 	
 	public int getWeight1() {
 		return this.weight1;

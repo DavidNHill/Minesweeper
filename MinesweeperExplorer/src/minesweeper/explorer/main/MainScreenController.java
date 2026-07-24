@@ -108,7 +108,14 @@ public class MainScreenController {
 	@FXML private RadioMenuItem safetyProgress;
 	@FXML private RadioMenuItem recursiveSafety;
 	
-	@FXML private CheckMenuItem useBruteForce;
+	
+	@FXML private RadioMenuItem bruteForceNone;
+	@FXML private RadioMenuItem bruteForce50K;
+	@FXML private RadioMenuItem bruteForce100K;
+	@FXML private RadioMenuItem bruteForce200K;
+	@FXML private RadioMenuItem bruteForce400K;
+
+	
 	@FXML private CheckMenuItem useLongTermSafety;
 	@FXML private CheckMenuItem use5050Detection;
 	@FXML private CheckMenuItem useTestMode;
@@ -395,22 +402,38 @@ public class MainScreenController {
 		
 		int threads = 1;
 		if (Runtime.getRuntime().availableProcessors() > 2) {
-			threads = Runtime.getRuntime().availableProcessors() * 3 / 4 ;
+			threads = Runtime.getRuntime().availableProcessors() - 2 ;
 		}
 		
-
-		if (this.useBruteForce.isSelected()) {
-			//settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
-			settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+		if (this.bruteForceNone.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+		} else if (this.bruteForce50K.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.BRUTE_FORCE_50K).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+		} else if (this.bruteForce100K.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.BRUTE_FORCE_100K).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+		} else if (this.bruteForce200K.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.BRUTE_FORCE_200K).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
+		} else if (this.bruteForce400K.isSelected()) {
+			settings = SettingsFactory.GetSettings(Setting.BRUTE_FORCE_400K).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		} else {
-			settings = SettingsFactory.GetSettings(Setting.NO_BRUTE_FORCE).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);;			
+			settings = SettingsFactory.GetSettings(Setting.BRUTE_FORCE_50K).setGuessMethod(guessMethod).setRecursiveSafetyDepth(depth);
 		}
 		
 		settings.setLongTermSafety(this.useLongTermSafety.isSelected());
 		settings.setTestMode(this.useTestMode.isSelected());
 		settings.set5050Check(this.use5050Detection.isSelected());
 		settings.setBruteForceThreads(threads);
-		settings.setBruteForceCache(60000000, 60000000);
+		
+		long totalMem = Runtime.getRuntime().totalMemory();
+		long cacheSize = (totalMem / 150000) * 1000;
+		
+		if (cacheSize < 1000000) {
+			cacheSize = 1000000;
+		} else if (cacheSize > 100000000) {
+			cacheSize = 100000000;
+		}
+		
+		settings.setBruteForceCache((int) cacheSize);
 		
 		//SolverSettings settings = SettingsFactory.GetSettings(Setting.MAX_ANALYSIS).setGuessMethod(guessMethod);
 		Solver solver = new Solver(gs, settings, true);

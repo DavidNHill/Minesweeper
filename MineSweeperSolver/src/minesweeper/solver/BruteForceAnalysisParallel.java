@@ -469,6 +469,7 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 				// if the max possible winning lines is less than the current cutoff then no point doing the analysis
 				if (totalWinningLines + notMines <= cutoff) {
 					move.pruned = true;
+					move.children = null;
 					totalWinningLines += notMines;
 					
 					return totalWinningLines;
@@ -952,6 +953,8 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 		
 		// sort the processed moves into best move at the top
 		processedMoves.sort(null);  // use the comparable method to sort
+		
+		solver.logger.log(Level.INFO, "Results...");
 		
 		// repeat the result
 		for (ProcessedMove pm: processedMoves) {

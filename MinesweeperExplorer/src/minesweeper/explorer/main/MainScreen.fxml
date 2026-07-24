@@ -81,7 +81,19 @@
                   </Menu>
                   <Menu mnemonicParsing="false" text="Solver">
                      <items>
-                        <CheckMenuItem fx:id="useBruteForce" mnemonicParsing="false" selected="true" text="Use brute force" />
+                        <Menu mnemonicParsing="false" text="Brute force solns">
+                          <items>
+                              <RadioMenuItem fx:id="bruteForceNone" mnemonicParsing="false" text="None">
+                                 <toggleGroup>
+                                    <ToggleGroup fx:id="bfsolutions" />
+                                 </toggleGroup>
+                              </RadioMenuItem>
+                              <RadioMenuItem fx:id="bruteForce50K" mnemonicParsing="false" selected="true" text="50K solutions" toggleGroup="$bfsolutions" />
+                              <RadioMenuItem fx:id="bruteForce100K" mnemonicParsing="false" text="100K solutions" toggleGroup="$bfsolutions" />
+                              <RadioMenuItem fx:id="bruteForce200K" mnemonicParsing="false" text="200K solutions" toggleGroup="$bfsolutions" />
+                              <RadioMenuItem fx:id="bruteForce400K" mnemonicParsing="false" text="400K solutions" toggleGroup="$bfsolutions" />
+                          </items>
+                        </Menu>
                         <CheckMenuItem fx:id="useLongTermSafety" mnemonicParsing="false" selected="true" text="Use long term safety" />
                         <CheckMenuItem fx:id="use5050Detection" mnemonicParsing="false" selected="true" text="Use 50/50 detection" />
                         <CheckMenuItem fx:id="useTestMode" mnemonicParsing="false" text="Use test mode" />

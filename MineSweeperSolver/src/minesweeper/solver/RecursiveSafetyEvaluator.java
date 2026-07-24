@@ -35,7 +35,8 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 	private final static BigDecimal EQUALITY_THRESHOLD = new BigDecimal("0.0001");
 	
 	private final static BigDecimal FIFTYFIFTY_SCALE = new BigDecimal("0.9");   // was 0.9
-	private final static BigDecimal INCLUDE_THRESHOLD = new BigDecimal("0.9");   
+	private final static BigDecimal INCLUDE_THRESHOLD1 = new BigDecimal("0.9");   
+	private final static BigDecimal INCLUDE_THRESHOLD2 = new BigDecimal("0.8");   
 	
 	private final static BigDecimal HALF = new BigDecimal("0.5");
 	
@@ -616,7 +617,7 @@ public class RecursiveSafetyEvaluator implements LocationEvaluator {
 						
 						} else {
 							
-							List<CandidateLocation> bestCandidates = newPe.getBestCandidates(INCLUDE_THRESHOLD, true);
+							List<CandidateLocation> bestCandidates = newPe.getBestCandidates(INCLUDE_THRESHOLD1, INCLUDE_THRESHOLD2, true);
 							
 							// if the best guess is off edge then 
 							if (newPe.isBestGuessOffEdge()) {

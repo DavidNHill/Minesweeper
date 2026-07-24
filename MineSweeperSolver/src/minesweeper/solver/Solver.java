@@ -657,11 +657,11 @@ public class Solver implements Asynchronous<Action[]> {
 		// fetch the best candidates from the edge.  If high density only get the best tiles
 		List<CandidateLocation> bestCandidates;
 		if (boardState.isHighDensity()) {
-			bestCandidates = pe.getBestCandidates(BigDecimal.ONE, true);
+			bestCandidates = pe.getBestCandidates(BigDecimal.ZERO, BigDecimal.ZERO, true);
 			//} else if (preferences.isExperimentalScoring()) {
 			//	bestCandidates = pe.getBestCandidates(BigDecimal.valueOf(0.8d), true);
 		} else {
-			bestCandidates = pe.getBestCandidates( this.preferences.getHardCutOff(), true);
+			bestCandidates = pe.getBestCandidates( this.preferences.getSelectionThreshold1(), this.preferences.getSelectionThreshold2(), true);
 		}
 
 		List<Location> allUnrevealedSquares = null;
@@ -1017,7 +1017,7 @@ public class Solver implements Asynchronous<Action[]> {
 							break;
 						}
 					} else {
-						for (CandidateLocation cl: pe.getBestCandidates(BigDecimal.ZERO, false)) {  // get the best guess even if dead
+						for (CandidateLocation cl: pe.getBestCandidates(BigDecimal.ONE, BigDecimal.ONE, false)) {  // get the best guess even if dead
 							Action move = cl.buildAction(MoveMethod.PROBABILITY_ENGINE);
 							// let the boardState decide what to do with this action
 							boardState.setAction(move);   
@@ -1344,7 +1344,7 @@ public class Solver implements Asynchronous<Action[]> {
 
 				BigDecimal prob = new BigDecimal(sol).divide(new BigDecimal(probEngine.getSolutionCount()), Solver.DP, RoundingMode.HALF_UP);
 
-				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ONE, true);
+				List<CandidateLocation> bestCandidates = counter.getBestCandidates(BigDecimal.ZERO, BigDecimal.ZERO, true);
 
 				BigDecimal safety;
 				if (bestCandidates.size() == 0 ) { 

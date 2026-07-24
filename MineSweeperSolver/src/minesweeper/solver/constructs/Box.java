@@ -14,7 +14,7 @@ import minesweeper.structure.Location;
  *
  */
 
-public class Box {
+public class Box implements Comparable<Box> {
 
 	final private List<Witness> adjWitnesses;
 	final private List<Square> squares = new ArrayList<>();
@@ -298,6 +298,13 @@ public class Box {
 		System.out.println("");
 		System.out.println("Mines: max " + maxMines + " min " + minMines);
 		
+	}
+
+
+	@Override
+	// sort into safest box first
+	public int compareTo(Box o) {
+		return o.safety.compareTo(this.safety);
 	}
 
 

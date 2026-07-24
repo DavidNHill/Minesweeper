@@ -610,6 +610,9 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 			}
 		}
 	
+		// sort the boxes into safety order. safest first
+		boxes.sort(null);
+		
 		// avoid divide by zero
 		if (tilesOffEdge != 0 && totalTally.signum() != 0) {
 			offEdgeTally = outsideTally.divide(BigInteger.valueOf(tilesOffEdge));
@@ -1099,7 +1102,7 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 	
 	
 	@Override
-	protected List<CandidateLocation> getBestCandidates(BigDecimal freshhold, boolean excludeDead) {
+	protected List<CandidateLocation> getBestCandidates(BigDecimal threshold1, BigDecimal threshold2, boolean excludeDead) {
 		
 		List<CandidateLocation> best = new ArrayList<>();
 		
@@ -1107,16 +1110,23 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 		
 		// if the outside probability is the best then return an empty list
 		BigDecimal test;
+		BigDecimal test2;
 		if (bestSafety.compareTo(BigDecimal.ONE) == 0){  // if we have a safety of one then don't allow lesser safeties to get a look in
 			test = bestSafety;
+			test2 = bestSafety;
 		} else {
-			test = bestLivingSafety.multiply(freshhold);  // if we are using a threshold then use the living safety
+			test = bestLivingSafety.subtract(threshold1);  // if we are using a threshold then use the living safety
+			test2 = bestLivingSafety.subtract(threshold2);
 		}
 
 		logger.log(Level.INFO, "Best probability is %f, cutoff freshhold is %f", bestSafety, test);
 		
 		for (Box b: this.boxes) {
-			if (b.getSafety().compareTo(test) >= 0 ) {
+			if (b.getSafety().compareTo(test) >= 0 || (best.size() < 2 && b.getSafety().compareTo(test2) >= 0)) {
+				
+				// if we are getting tiles below the cut off then make sure we get all with the lower value
+				test = test.min(b.getSafety());
+				
 				for (Square squ: b.getSquares()) {
 					boolean isDead = deadLocations.contains(squ);
 					if (!isDead || !excludeDead || b.getSafety().compareTo(BigDecimal.ONE) == 0) {  // if not a dead location or 100% safe then use it
@@ -1125,6 +1135,8 @@ public class ProbabilityEngineFast extends ProbabilityEngineModel {
 						logger.log(Level.INFO, "Candidate Location %s is ignored because it is dead", squ);
 					}
 				}
+			} else {
+				break;
 			}
 		}
 		

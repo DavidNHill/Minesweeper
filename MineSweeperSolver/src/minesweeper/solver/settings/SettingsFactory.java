@@ -10,7 +10,11 @@ public class SettingsFactory {
 		SMALL_ANALYSIS,
 		LARGE_ANALYSIS,
 		VERY_LARGE_ANALYSIS,
-		MAX_ANALYSIS;
+		BRUTE_FORCE_50K,
+		BRUTE_FORCE_100K,
+		BRUTE_FORCE_200K,
+		BRUTE_FORCE_400K,
+		;
 	}
 	
 	final static public SolverSettings GetSettings(Setting setting) {
@@ -25,9 +29,15 @@ public class SettingsFactory {
 			return noBruteForce();
 		} else if (setting == Setting.VERY_LARGE_ANALYSIS) {
 			return veryLargeAnalysis();
-		} else if (setting == Setting.MAX_ANALYSIS) {
-			return maxAnalysis();
-		} 
+		} else if (setting == Setting.BRUTE_FORCE_400K) {
+			return bruteforce400K();
+		} else if (setting == Setting.BRUTE_FORCE_200K) {
+			return bruteforce200K();
+		} else if (setting == Setting.BRUTE_FORCE_100K) {
+			return bruteforce100K();
+		} else if (setting == Setting.BRUTE_FORCE_50K) {
+			return bruteforce50K();
+		}
 		
 		return smallAnalysis();
 		
@@ -110,7 +120,47 @@ public class SettingsFactory {
     	return settings;
     };
     
-    private static SolverSettings maxAnalysis() {
+    private static SolverSettings bruteforce50K() {
+
+    	SolverSettings settings = new SolverSettings();
+    	
+    	settings.bruteForceMaxSolutions = 50000;
+    	settings.bruteForceVariableSolutions = 30000;
+		settings.bruteForceMaxNodes = 500000000;     // 500 million
+		settings.bruteForceTreeDepth = 1;
+		settings.bruteForceMaxIterations = new BigInteger("100000000");  // 100 million
+
+    	return settings;
+    };
+    
+    
+    private static SolverSettings bruteforce100K() {
+
+    	SolverSettings settings = new SolverSettings();
+    	
+    	settings.bruteForceMaxSolutions = 100000;
+    	settings.bruteForceVariableSolutions = 50000;
+		settings.bruteForceMaxNodes = 1000000000;     // 1000 million
+		settings.bruteForceTreeDepth = 1;
+		settings.bruteForceMaxIterations = new BigInteger("300000000");  // 300 million
+
+    	return settings;
+    };
+    
+    private static SolverSettings bruteforce200K() {
+
+    	SolverSettings settings = new SolverSettings();
+    	
+    	settings.bruteForceMaxSolutions = 200000;
+    	settings.bruteForceVariableSolutions = 100000;
+		settings.bruteForceMaxNodes = 1000000000;     // 1000 million
+		settings.bruteForceTreeDepth = 1;
+		settings.bruteForceMaxIterations = new BigInteger("300000000");  // 300 million
+
+    	return settings;
+    };
+    
+    private static SolverSettings bruteforce400K() {
 
     	SolverSettings settings = new SolverSettings();
     	

@@ -172,7 +172,9 @@ public class SecondarySafetyEvaluator implements LocationEvaluator {
 	 */
 	public void evaluateLocations() {
 		
-		BigDecimal threshold = pe.getBestSafety().multiply(solver.preferences.getHardCutOff());
+		BigDecimal threshold;
+		threshold = pe.getBestLivingSafety().subtract(solver.preferences.getSelectionThreshold1());
+
 		for (Location loc: ltrHelper.getInfluencedTiles(threshold)) {
 			if (!tileOfInterestOff.contains(loc)) {  // if we aren't in the other set then add it to this one
 				tileOfInterestOn.add(loc);

@@ -43,7 +43,7 @@ public class BulkCompare {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = 215719571;
+		seed = 1122248192;
 		//seed = 462440595;
 		//seed = -60442780;   // expert 10,000,000 run
 		
@@ -72,14 +72,14 @@ public class BulkCompare {
 		//settings1.setGuessMethod(GuessMethod.RECURSIVE_SAFETY);
 		//settings1.setRecursiveSafetyDepth(2);
 		//settings1.setLongTermSafety(false);
-		//settings1.setHardCutOff(new BigDecimal("0.8"));
+		//settings1.setHardCutOff(new BigDecimal("0.9"));
 		settings1.setTestMode(true);
 		
 		// can have an arbitrary number of settings in the array
 		SolverSettings[] solverSettings = new SolverSettings[] {settings0, settings1};
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 50000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, solverSettings, 10, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver

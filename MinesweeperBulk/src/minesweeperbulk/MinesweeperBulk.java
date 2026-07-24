@@ -4,8 +4,6 @@
  */
 package minesweeperbulk;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +23,6 @@ import minesweeper.solver.settings.PlayStyle;
 import minesweeper.solver.settings.SettingsFactory;
 import minesweeper.solver.settings.SettingsFactory.Setting;
 import minesweeper.solver.settings.SolverSettings;
-import minesweeper.solver.settings.SolverSettings.GuessMethod;
 import minesweeper.solver.utility.Timer;
 import minesweeper.structure.Action;
 import minesweeper.structure.Location;
@@ -46,15 +43,15 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		//seed = -211796338;
+		seed = 1122248192;
 		//seed = 845005459;
-		//seed = -60442780;   // expert 10,000,000 run
+		//seed = -78328422;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
 		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(50, 50, 600);
+		//GameSettings gameSettings = GameSettings.create(16, 16, 96);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		//settings.setBruteForceThreads(10);
@@ -67,13 +64,13 @@ public class MinesweeperBulk {
 		//settings.set5050Check(false);
 		//settings.setEarly5050Check(true);
 		//settings.setTieBreak(false);
-		//settings.setTestMode(true);
+		settings.setTestMode(true);
 		//settings.setLongTermSafety(false);
 		//settings.setProgressContribution(new BigDecimal("0.052"));
 		//settings.setSafetyWeights(1, 0);
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 10, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, settings, 12, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
@@ -83,7 +80,7 @@ public class MinesweeperBulk {
 		//RandomGuesser random = new RandomGuesser(gameSettings);
 		//controller.registerPreGameListener(random);
 		
-		//EfficiencyMonitor monitor = new EfficiencyMonitor(100.0, 147.5);
+		//EfficiencyMonitor monitor = new EfficiencyMonitor(140.0, 149.5);
 		GamePostListener monitor = new GuessMonitor();
 		//GamePostListener monitor = new BbbvMonitor();
 		controller.registerPostGameListener(monitor);
