@@ -460,11 +460,11 @@ public class RolloutGenerator {
 	/**
 	 * Create a Brute force analysis using a random sample of solutions
 	 */
-	public BruteForceAnalysis getBruteForceWithRandomSolutions(int count) {
+	public BruteForceAnalysisModel getBruteForceWithRandomSolutions(int count) {
 		
 		List<Location> tiles = boardState.getAllUnrevealedSquares();
 		
-		BruteForceAnalysis bfa = new BruteForceAnalysis(this.boardState.getSolver(), tiles, count, "Random", null);
+		BruteForceAnalysisParallel bfa = new BruteForceAnalysisParallel(this.boardState.getSolver(), tiles, count, "Random", null);
 		
 		Random seeder = new Random();
 		

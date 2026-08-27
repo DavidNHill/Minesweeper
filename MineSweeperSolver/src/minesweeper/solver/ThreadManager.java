@@ -33,7 +33,7 @@ public class ThreadManager {
 		}
 		
 		manager = new ThreadManager(threads);
-		System.out.println("Created new thread manager");
+		System.out.println("Created new thread manager with " + threads + " available threads");
 
 	}
 	

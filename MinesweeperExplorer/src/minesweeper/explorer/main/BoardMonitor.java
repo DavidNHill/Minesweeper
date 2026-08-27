@@ -45,7 +45,8 @@ public class BoardMonitor implements Runnable {
 					GameStateModel gs = null;
 					try {
 						gs = GameStateExplorer.build(board, controller.getTotalMines());
-						SolverSettings settings = SettingsFactory.GetSettings(Setting.VERY_LARGE_ANALYSIS);
+						SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+						settings.setSingleThread(true);
 						Solver solver = new Solver(gs, settings, false);
 						
 						System.out.println("Checking solution count");

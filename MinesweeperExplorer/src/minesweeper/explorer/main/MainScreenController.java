@@ -331,6 +331,8 @@ public class MainScreenController {
 		}
 
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
+		settings.setSingleThread(true);
+		
 		Solver solver = new Solver(gs, settings, false);
 		solver.setPlayStyle(PlayStyle.NO_FLAG);
 		ProgressMonitor pm = new ProgressMonitor();
@@ -425,7 +427,7 @@ public class MainScreenController {
 		settings.setBruteForceThreads(threads);
 		
 		long totalMem = Runtime.getRuntime().totalMemory();
-		long cacheSize = (totalMem / 150000) * 1000;
+		long cacheSize = (totalMem / 50000) * 1000;
 		
 		if (cacheSize < 1000000) {
 			cacheSize = 1000000;

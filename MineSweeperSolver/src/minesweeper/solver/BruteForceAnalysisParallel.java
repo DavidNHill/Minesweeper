@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.SplittableRandom;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -100,9 +101,68 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 	/**
 	 * A key to uniquely identify a position
 	 */
-	private class Position {
+	private static class Position {
+		
+		private static long[][] zHash;
+		
+		private final long zobristHash;
+		private short depth;
+		
+		private Position() {
+			
+			this.zobristHash = 0;
+			
+			this.depth = 0;
+		}
+		
+		private Position(Position p, int index, byte value) {
+
+			// update the hash with the new position
+			this.zobristHash = p.zobristHash ^ zHash[index][value];
+			
+			this.depth = (short) (p.depth + 1);
+			
+		}
+
+		// generate the positional Zobrist hash values
+		private static void initialise(int numOfLocations) {
+			
+			SplittableRandom random = new SplittableRandom();
+			
+			zHash = new long[numOfLocations][9];
+			
+			for (int i=0; i < numOfLocations; i++) {
+				for (int j=0; j < 9; j++) {
+					zHash[i][j] = random.nextLong();
+				}
+			}
+			
+		}
+		
+		@Override
+		// copied from String hash
+		public int hashCode() {
+			return (int) zobristHash;
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if (o instanceof Position) {
+				return ((Position) o).zobristHash == this.zobristHash;
+			} else {
+				return false;
+			}
+		}
+	}
+	/**
+	 * A key to uniquely identify a position
+	 */
+	/*
+	private static class Position {
 		
 		private final static byte INCREMENT2 = 1;
+		
+		private static int locationSize;
 		
 		private final byte[] position;
 		private int hash;
@@ -110,7 +170,7 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 		
 		private Position() {
 			
-			int size = (locations.size() + 1) / 2;
+			int size = (locationSize + 1) / 2;
 			
 			position = new byte[size];
 			for (int i=0; i < position.length; i++) {
@@ -135,6 +195,12 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 			
 		}
 
+		// nothing to do
+		private static void initialise(int numOfLocations) {
+			locationSize = numOfLocations;
+			System.out.println("Location size is " + locationSize);
+		}
+		
 		@Override
 		// copied from String hash
 		public int hashCode() {
@@ -162,8 +228,7 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 			}
 		}
 	}
-	
-
+	 */
 	
 	/**
 	 * Positions on the board which can still reveal information about the game.
@@ -761,7 +826,7 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 		
 		this.maxCacheSize = solver.preferences.getBruteForceMaxCache();
 		
-		cache = new ConcurrentHashMap<>(solver.preferences.getBruteForceInitalCache());
+		cache = new ConcurrentHashMap<>(solver.preferences.getBruteForceInitalCache(), 1.1f);
 		
 		this.cacheQuantity = new int[locations.size()+ 1];
 		
@@ -804,6 +869,9 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 		solver.logger.log(Level.INFO,"System processors: " + Runtime.getRuntime().availableProcessors() + ", Total memory " + Runtime.getRuntime().totalMemory() + ", Maximum cache size " + this.maxCacheSize);
 		solver.logger.log(Level.INFO, "----- Brute Force Deep Analysis starting ----");
 		solver.logger.log(Level.INFO, "%d solutions in BruteForceAnalysis", allSolutions.size());
+
+		// initialise the hash processing
+		Position.initialise(this.locations.size());
 		
 		// create the top node 
 		Node top = buildTopNode(allSolutions);
@@ -909,9 +977,11 @@ public class BruteForceAnalysisParallel extends BruteForceAnalysisModel{
 							BigDecimal singleProb = BigDecimal.valueOf(allSolutions.size() - move.mineCount).divide(BigDecimal.valueOf(allSolutions.size()), Solver.DP, RoundingMode.HALF_UP);
 							
 							if (move.pruned) {
-								solver.logger.log(Level.INFO, "Tile %s is living with safety %s, this location was pruned (max winning lines %d)", locations.get(move.locationIndex), percentage(singleProb),  pr.winningLines);
+								solver.logger.log(Level.INFO, "%d of %d ==> Tile %s is living with safety %s, this location was pruned (max winning lines %d)",
+										this.movesProcessed + 1, this.movesToProcess, locations.get(move.locationIndex), percentage(singleProb),  pr.winningLines);
 							} else {
-								solver.logger.log(Level.INFO, "Tile %s is living with safety %s, winning lines %d", locations.get(move.locationIndex), percentage(singleProb), pr.winningLines);
+								solver.logger.log(Level.INFO, "%d of %d ==> Tile %s is living with safety %s, winning lines %d", 
+										this.movesProcessed + 1, this.movesToProcess, locations.get(move.locationIndex), percentage(singleProb), pr.winningLines);
 							}
 							
 							if (!move.pruned) {

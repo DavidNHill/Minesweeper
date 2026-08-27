@@ -43,15 +43,15 @@ public class MinesweeperBulk {
 		// pick a random seed or override with a previously used seed to play the same sequence of games again.
 		long seed = (new Random()).nextInt();
 
-		seed = 1122248192;
+		//seed = 1122248192;
 		//seed = 845005459;
 		//seed = -78328422;   // expert 10,000,000 run
 		
 		System.out.println("Seed is " + seed);
 		Random seeder = new Random(seed);
 		
-		GameSettings gameSettings = GameSettings.EXPERT;
-		//GameSettings gameSettings = GameSettings.create(16, 16, 96);
+		//GameSettings gameSettings = GameSettings.EXPERT;
+		GameSettings gameSettings = GameSettings.create(52, 40, 488);
 		
 		SolverSettings settings = SettingsFactory.GetSettings(Setting.SMALL_ANALYSIS);
 		//settings.setBruteForceThreads(10);
@@ -70,12 +70,12 @@ public class MinesweeperBulk {
 		//settings.setSafetyWeights(1, 0);
 		
 		final long bulkSeed = seed;
-		BulkPlayer controller = new BulkPlayer(seeder, 1000000, GameType.STANDARD, gameSettings, settings, 12, 10000);
+		BulkPlayer controller = new BulkPlayer(seeder, 100000, GameType.STANDARD, gameSettings, settings, 12, 10000);
 		controller.setPlayStyle(PlayStyle.NO_FLAG);
 		
 		// this is executed before the game is passed to the solver
 		//controller.registerPreGameListener(new StartStrategyResign(middle4CornerStart(gameSettings), 5));
-		//controller.registerPreGameListener(new StartStrategy(fourCornerStart(gameSettings), 5));
+		controller.registerPreGameListener(new StartStrategy(fourCornerStart(gameSettings), 5));
 		
 		//RandomGuesser random = new RandomGuesser(gameSettings);
 		//controller.registerPreGameListener(random);

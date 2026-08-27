@@ -87,7 +87,12 @@ public class BruteForce {
 
 				// go parallel if we have defined more than 1 thread and we aren't single threading
 				if (solver.preferences.getBruteForceThreads() > 1 && !solver.preferences.isSingleThread() && bfMaxSolutions > Solver.BF_MIN_PARALLEL_SOLUTIONS) {
-					this.bruteForceAnalysis = new BruteForceAnalysisParallel(solver, iterators[0].getLocations(), bfMaxSolutions, scope, solver.bfdaStartLocations());					
+					if (solver.preferences.isTestMode()) {
+						this.bruteForceAnalysis = new BruteForceAnalysisExperimental(solver, iterators[0].getLocations(), bfMaxSolutions, scope, solver.bfdaStartLocations());					
+					} else {
+						this.bruteForceAnalysis = new BruteForceAnalysisParallel(solver, iterators[0].getLocations(), bfMaxSolutions, scope, solver.bfdaStartLocations());					
+					}
+
 				} else {
 					this.bruteForceAnalysis = new BruteForceAnalysis(solver, iterators[0].getLocations(), bfMaxSolutions, scope, solver.bfdaStartLocations());
 				}

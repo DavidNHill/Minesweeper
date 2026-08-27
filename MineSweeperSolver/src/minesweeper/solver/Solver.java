@@ -963,7 +963,7 @@ public class Solver implements Asynchronous<Action[]> {
 		}
 		*/
 		
-		// if we have few enough solutions do a brute force on a random selection of possitions
+		// if we have few enough solutions do a brute force on a random selection of positions
 		/*
 		if (!fm.moveFound && !certainClearFound && preferences.isTestMode()) {
 
@@ -975,7 +975,7 @@ public class Solver implements Asynchronous<Action[]> {
 			RolloutGenerator rolloutGenerator = new RolloutGenerator(boardState, arWholeEdge, unrevealed, minesLeft);
 			rolloutGenerator.process();
 
-			BruteForceAnalysis bfa = rolloutGenerator.getBruteForceWithRandomSolutions(10000);
+			BruteForceAnalysisModel bfa = rolloutGenerator.getBruteForceWithRandomSolutions(20000);
 			bfa.process();
 			
 			//newLine("Built probability tree from " + bruteForceAnalysis.getSolutionCount() + " solutions in " + bruteForceAnalysis.getNodeCount() + " steps");
@@ -987,9 +987,6 @@ public class Solver implements Asynchronous<Action[]> {
 			} else {
 				this.logger.log(Level.WARN, "Game %s Brute Force Analysis: no move found!", myGame.showGameKey());
 			}
-			
-			//List<Adversarial<CandidateLocation>> rolloutResult = rolloutGenerator.adversarial(bestCandidates);
-			//fm = new FinalMoves(rolloutResult.get(0).original.buildAction(MoveMethod.ROLLOUT));
 			
 			long nanoEnd = System.nanoTime();
 
