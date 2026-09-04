@@ -131,7 +131,7 @@ public class GuessMonitor extends GamePostListener {
 			
 			loseWeight = loseWeight + gd.total * key;
 		}
-		if (wins != 0) {
+		if (played != wins) {
 			double avgGuessesToLose = (double) loseWeight / (double) (played - wins) ;
 			System.out.println("Average guesses to lose " + MASK.format(avgGuessesToLose));
 		}
